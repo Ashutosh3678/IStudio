@@ -1,0 +1,226 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../providers/auth_provider.dart';
+import '../../theme/app_colors.dart';
+import '../../widgets/auth_background.dart';
+import '../../widgets/auth_mode_toggle.dart';
+import '../../widgets/fade_slide_in.dart';
+import '../../widgets/studio_logo.dart';
+import 'login_form.dart';
+import 'signup_form.dart';
+
+class AuthScreen extends StatefulWidget {
+  const AuthScreen({super.key});
+
+  @override
+  State<AuthScreen> createState() => _AuthScreenState();
+}
+
+class _AuthScreenState extends State<AuthScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _logo;
+  late final Animation<double> _toggle;
+  late final Animation<double> _card;
+  bool _isLogin = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _logo = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.0, 0.45, curve: Curves.easeOutCubic),
+    );
+    _toggle = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.2, 0.65, curve: Curves.easeOutCubic),
+    );
+    _card = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.35, 1.0, curve: Curves.easeOutCubic),
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleLogin(String phone, String password) async {
+    final auth = context.read<AuthProvider>();
+    final success = await auth.login(phone: phone, password: password);
+    if (!success && mounted) {
+      _showError(auth.errorMessage);
+    }
+  }
+
+  Future<void> _handleSignup({
+    required String username,
+    required String phone,
+    required String password,
+  }) async {
+    final auth = context.read<AuthProvider>();
+    final success = await auth.signup(
+      username: username,
+      phone: phone,
+      password: password,
+    );
+    if (!success && mounted) {
+      _showError(auth.errorMessage);
+    }
+  }
+
+  void _showError(String? message) {
+    if (message == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLoading = context.watch<AuthProvider>().isLoading;
+
+    return Scaffold(
+      body: AuthBackground(
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final maxWidth = constraints.maxWidth > 600 ? 460.0 : 520.0;
+              return Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxWidth),
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: constraints.maxWidth > 600 ? 32 : 22,
+                      vertical: 20,
+                    ),
+                    child: Column(
+                      children: [
+                        FadeSlideIn(
+                          animation: _logo,
+                          child: const StudioLogo(),
+                        ),
+                        const SizedBox(height: 28),
+                        FadeSlideIn(
+                          animation: _toggle,
+                          child: AuthModeToggle(
+                            isLogin: _isLogin,
+                            onChanged: (value) {
+                              if (_isLogin == value) return;
+                              setState(() => _isLogin = value);
+                              context.read<AuthProvider>().clearError();
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        FadeSlideIn(
+                          animation: _card,
+                          child: _AuthCard(
+                            isLogin: _isLogin,
+                            isLoading: isLoading,
+                            onLogin: _handleLogin,
+                            onSignup: _handleSignup,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AuthCard extends StatelessWidget {
+  const _AuthCard({
+    required this.isLogin,
+    required this.isLoading,
+    required this.onLogin,
+    required this.onSignup,
+  });
+
+  final bool isLogin;
+  final bool isLoading;
+  final Future<void> Function(String phone, String password) onLogin;
+  final Future<void> Function({
+    required String username,
+    required String phone,
+    required String password,
+  })
+  onSignup;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+      decoration: BoxDecoration(
+        color: AppColors.plum.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.merlot.withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.midnight.withValues(alpha: 0.35),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            isLogin ? 'Welcome back' : 'Join the studio',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            isLogin
+                ? 'Sign in with your phone number and password.'
+                : 'Create your account to book sessions and view galleries.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColors.blush,
+            ),
+          ),
+          const SizedBox(height: 22),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              child: isLogin
+                  ? LoginForm(
+                      key: const ValueKey('login-form'),
+                      isLoading: isLoading,
+                      onSubmit: onLogin,
+                    )
+                  : SignupForm(
+                      key: const ValueKey('signup-form'),
+                      isLoading: isLoading,
+                      onSubmit: onSignup,
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

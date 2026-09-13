@@ -1,0 +1,44 @@
+const express = require('express');
+const { body } = require('express-validator');
+
+const { login, me, signup, normalizePhone } = require('../controllers/authController');
+const { requireAuth } = require('../middleware/auth');
+
+const router = express.Router();
+
+const phoneRule = body('phone')
+  .customSanitizer(normalizePhone)
+  .isLength({ min: 10, max: 10 })
+  .withMessage('Enter a valid 10-digit phone number')
+  .isNumeric()
+  .withMessage('Enter a valid 10-digit phone number');
+
+router.post(
+  '/signup',
+  [
+    body('username')
+      .trim()
+      .isLength({ min: 3, max: 24 })
+      .withMessage('Username must be 3-24 characters')
+      .matches(/^[A-Za-z0-9_]+$/)
+      .withMessage('Username can only include letters, numbers, and underscores'),
+    phoneRule,
+    body('password')
+      .isLength({ min: 8 })
+      .withMessage('Password must be at least 8 characters'),
+  ],
+  signup,
+);
+
+router.post(
+  '/login',
+  [
+    phoneRule,
+    body('password').notEmpty().withMessage('Enter your password'),
+  ],
+  login,
+);
+
+router.get('/me', requireAuth, me);
+
+module.exports = router;
