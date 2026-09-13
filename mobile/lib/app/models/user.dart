@@ -3,17 +3,52 @@ class User {
     required this.id,
     required this.username,
     required this.phone,
+    this.studioName = '',
+    this.ownerName = '',
+    this.email = '',
+    this.city = '',
+    this.address = '',
+    this.about = '',
+    this.instagram = '',
+    this.website = '',
+    this.specialties = '',
+    this.logoUrl = '',
   });
 
   final String id;
   final String username;
   final String phone;
+  final String studioName;
+  final String ownerName;
+  final String email;
+  final String city;
+  final String address;
+  final String about;
+  final String instagram;
+  final String website;
+  final String specialties;
+  final String logoUrl;
+
+  String get displayStudioName =>
+      studioName.isNotEmpty ? studioName : 'Your studio';
+
+  String get displayOwner => ownerName.isNotEmpty ? ownerName : username;
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'] as String? ?? json['_id'] as String? ?? '',
       username: json['username'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
+      studioName: json['studioName'] as String? ?? '',
+      ownerName: json['ownerName'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      city: json['city'] as String? ?? '',
+      address: json['address'] as String? ?? '',
+      about: json['about'] as String? ?? '',
+      instagram: json['instagram'] as String? ?? '',
+      website: json['website'] as String? ?? '',
+      specialties: json['specialties'] as String? ?? '',
+      logoUrl: json['logoUrl'] as String? ?? '',
     );
   }
 
@@ -22,6 +57,46 @@ class User {
       'id': id,
       'username': username,
       'phone': phone,
+      'studioName': studioName,
+      'ownerName': ownerName,
+      'email': email,
+      'city': city,
+      'address': address,
+      'about': about,
+      'instagram': instagram,
+      'website': website,
+      'specialties': specialties,
+      'logoUrl': logoUrl,
     };
+  }
+
+  User copyWith({
+    String? studioName,
+    String? ownerName,
+    String? phone,
+    String? email,
+    String? city,
+    String? address,
+    String? about,
+    String? instagram,
+    String? website,
+    String? specialties,
+    String? logoUrl,
+  }) {
+    return User(
+      id: id,
+      username: username,
+      phone: phone ?? this.phone,
+      studioName: studioName ?? this.studioName,
+      ownerName: ownerName ?? this.ownerName,
+      email: email ?? this.email,
+      city: city ?? this.city,
+      address: address ?? this.address,
+      about: about ?? this.about,
+      instagram: instagram ?? this.instagram,
+      website: website ?? this.website,
+      specialties: specialties ?? this.specialties,
+      logoUrl: logoUrl ?? this.logoUrl,
+    );
   }
 }

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../data/studio_demo_data.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_colors.dart';
-import '../../widgets/auth_background.dart';
-import '../../widgets/studio_button.dart';
-import '../../widgets/studio_logo.dart';
+import '../../widgets/profile_avatar.dart';
+import '../../widgets/studio_app_bar.dart';
+import '../../widgets/studio_card.dart';
+import '../profile/profile_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -14,66 +17,189 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final upcoming = StudioDemoData.sessions.take(3).toList();
 
-    return Scaffold(
-      body: AuthBackground(
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-            child: Column(
+    return SafeArea(
+      child: Column(
+        children: [
+          StudioAppBar(
+            title: user?.displayStudioName ?? 'Lumen',
+            subtitle: 'Studio desk',
+            actions: [
+              Semantics(
+                button: true,
+                label: 'Open profile',
+                child: IconButton(
+                  tooltip: 'Profile',
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      PageRouteBuilder<void>(
+                        transitionDuration: const Duration(milliseconds: 280),
+                        pageBuilder: (_, _, _) => const ProfileScreen(),
+                        transitionsBuilder: (_, animation, _, child) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          );
+                        },
+                      ),
+                    );
+                  },
+                  icon: ProfileAvatar(logoUrl: user?.logoUrl, size: 40),
+                ),
+              ),
+            ],
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
               children: [
-                const StudioLogo(compact: true),
-                const Spacer(),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppColors.plum.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: AppColors.merlot.withValues(alpha: 0.45),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Welcome, ${user?.username ?? 'guest'}',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.playfairDisplay(
-                          color: AppColors.ivory,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Your studio space is ready. Galleries, bookings, and client sessions will live here next.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.blush,
-                          height: 1.45,
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Text(
-                        user?.phone ?? '',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: AppColors.blossom,
-                          letterSpacing: 0.6,
-                        ),
-                      ),
-                    ],
+                Text(
+                  'Welcome back, ${user?.displayOwner ?? 'there'}',
+                  style: GoogleFonts.playfairDisplay(
+                    color: AppColors.paper,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const Spacer(),
-                StudioButton(
-                  label: 'Sign out',
-                  onPressed: () => context.read<AuthProvider>().logout(),
+                const SizedBox(height: 6),
+                Text(
+                  'Sessions, invoices, and clients sit together on one desk.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.muted,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Row(
+                  children: [
+                    Expanded(
+                      child: _StatTile(
+                        label: 'Sessions',
+                        value: '4',
+                        hint: 'This month',
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: _StatTile(
+                        label: 'Due',
+                        value: '1',
+                        hint: 'Open invoice',
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: _StatTile(
+                        label: 'Clients',
+                        value: '4',
+                        hint: 'Active',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                Text(
+                  'Upcoming shoots',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: AppColors.paper,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...upcoming.map(
+                  (session) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: StudioCard(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                              color: AppColors.aqua.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt_outlined,
+                              color: AppColors.aqua,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  session.title,
+                                  style: const TextStyle(
+                                    color: AppColors.paper,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${session.clientName} · ${session.location}',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: AppColors.muted),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            DateFormat('d MMM').format(session.startsAt),
+                            style: const TextStyle(
+                              color: AppColors.aqua,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-        ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({
+    required this.label,
+    required this.value,
+    required this.hint,
+  });
+
+  final String label;
+  final String value;
+  final String hint;
+
+  @override
+  Widget build(BuildContext context) {
+    return StudioCard(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: GoogleFonts.playfairDisplay(
+              color: AppColors.aqua,
+              fontSize: 26,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(color: AppColors.paper)),
+          Text(
+            hint,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.muted),
+          ),
+        ],
       ),
     );
   }

@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'app/providers/auth_provider.dart';
 import 'app/screens/auth/auth_screen.dart';
-import 'app/screens/home/home_screen.dart';
+import 'app/screens/shell/app_shell.dart';
 import 'app/theme/app_colors.dart';
 import 'app/theme/app_theme.dart';
 import 'app/widgets/studio_splash.dart';
@@ -15,7 +15,7 @@ void main() {
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: AppColors.midnight,
+      systemNavigationBarColor: AppColors.ink,
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
@@ -54,7 +54,7 @@ class _AuthGate extends StatelessWidget {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 320),
       child: auth.isLoggedIn
-          ? const HomeScreen(key: ValueKey('home'))
+          ? const AppShell(key: ValueKey('home'))
           : const AuthScreen(key: ValueKey('auth')),
     );
   }

@@ -54,6 +54,63 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> patch(
+    String endpoint,
+    Map<String, dynamic> body, {
+    String? token,
+  }) async {
+    try {
+      final response = await _client
+          .patch(
+            Uri.parse('${ApiConfig.baseUrl}$endpoint'),
+            headers: _headers(token: token),
+            body: jsonEncode(body),
+          )
+          .timeout(_timeout);
+      return _decode(response);
+    } on ApiException {
+      rethrow;
+    } on TimeoutException {
+      throw const ApiException('The studio is taking too long to respond.');
+    } catch (_) {
+      throw const ApiException(
+        'Unable to reach the studio. Check your connection.',
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> postMultipart(
+    String endpoint, {
+    required String fieldName,
+    required List<int> bytes,
+    required String filename,
+    String? token,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${ApiConfig.baseUrl}$endpoint'),
+      );
+      if (token != null && token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      request.files.add(
+        http.MultipartFile.fromBytes(fieldName, bytes, filename: filename),
+      );
+      final streamed = await _client.send(request).timeout(_timeout);
+      final response = await http.Response.fromStream(streamed);
+      return _decode(response);
+    } on ApiException {
+      rethrow;
+    } on TimeoutException {
+      throw const ApiException('The studio is taking too long to respond.');
+    } catch (_) {
+      throw const ApiException(
+        'Unable to reach the studio. Check your connection.',
+      );
+    }
+  }
+
   Future<Map<String, dynamic>> get(String endpoint, {String? token}) async {
     try {
       final response = await _client

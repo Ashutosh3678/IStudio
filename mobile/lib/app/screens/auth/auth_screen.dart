@@ -93,22 +93,24 @@ class _AuthScreenState extends State<AuthScreen>
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
+              final compact = constraints.maxHeight < 760;
               final maxWidth = constraints.maxWidth > 600 ? 460.0 : 520.0;
-              return Center(
+              return Align(
+                alignment: compact ? Alignment.topCenter : Alignment.center,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: maxWidth),
                   child: SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
                       horizontal: constraints.maxWidth > 600 ? 32 : 22,
-                      vertical: 20,
+                      vertical: compact ? 12 : 20,
                     ),
                     child: Column(
                       children: [
                         FadeSlideIn(
                           animation: _logo,
-                          child: const StudioLogo(),
+                          child: StudioLogo(compact: compact),
                         ),
-                        const SizedBox(height: 28),
+                        SizedBox(height: compact ? 16 : 28),
                         FadeSlideIn(
                           animation: _toggle,
                           child: AuthModeToggle(
@@ -120,7 +122,7 @@ class _AuthScreenState extends State<AuthScreen>
                             },
                           ),
                         ),
-                        const SizedBox(height: 22),
+                        SizedBox(height: compact ? 14 : 22),
                         FadeSlideIn(
                           animation: _card,
                           child: _AuthCard(

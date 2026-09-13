@@ -1,8 +1,16 @@
 const express = require('express');
 const { body } = require('express-validator');
 
-const { login, me, signup, normalizePhone } = require('../controllers/authController');
+const {
+  login,
+  me,
+  signup,
+  updateProfile,
+  uploadLogo,
+  normalizePhone,
+} = require('../controllers/authController');
 const { requireAuth } = require('../middleware/auth');
+const { uploadLogo: logoUpload } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -39,6 +47,20 @@ router.post(
   login,
 );
 
+function handleLogoUpload(req, res, next) {
+  logoUpload(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message || 'Please upload a valid image.',
+      });
+    }
+    return next();
+  });
+}
+
 router.get('/me', requireAuth, me);
+router.patch('/profile', requireAuth, updateProfile);
+router.post('/logo', requireAuth, handleLogoUpload, uploadLogo);
 
 module.exports = router;

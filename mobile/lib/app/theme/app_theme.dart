@@ -10,14 +10,14 @@ class AppTheme {
   static ThemeData get dark {
     const colorScheme = ColorScheme(
       brightness: Brightness.dark,
-      primary: AppColors.blossom,
-      onPrimary: AppColors.ivory,
-      secondary: AppColors.merlot,
-      onSecondary: AppColors.ivory,
-      tertiary: AppColors.plum,
-      onTertiary: AppColors.ivory,
-      error: Color(0xFFFF6B81),
-      onError: AppColors.ivory,
+      primary: AppColors.aqua,
+      onPrimary: AppColors.ink,
+      secondary: AppColors.slate,
+      onSecondary: AppColors.paper,
+      tertiary: AppColors.navy,
+      onTertiary: AppColors.paper,
+      error: Color(0xFFFF7A8A),
+      onError: AppColors.ink,
       surface: AppColors.midnight,
       onSurface: AppColors.ivory,
       surfaceContainerHighest: AppColors.plum,
@@ -71,9 +71,9 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.blossom,
-          foregroundColor: AppColors.ivory,
-          disabledBackgroundColor: AppColors.merlot.withValues(alpha: 0.4),
+          backgroundColor: AppColors.aqua,
+          foregroundColor: AppColors.ink,
+          disabledBackgroundColor: AppColors.slate.withValues(alpha: 0.4),
           disabledForegroundColor: AppColors.mist,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
@@ -88,7 +88,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.blossom,
+          foregroundColor: AppColors.aqua,
           textStyle: body.labelLarge?.copyWith(fontWeight: FontWeight.w600),
         ),
       ),
@@ -115,7 +115,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.blossom, width: 1.6),
+          borderSide: const BorderSide(color: AppColors.aqua, width: 1.6),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -125,6 +125,25 @@ class AppTheme {
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: Color(0xFFFF6B81), width: 1.6),
         ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: AppColors.navy,
+        indicatorColor: AppColors.aqua.withValues(alpha: 0.22),
+        elevation: 0,
+        height: 72,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return body.labelMedium?.copyWith(
+            color: selected ? AppColors.aqua : AppColors.muted,
+            fontWeight: FontWeight.w600,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            color: selected ? AppColors.aqua : AppColors.muted,
+          );
+        }),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.plum,

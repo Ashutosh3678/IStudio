@@ -73,6 +73,50 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
+  Future<bool> updateProfile(Map<String, dynamic> fields) async {
+    if (_token == null) return false;
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      _user = await _authService.updateProfile(token: _token!, fields: fields);
+      return true;
+    } on ApiException catch (error) {
+      _errorMessage = error.message;
+      return false;
+    } catch (_) {
+      _errorMessage = 'Unable to save your profile.';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> uploadLogo(List<int> bytes, String filename) async {
+    if (_token == null) return false;
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      _user = await _authService.uploadLogo(
+        token: _token!,
+        bytes: bytes,
+        filename: filename,
+      );
+      return true;
+    } on ApiException catch (error) {
+      _errorMessage = error.message;
+      return false;
+    } catch (_) {
+      _errorMessage = 'Unable to upload your logo.';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> logout() async {
     await _clearSession();
     notifyListeners();

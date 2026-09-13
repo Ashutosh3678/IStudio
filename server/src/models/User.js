@@ -22,6 +22,16 @@ const userSchema = new mongoose.Schema(
       minlength: 8,
       select: false,
     },
+    studioName: { type: String, default: '', trim: true },
+    ownerName: { type: String, default: '', trim: true },
+    email: { type: String, default: '', trim: true },
+    city: { type: String, default: '', trim: true },
+    address: { type: String, default: '', trim: true },
+    about: { type: String, default: '', trim: true },
+    instagram: { type: String, default: '', trim: true },
+    website: { type: String, default: '', trim: true },
+    specialties: { type: String, default: '', trim: true },
+    logoUrl: { type: String, default: '' },
   },
   {
     timestamps: true,
@@ -33,6 +43,16 @@ userSchema.methods.toPublicJSON = function toPublicJSON() {
     id: this._id.toString(),
     username: this.username,
     phone: this.phone,
+    studioName: this.studioName || '',
+    ownerName: this.ownerName || this.username,
+    email: this.email || '',
+    city: this.city || '',
+    address: this.address || '',
+    about: this.about || '',
+    instagram: this.instagram || '',
+    website: this.website || '',
+    specialties: this.specialties || '',
+    logoUrl: this.logoUrl || '',
   };
 };
 

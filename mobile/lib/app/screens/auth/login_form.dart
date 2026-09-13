@@ -60,7 +60,7 @@ class _LoginFormState extends State<LoginForm> {
             const SizedBox(height: 16),
             StudioTextField(
               label: 'Password',
-              hint: 'Enter your password',
+              hint: 'Your studio password',
               controller: _passwordController,
               obscureText: true,
               prefixIcon: Icons.lock_outline_rounded,

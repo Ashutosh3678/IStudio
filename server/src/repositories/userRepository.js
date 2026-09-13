@@ -32,7 +32,14 @@ async function createUser({ username, phone, password }) {
   if (memoryUsers.enabled) {
     return memoryUsers.create({ username, phone, password });
   }
-  return User.create({ username, phone, password });
+  return User.create({ username, phone, password, ownerName: username });
+}
+
+async function updateUser(id, fields) {
+  if (memoryUsers.enabled) {
+    return memoryUsers.update(id, fields);
+  }
+  return User.findByIdAndUpdate(id, { $set: fields }, { new: true });
 }
 
 function escapeRegex(value) {
@@ -44,4 +51,5 @@ module.exports = {
   findByUsername,
   findById,
   createUser,
+  updateUser,
 };

@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
 
-/// Universal Color Hunt palette for Lumen Studio.
-/// https://colorhunt.co/palette/e23e5788304e522546311d3f
+/// Universal studio palette:
+/// #0B1320, #1C2541, #3A506B, #5BC0BE, #F4F7F5
 @immutable
 class AppColors {
   const AppColors._();
 
-  static const Color blossom = Color(0xFFE23E57);
-  static const Color merlot = Color(0xFF88304E);
-  static const Color plum = Color(0xFF522546);
-  static const Color midnight = Color(0xFF311D3F);
+  static const Color ink = Color(0xFF0B1320);
+  static const Color navy = Color(0xFF1C2541);
+  static const Color slate = Color(0xFF3A506B);
+  static const Color aqua = Color(0xFF5BC0BE);
+  static const Color paper = Color(0xFFF4F7F5);
+  static const Color muted = Color(0xFF9BB0C4);
+  static const Color mist = Color(0x99F4F7F5);
 
-  static const Color ivory = Color(0xFFF7E8EC);
-  static const Color blush = Color(0xFFC9A0AE);
-  static const Color mist = Color(0x99F7E8EC);
+  static const Color midnight = ink;
+  static const Color plum = navy;
+  static const Color merlot = slate;
+  static const Color blossom = aqua;
+  static const Color ivory = paper;
+  static const Color blush = muted;
 }
 
 @immutable
@@ -37,12 +43,12 @@ class StudioColors extends ThemeExtension<StudioColors> {
   final Color mist;
 
   static const StudioColors brand = StudioColors(
-    blossom: AppColors.blossom,
-    merlot: AppColors.merlot,
-    plum: AppColors.plum,
-    midnight: AppColors.midnight,
-    ivory: AppColors.ivory,
-    blush: AppColors.blush,
+    blossom: AppColors.aqua,
+    merlot: AppColors.slate,
+    plum: AppColors.navy,
+    midnight: AppColors.ink,
+    ivory: AppColors.paper,
+    blush: AppColors.muted,
     mist: AppColors.mist,
   );
 

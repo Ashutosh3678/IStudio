@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../screens/auth/auth_screen.dart';
-import '../screens/home/home_screen.dart';
+import '../screens/shell/app_shell.dart';
 
 class AppRoutes {
   const AppRoutes._();
@@ -16,7 +16,7 @@ class RouteGenerator {
       case AppRoutes.auth:
         return _fade(const AuthScreen(), settings);
       case AppRoutes.home:
-        return _fade(const HomeScreen(), settings);
+        return _fade(const AppShell(), settings);
       default:
         return _fade(const AuthScreen(), settings);
     }

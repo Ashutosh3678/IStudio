@@ -2,18 +2,42 @@ const { randomUUID } = require('crypto');
 
 const users = [];
 
+function publicFields(user) {
+  return {
+    id: user.id,
+    username: user.username,
+    phone: user.phone,
+    studioName: user.studioName || '',
+    ownerName: user.ownerName || user.username,
+    email: user.email || '',
+    city: user.city || '',
+    address: user.address || '',
+    about: user.about || '',
+    instagram: user.instagram || '',
+    website: user.website || '',
+    specialties: user.specialties || '',
+    logoUrl: user.logoUrl || '',
+  };
+}
+
 function toDoc(user, withPassword = false) {
   return {
     _id: user.id,
     username: user.username,
     phone: user.phone,
     password: withPassword ? user.password : undefined,
+    studioName: user.studioName || '',
+    ownerName: user.ownerName || user.username,
+    email: user.email || '',
+    city: user.city || '',
+    address: user.address || '',
+    about: user.about || '',
+    instagram: user.instagram || '',
+    website: user.website || '',
+    specialties: user.specialties || '',
+    logoUrl: user.logoUrl || '',
     toPublicJSON() {
-      return {
-        id: user.id,
-        username: user.username,
-        phone: user.phone,
-      };
+      return publicFields(user);
     },
   };
 }
@@ -40,8 +64,24 @@ const memoryUsers = {
       username,
       phone,
       password,
+      studioName: '',
+      ownerName: username,
+      email: '',
+      city: '',
+      address: '',
+      about: '',
+      instagram: '',
+      website: '',
+      specialties: '',
+      logoUrl: '',
     };
     users.push(user);
+    return toDoc(user);
+  },
+  update(id, fields) {
+    const user = users.find((item) => item.id === id);
+    if (!user) return null;
+    Object.assign(user, fields);
     return toDoc(user);
   },
 };

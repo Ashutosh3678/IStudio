@@ -142,9 +142,101 @@ async function me(req, res) {
   }
 }
 
+const PROFILE_FIELDS = [
+  'studioName',
+  'ownerName',
+  'email',
+  'city',
+  'address',
+  'about',
+  'instagram',
+  'website',
+  'specialties',
+];
+
+async function updateProfile(req, res) {
+  try {
+    const fields = {};
+    for (const key of PROFILE_FIELDS) {
+      if (req.body[key] !== undefined) {
+        fields[key] = String(req.body[key] || '').trim();
+      }
+    }
+    if (req.body.phone) {
+      const phone = normalizePhone(req.body.phone);
+      if (phone.length !== 10) {
+        return res.status(400).json({
+          success: false,
+          message: 'Enter a valid 10-digit phone number',
+        });
+      }
+      const existing = await userRepository.findByPhone(phone);
+      if (existing && existing._id.toString() !== req.userId) {
+        return res.status(409).json({
+          success: false,
+          message: 'That phone number is already in use.',
+        });
+      }
+      fields.phone = phone;
+    }
+
+    const user = await userRepository.updateUser(req.userId, fields);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Profile not found.',
+      });
+    }
+
+    return res.json({
+      success: true,
+      user: user.toPublicJSON(),
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to update your profile right now.',
+    });
+  }
+}
+
+async function uploadLogo(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Choose a studio logo to upload.',
+      });
+    }
+
+    const logoUrl = `/uploads/${req.file.filename}`;
+    const user = await userRepository.updateUser(req.userId, { logoUrl });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Profile not found.',
+      });
+    }
+
+    return res.json({
+      success: true,
+      user: user.toPublicJSON(),
+    });
+  } catch (error) {
+    console.error('Logo upload error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to upload your logo right now.',
+    });
+  }
+}
+
 module.exports = {
   signup,
   login,
   me,
+  updateProfile,
+  uploadLogo,
   normalizePhone,
 };

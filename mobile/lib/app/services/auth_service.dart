@@ -39,9 +39,36 @@ class AuthService {
 
   Future<User> me(String token) async {
     final payload = await _api.get('/auth/me', token: token);
+    return _parseUser(payload);
+  }
+
+  Future<User> updateProfile({
+    required String token,
+    required Map<String, dynamic> fields,
+  }) async {
+    final payload = await _api.patch('/auth/profile', fields, token: token);
+    return _parseUser(payload);
+  }
+
+  Future<User> uploadLogo({
+    required String token,
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    final payload = await _api.postMultipart(
+      '/auth/logo',
+      fieldName: 'logo',
+      bytes: bytes,
+      filename: filename,
+      token: token,
+    );
+    return _parseUser(payload);
+  }
+
+  User _parseUser(Map<String, dynamic> payload) {
     final userJson = payload['user'] as Map<String, dynamic>?;
     if (userJson == null) {
-      throw const ApiException('Session could not be restored.');
+      throw const ApiException('Profile could not be loaded.');
     }
     return User.fromJson(userJson);
   }

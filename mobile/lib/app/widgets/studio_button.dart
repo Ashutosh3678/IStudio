@@ -48,11 +48,11 @@ class _StudioButtonState extends State<StudioButton> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
                 gradient: const LinearGradient(
-                  colors: [AppColors.blossom, AppColors.merlot],
+                  colors: [AppColors.aqua, AppColors.slate],
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.blossom.withValues(alpha: 0.28),
+                    color: AppColors.aqua.withValues(alpha: 0.28),
                     blurRadius: 18,
                     offset: const Offset(0, 8),
                   ),
@@ -65,14 +65,14 @@ class _StudioButtonState extends State<StudioButton> {
                       child: CircularProgressIndicator(
                         strokeWidth: 2.2,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          AppColors.ivory,
+                          AppColors.ink,
                         ),
                       ),
                     )
                   : Text(
                       widget.label,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppColors.ivory,
+                        color: AppColors.ink,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.4,
                       ),

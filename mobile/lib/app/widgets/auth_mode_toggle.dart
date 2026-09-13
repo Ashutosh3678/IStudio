@@ -40,7 +40,7 @@ class AuthModeToggle extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       gradient: const LinearGradient(
-                        colors: [AppColors.blossom, AppColors.merlot],
+                        colors: [AppColors.aqua, AppColors.slate],
                       ),
                     ),
                   ),
