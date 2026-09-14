@@ -7,11 +7,12 @@ class StudioTextField extends StatefulWidget {
   const StudioTextField({
     super.key,
     required this.label,
-    required this.hint,
+    this.hint = '',
     required this.controller,
     this.obscureText = false,
     this.keyboardType = TextInputType.text,
     this.textInputAction = TextInputAction.next,
+    this.maxLines = 1,
     this.prefixIcon,
     this.validator,
     this.autofillHints,
@@ -25,6 +26,7 @@ class StudioTextField extends StatefulWidget {
   final bool obscureText;
   final TextInputType keyboardType;
   final TextInputAction textInputAction;
+  final int? maxLines;
   final IconData? prefixIcon;
   final String? Function(String?)? validator;
   final Iterable<String>? autofillHints;
@@ -54,6 +56,7 @@ class _StudioTextFieldState extends State<StudioTextField> {
         TextFormField(
           controller: widget.controller,
           obscureText: _obscured,
+          maxLines: widget.obscureText ? 1 : widget.maxLines,
           keyboardType: widget.keyboardType,
           textInputAction: widget.textInputAction,
           validator: widget.validator,
@@ -63,7 +66,7 @@ class _StudioTextFieldState extends State<StudioTextField> {
           style: const TextStyle(color: AppColors.ivory, fontSize: 16),
           cursorColor: AppColors.blossom,
           decoration: InputDecoration(
-            hintText: widget.hint,
+            hintText: widget.hint.isNotEmpty ? widget.hint : null,
             prefixIcon: widget.prefixIcon == null
                 ? null
                 : Icon(widget.prefixIcon, color: AppColors.blush),

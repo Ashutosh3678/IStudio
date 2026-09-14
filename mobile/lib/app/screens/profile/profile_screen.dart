@@ -22,6 +22,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _editing = false;
+  bool _isUploadingImage = false;
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _studioName;
   late final TextEditingController _ownerName;
@@ -79,25 +80,151 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _specialties.text = user.specialties;
   }
 
-  Future<void> _pickLogo() async {
-    final picked = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1200,
-      imageQuality: 85,
+  Future<void> _showImageSourcePicker() async {
+    final user = context.read<AuthProvider>().user;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.navy,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Text(
+                    'Profile Photo',
+                    style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
+                          color: AppColors.paper,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.aqua.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.photo_library_outlined,
+                        color: AppColors.aqua),
+                  ),
+                  title: const Text('Choose from Gallery',
+                      style: TextStyle(color: AppColors.paper)),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _pickAndUpload(ImageSource.gallery);
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.aqua.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.camera_alt_outlined,
+                        color: AppColors.aqua),
+                  ),
+                  title: const Text('Take a Photo',
+                      style: TextStyle(color: AppColors.paper)),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _pickAndUpload(ImageSource.camera);
+                  },
+                ),
+                if (user != null && user.logoUrl.isNotEmpty) ...[
+                  const Divider(color: Color(0x18FFFFFF)),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF7A8A).withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.delete_outline_rounded,
+                          color: Color(0xFFFF7A8A)),
+                    ),
+                    title: const Text('Remove Photo',
+                        style: TextStyle(color: Color(0xFFFF7A8A))),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _removeProfilePhoto();
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
-    if (picked == null || !mounted) return;
+  }
+
+  Future<void> _pickAndUpload(ImageSource source) async {
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 1200,
+        imageQuality: 85,
+      );
+      if (picked == null || !mounted) return;
+
+      setState(() => _isUploadingImage = true);
+
+      final auth = context.read<AuthProvider>();
+      final bytes = await picked.readAsBytes();
+      if (!mounted) return;
+
+      final success = await auth.uploadLogo(bytes, picked.name);
+      if (!mounted) return;
+
+      setState(() => _isUploadingImage = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? 'Profile image updated successfully.'
+                : auth.errorMessage ?? 'Could not upload profile image.',
+          ),
+          backgroundColor: AppColors.navy,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUploadingImage = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick or upload image: $e'),
+            backgroundColor: AppColors.navy,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _removeProfilePhoto() async {
     final auth = context.read<AuthProvider>();
-    final bytes = await picked.readAsBytes();
-    if (!mounted) return;
-    final success = await auth.uploadLogo(bytes, picked.name);
+    final success = await auth.updateProfile({'logoUrl': ''});
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           success
-              ? 'Studio logo updated.'
-              : auth.errorMessage ?? 'Could not upload logo.',
+              ? 'Profile photo removed.'
+              : auth.errorMessage ?? 'Could not remove photo.',
         ),
+        backgroundColor: AppColors.navy,
       ),
     );
   }
@@ -121,11 +248,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (success) {
       setState(() => _editing = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile saved.')),
+        const SnackBar(
+          content: Text('Profile saved.'),
+          backgroundColor: AppColors.navy,
+        ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.errorMessage ?? 'Could not save profile.')),
+        SnackBar(
+          content: Text(auth.errorMessage ?? 'Could not save profile.'),
+          backgroundColor: AppColors.navy,
+        ),
       );
     }
   }
@@ -134,6 +267,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final user = auth.user;
+    final isBusy = auth.isLoading || _isUploadingImage;
 
     return AuthBackground(
       child: Scaffold(
@@ -142,7 +276,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           title: const Text('Profile'),
           actions: [
             TextButton(
-              onPressed: auth.isLoading
+              onPressed: isBusy
                   ? null
                   : () {
                       if (_editing) {
@@ -157,29 +291,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
         body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-        children: [
-          Center(
-            child: Stack(
-              children: [
-                ProfileAvatar(logoUrl: user?.logoUrl, size: 112),
-                if (_editing)
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+          children: [
+            Center(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  ProfileAvatar(logoUrl: user?.logoUrl, size: 112),
+                  if (_isUploadingImage)
+                    Container(
+                      width: 112,
+                      height: 112,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.ink.withValues(alpha: 0.7),
+                      ),
+                      alignment: Alignment.center,
+                      child: const SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.aqua),
+                        ),
+                      ),
+                    ),
                   Positioned(
                     right: 0,
                     bottom: 0,
                     child: Semantics(
                       button: true,
-                      label: 'Upload studio logo',
+                      label: 'Upload studio profile image',
                       child: Material(
                         color: AppColors.aqua,
                         shape: const CircleBorder(),
+                        elevation: 4,
                         child: InkWell(
                           customBorder: const CircleBorder(),
-                          onTap: auth.isLoading ? null : _pickLogo,
+                          onTap: isBusy ? null : _showImageSourcePicker,
                           child: const Padding(
-                            padding: EdgeInsets.all(8),
+                            padding: EdgeInsets.all(9),
                             child: Icon(
-                              Icons.photo_camera_outlined,
+                              Icons.camera_alt_rounded,
                               size: 18,
                               color: AppColors.ink,
                             ),
@@ -188,40 +341,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            user?.displayStudioName ?? 'Your studio',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: AppColors.paper,
-              fontWeight: FontWeight.w600,
+            const SizedBox(height: 16),
+            Text(
+              user?.displayStudioName ?? 'Your studio',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: AppColors.paper,
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            user?.displayOwner ?? '',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.muted,
+            const SizedBox(height: 4),
+            Text(
+              user?.displayOwner ?? '',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.muted,
+                  ),
             ),
-          ),
-          const SizedBox(height: 22),
-          if (_editing) _buildForm(auth.isLoading) else _buildDetails(user),
-          const SizedBox(height: 24),
-          StudioButton(
-            label: 'Sign out',
-            onPressed: auth.isLoading
-                ? null
-                : () {
-                    Navigator.of(context).pop();
-                    context.read<AuthProvider>().logout();
-                  },
-          ),
-        ],
-      ),
+            const SizedBox(height: 22),
+            if (_editing) _buildForm(isBusy) else _buildDetails(user),
+            const SizedBox(height: 24),
+            StudioButton(
+              label: 'Sign out',
+              onPressed: isBusy
+                  ? null
+                  : () {
+                      Navigator.of(context).pop();
+                      context.read<AuthProvider>().logout();
+                    },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -257,8 +410,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             prefixIcon: Icons.apartment_outlined,
             validator: (value) =>
                 (value == null || value.trim().isEmpty)
-                ? 'Enter your studio name'
-                : null,
+                    ? 'Enter your studio name'
+                    : null,
           ),
           const SizedBox(height: 14),
           StudioTextField(
@@ -268,8 +421,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             prefixIcon: Icons.person_outline_rounded,
             validator: (value) =>
                 (value == null || value.trim().isEmpty)
-                ? 'Enter the owner name'
-                : null,
+                    ? 'Enter the owner name'
+                    : null,
           ),
           const SizedBox(height: 14),
           StudioTextField(
@@ -301,15 +454,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 14),
           StudioTextField(
-            label: 'Studio address',
-            hint: 'Street, area, landmark',
+            label: 'Address',
+            hint: 'Street, floor, landmark',
             controller: _address,
-            prefixIcon: Icons.map_outlined,
+            prefixIcon: Icons.place_outlined,
           ),
           const SizedBox(height: 14),
           StudioTextField(
             label: 'Specialties',
-            hint: 'Wedding, fashion, newborn',
+            hint: 'Weddings, portraits, commercial...',
             controller: _specialties,
             prefixIcon: Icons.auto_awesome_outlined,
           ),
@@ -318,25 +471,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
             label: 'Instagram',
             hint: '@yourstudio',
             controller: _instagram,
-            prefixIcon: Icons.camera_outlined,
+            prefixIcon: Icons.camera_alt_outlined,
           ),
           const SizedBox(height: 14),
           StudioTextField(
             label: 'Website',
             hint: 'https://yourstudio.com',
             controller: _website,
-            keyboardType: TextInputType.url,
-            prefixIcon: Icons.language_rounded,
+            prefixIcon: Icons.link_rounded,
           ),
           const SizedBox(height: 14),
           StudioTextField(
-            label: 'About the studio',
-            hint: 'A short note clients will see',
+            label: 'About',
+            hint: 'Tell clients what makes your studio special',
             controller: _about,
-            prefixIcon: Icons.notes_rounded,
-            textInputAction: TextInputAction.done,
+            maxLines: 4,
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 20),
           StudioButton(
             label: 'Save profile',
             isLoading: isLoading,
@@ -347,8 +498,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  String _orDash(String? value) =>
-      (value == null || value.isEmpty) ? '—' : value;
+  String _orDash(String? value) {
+    if (value == null || value.trim().isEmpty) return '—';
+    return value.trim();
+  }
 }
 
 class _DetailRow extends StatelessWidget {
@@ -374,17 +527,17 @@ class _DetailRow extends StatelessWidget {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.muted,
-              ),
+                    color: AppColors.muted,
+                  ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                color: AppColors.paper,
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.paper,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
           ),
         ],

@@ -3,21 +3,53 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../../data/studio_demo_data.dart';
+import '../../models/studio_event.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/events_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/profile_avatar.dart';
 import '../../widgets/studio_app_bar.dart';
+import '../../widgets/studio_button.dart';
 import '../../widgets/studio_card.dart';
+import '../events/create_event_sheet.dart';
+import '../events/event_details_screen.dart';
+import '../events/past_events_screen.dart';
+import '../events/upcoming_events_screen.dart';
 import '../profile/profile_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late final PageController _pageController;
+  int _currentCarouselIndex = 0;
+
+  static final _currency =
+      NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 0.92);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
-    final upcoming = StudioDemoData.sessions.take(3).toList();
+    final eventsProvider = context.watch<EventsProvider>();
+
+    final upcoming = eventsProvider.upcomingEvents.take(5).toList();
+    final past = eventsProvider.pastEvents.take(3).toList();
 
     return SafeArea(
       child: Column(
@@ -52,8 +84,9 @@ class HomeScreen extends StatelessWidget {
           ),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
               children: [
+                // Welcome Message
                 Text(
                   'Welcome back, ${user?.displayOwner ?? 'there'}',
                   style: GoogleFonts.playfairDisplay(
@@ -69,92 +102,476 @@ class HomeScreen extends StatelessWidget {
                     color: AppColors.muted,
                   ),
                 ),
-                const SizedBox(height: 20),
-                const Row(
+                const SizedBox(height: 24),
+
+                // 1. Upcoming Events Section Header
+                _buildSectionHeader(
+                  context,
+                  title: 'Upcoming Events',
+                  actionLabel: 'View all →',
+                  onAction: () {
+                    Navigator.of(context).push(
+                      PageRouteBuilder<void>(
+                        transitionDuration: const Duration(milliseconds: 280),
+                        pageBuilder: (_, _, _) => const UpcomingEventsScreen(),
+                        transitionsBuilder: (_, animation, _, child) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 14),
+
+                // 1. Upcoming Events Carousel
+                if (upcoming.isEmpty)
+                  _buildEmptyUpcomingState(context)
+                else
+                  _buildUpcomingCarousel(upcoming),
+
+                const SizedBox(height: 18),
+
+                // 2. Add Event Button
+                StudioButton(
+                  label: '+ Add Event',
+                  onPressed: () => CreateEventSheet.show(context),
+                ),
+
+                const SizedBox(height: 28),
+
+                // 3. Past Events Section Header
+                _buildSectionHeader(
+                  context,
+                  title: 'Past Events',
+                  actionLabel: 'View all →',
+                  onAction: () {
+                    Navigator.of(context).push(
+                      PageRouteBuilder<void>(
+                        transitionDuration: const Duration(milliseconds: 280),
+                        pageBuilder: (_, _, _) => const PastEventsScreen(),
+                        transitionsBuilder: (_, animation, _, child) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 14),
+
+                // 3. Past Events List (2–3 recent completed)
+                if (past.isEmpty)
+                  StudioCard(
+                    padding: const EdgeInsets.all(20),
+                    child: Center(
+                      child: Text(
+                        'No past events recorded yet.',
+                        style: TextStyle(
+                          color: AppColors.muted.withValues(alpha: 0.8),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  ...past.map((event) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildPastEventCard(context, event),
+                      )),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ================= Section Header with "View all →" =================
+  Widget _buildSectionHeader(
+    BuildContext context, {
+    required String title,
+    required String actionLabel,
+    required VoidCallback onAction,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: AppColors.paper,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
+        ),
+        InkWell(
+          onTap: onAction,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Text(
+              actionLabel,
+              style: const TextStyle(
+                color: AppColors.aqua,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ================= Carousel Widget =================
+  Widget _buildUpcomingCarousel(List<StudioEvent> events) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 205,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: events.length,
+            onPageChanged: (index) {
+              setState(() => _currentCarouselIndex = index);
+            },
+            itemBuilder: (context, index) {
+              final event = events[index];
+              return AnimatedBuilder(
+                animation: _pageController,
+                builder: (context, child) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
+                    child: child,
+                  );
+                },
+                child: _buildUpcomingCard(context, event),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Subtle Page Dots Indicator (● ○ ○)
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(events.length, (index) {
+            final isCurrent = index == _currentCarouselIndex;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              margin: const EdgeInsets.symmetric(horizontal: 3.5),
+              width: isCurrent ? 18 : 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: isCurrent
+                    ? AppColors.aqua
+                    : AppColors.slate.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  // ================= Upcoming Event Card =================
+  Widget _buildUpcomingCard(BuildContext context, StudioEvent event) {
+    final dateStr = DateFormat('d MMM yyyy').format(event.startsAt);
+    final dayStr = DateFormat('EEEE').format(event.startsAt);
+    final remaining = event.remainingAmount;
+
+    return StudioCard(
+      padding: const EdgeInsets.all(16),
+      onTap: () {
+        Navigator.of(context).push(
+          PageRouteBuilder<void>(
+            transitionDuration: const Duration(milliseconds: 280),
+            pageBuilder: (_, _, _) => EventDetailsScreen(eventId: event.id),
+            transitionsBuilder: (_, animation, _, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+          ),
+        );
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.aqua.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.camera_alt_outlined,
+                  color: AppColors.aqua,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: _StatTile(
-                        label: 'Sessions',
-                        value: '4',
-                        hint: 'This month',
+                    Text(
+                      event.title,
+                      style: GoogleFonts.playfairDisplay(
+                        color: AppColors.paper,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Client: ${event.clientName} · ${event.eventType}',
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Flexible(child: _buildStatusBadge(event.status)),
+            ],
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: AppColors.ink.withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: AppColors.slate.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_month_outlined,
+                    color: AppColors.aqua, size: 14),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: dateStr,
+                          style: const TextStyle(
+                            color: AppColors.paper,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' · $dayStr · ${event.location}',
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  remaining > 0
+                      ? '${_currency.format(remaining)} due'
+                      : 'Fully Paid',
+                  style: TextStyle(
+                    color: remaining > 0
+                        ? const Color(0xFFE8B86D)
+                        : AppColors.aqua,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Details',
+                    style: TextStyle(
+                      color: AppColors.aqua.withValues(alpha: 0.85),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  const Icon(Icons.arrow_forward_ios_rounded,
+                      color: AppColors.aqua, size: 10),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ================= Empty Upcoming State =================
+  Widget _buildEmptyUpcomingState(BuildContext context) {
+    return StudioCard(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+      child: Column(
+        children: [
+          Icon(
+            Icons.event_available_outlined,
+            size: 42,
+            color: AppColors.muted.withValues(alpha: 0.6),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'No upcoming events',
+            style: TextStyle(
+              color: AppColors.paper,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Your upcoming photo sessions will appear here.',
+            style: TextStyle(color: AppColors.muted, fontSize: 13),
+          ),
+          const SizedBox(height: 14),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.aqua,
+              foregroundColor: AppColors.ink,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            onPressed: () => CreateEventSheet.show(context),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('+ Add Event'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ================= Past Event Compact Card =================
+  Widget _buildPastEventCard(BuildContext context, StudioEvent event) {
+    final dateStr = DateFormat('d MMM yyyy').format(event.startsAt);
+
+    return StudioCard(
+      padding: const EdgeInsets.all(16),
+      onTap: () {
+        Navigator.of(context).push(
+          PageRouteBuilder<void>(
+            transitionDuration: const Duration(milliseconds: 280),
+            pageBuilder: (_, _, _) => EventDetailsScreen(eventId: event.id),
+            transitionsBuilder: (_, animation, _, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+          ),
+        );
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      event.title,
+                      style: GoogleFonts.playfairDisplay(
+                        color: AppColors.paper,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: _StatTile(
-                        label: 'Due',
-                        value: '1',
-                        hint: 'Open invoice',
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: _StatTile(
-                        label: 'Clients',
-                        value: '4',
-                        hint: 'Active',
+                    const SizedBox(height: 3),
+                    Text(
+                      '$dateStr · ${event.eventType}',
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 22),
-                Text(
-                  'Upcoming shoots',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.paper,
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.aqua.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppColors.aqua.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: const Text(
+                  'Completed',
+                  style: TextStyle(
+                    color: AppColors.aqua,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 12),
-                ...upcoming.map(
-                  (session) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: StudioCard(
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 46,
-                            height: 46,
-                            decoration: BoxDecoration(
-                              color: AppColors.aqua.withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: const Icon(
-                              Icons.camera_alt_outlined,
-                              color: AppColors.aqua,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  session.title,
-                                  style: const TextStyle(
-                                    color: AppColors.paper,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${session.clientName} · ${session.location}',
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(color: AppColors.muted),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Text(
-                            DateFormat('d MMM').format(session.startsAt),
-                            style: const TextStyle(
-                              color: AppColors.aqua,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Compact financial breakdown: Total, Received, Expenses, Net Profit
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.ink.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildCompactMetric(
+                      'Total', _currency.format(event.totalAmount)),
+                ),
+                Expanded(
+                  child: _buildCompactMetric(
+                      'Received', _currency.format(event.amountReceived)),
+                ),
+                Expanded(
+                  child: _buildCompactMetric(
+                    'Expenses',
+                    _currency.format(event.totalExpenses),
+                    valueColor: const Color(0xFFFF7A8A),
+                  ),
+                ),
+                Expanded(
+                  child: _buildCompactMetric(
+                    'Net Profit',
+                    _currency.format(event.netProfit),
+                    valueColor: AppColors.aqua,
+                    isBold: true,
                   ),
                 ),
               ],
@@ -164,42 +581,79 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
-}
 
-class _StatTile extends StatelessWidget {
-  const _StatTile({
-    required this.label,
-    required this.value,
-    required this.hint,
-  });
-
-  final String label;
-  final String value;
-  final String hint;
-
-  @override
-  Widget build(BuildContext context) {
-    return StudioCard(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-      child: Column(
-        children: [
-          Text(
+  Widget _buildCompactMetric(
+    String label,
+    String value, {
+    Color valueColor = AppColors.paper,
+    bool isBold = false,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.muted,
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 2),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
             value,
-            style: GoogleFonts.playfairDisplay(
-              color: AppColors.aqua,
-              fontSize: 26,
-              fontWeight: FontWeight.w600,
+            maxLines: 1,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 12,
+              fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(label, style: const TextStyle(color: AppColors.paper)),
-          Text(
-            hint,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.muted),
-          ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusBadge(EventStatus status) {
+    Color color;
+    switch (status) {
+      case EventStatus.completed:
+        color = AppColors.aqua;
+        break;
+      case EventStatus.inProgress:
+        color = const Color(0xFF64B5F6);
+        break;
+      case EventStatus.paymentDue:
+        color = const Color(0xFFE8B86D);
+        break;
+      case EventStatus.upcoming:
+        color = const Color(0xFF81C784);
+        break;
+      case EventStatus.cancelled:
+        color = const Color(0xFFFF7A8A);
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        status.label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

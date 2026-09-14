@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'app/providers/auth_provider.dart';
+import 'app/providers/events_provider.dart';
 import 'app/screens/auth/auth_screen.dart';
 import 'app/screens/shell/app_shell.dart';
 import 'app/theme/app_colors.dart';
@@ -27,8 +28,11 @@ class LumenApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AuthProvider()..bootstrap(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()..bootstrap()),
+        ChangeNotifierProvider(create: (_) => EventsProvider()),
+      ],
       child: MaterialApp(
         title: 'Lumen Studio',
         debugShowCheckedModeBanner: false,

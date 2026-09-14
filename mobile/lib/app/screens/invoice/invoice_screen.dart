@@ -51,6 +51,8 @@ class InvoiceScreen extends StatelessWidget {
                           children: [
                             Text(
                               invoice.number,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: AppColors.paper,
                                 fontWeight: FontWeight.w700,
@@ -59,20 +61,27 @@ class InvoiceScreen extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               '${invoice.clientName} · ${DateFormat('d MMM').format(invoice.issuedOn)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(color: AppColors.muted),
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 10),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(
-                            currency.format(invoice.amount),
-                            style: const TextStyle(
-                              color: AppColors.paper,
-                              fontWeight: FontWeight.w700,
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              currency.format(invoice.amount),
+                              maxLines: 1,
+                              style: const TextStyle(
+                                color: AppColors.paper,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 6),
