@@ -142,9 +142,17 @@ class AppTheme {
         fillColor: AppColors.plum.withValues(alpha: 0.55),
         hintStyle: body.bodyMedium?.copyWith(color: AppColors.blush),
         labelStyle: body.bodyMedium?.copyWith(color: AppColors.blush),
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 44,
+          minHeight: 44,
+        ),
+        suffixIconConstraints: const BoxConstraints(
+          minWidth: 44,
+          minHeight: 44,
+        ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
-          vertical: 18,
+          vertical: 16,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -332,9 +340,17 @@ class AppTheme {
         fillColor: AppColors.lightInputFill,
         hintStyle: body.bodyMedium?.copyWith(color: AppColors.lightTextMuted),
         labelStyle: body.bodyMedium?.copyWith(color: AppColors.lightTextMuted),
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 44,
+          minHeight: 44,
+        ),
+        suffixIconConstraints: const BoxConstraints(
+          minWidth: 44,
+          minHeight: 44,
+        ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
-          vertical: 18,
+          vertical: 16,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),

@@ -44,24 +44,22 @@ class _StudioTextFieldState extends State<StudioTextField> {
   Widget build(BuildContext context) {
     final textMain = AppColors.textMain(context);
     final textMuted = AppColors.textMuted(context);
+    final isMultiline = !widget.obscureText && (widget.maxLines ?? 1) != 1;
+    final keyboardType =
+        isMultiline ? TextInputType.multiline : widget.keyboardType;
+    final textInputAction =
+        isMultiline ? TextInputAction.newline : widget.textInputAction;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          widget.label,
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: textMuted,
-            letterSpacing: 0.3,
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final field = TextFormField(
           controller: widget.controller,
           obscureText: _obscured,
           maxLines: widget.obscureText ? 1 : widget.maxLines,
-          keyboardType: widget.keyboardType,
-          textInputAction: widget.textInputAction,
+          keyboardType: keyboardType,
+          textInputAction: textInputAction,
+          textAlignVertical:
+              isMultiline ? TextAlignVertical.top : TextAlignVertical.center,
           validator: widget.validator,
           autofillHints: widget.autofillHints,
           inputFormatters: widget.inputFormatters,
@@ -70,6 +68,21 @@ class _StudioTextFieldState extends State<StudioTextField> {
           cursorColor: AppColors.accent(context),
           decoration: InputDecoration(
             hintText: widget.hint.isNotEmpty ? widget.hint : null,
+            isDense: true,
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: 44,
+              minHeight: 44,
+            ),
+            suffixIconConstraints: const BoxConstraints(
+              minWidth: 44,
+              minHeight: 44,
+            ),
+            contentPadding: EdgeInsets.fromLTRB(
+              widget.prefixIcon == null ? 16 : 8,
+              isMultiline ? 14 : 14,
+              widget.obscureText ? 8 : 16,
+              14,
+            ),
             prefixIcon: widget.prefixIcon == null
                 ? null
                 : Icon(widget.prefixIcon, color: textMuted),
@@ -86,8 +99,30 @@ class _StudioTextFieldState extends State<StudioTextField> {
                   )
                 : null,
           ),
-        ),
-      ],
+        );
+
+        Widget content = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.label,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: textMuted,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 8),
+            field,
+          ],
+        );
+
+        if (constraints.maxWidth.isFinite) {
+          content = SizedBox(width: constraints.maxWidth, child: content);
+        }
+
+        return content;
+      },
     );
   }
 }

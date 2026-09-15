@@ -1,20 +1,32 @@
 class ApiConfig {
   const ApiConfig._();
 
-  /// Deployed backend origin. Edit this when the Cloudflare URL changes.
-  /// Do not include a trailing slash or `/api`.
-  static const String backendUrl = 'https://istudio-1-txuo.onrender.com/';
+  /// Deployed backend origin. Edit this when the host changes.
+  /// Trailing slashes and `/api` are stripped automatically.
+  static const String backendUrl = 'https://istudio-1-txuo.onrender.com';
+
+  /// Optional local override:
+  /// `flutter run --dart-define=API_BASE_URL=http://192.168.1.9:5000/api`
   static const String _override = String.fromEnvironment('API_BASE_URL');
 
-  static String get origin {
-    final api = baseUrl;
-    return api.endsWith('/api') ? api.substring(0, api.length - 4) : api;
+  static String _strip(String value) {
+    var url = value.trim();
+    while (url.endsWith('/')) {
+      url = url.substring(0, url.length - 1);
+    }
+    if (url.endsWith('/api')) {
+      url = url.substring(0, url.length - 4);
+      while (url.endsWith('/')) {
+        url = url.substring(0, url.length - 1);
+      }
+    }
+    return url;
   }
 
-  static String get baseUrl {
-    if (_override.isNotEmpty) return _override;
-    return '$backendUrl/api';
-  }
+  static String get origin =>
+      _strip(_override.isNotEmpty ? _override : backendUrl);
+
+  static String get baseUrl => '${origin}/api';
 
   static String resolveMedia(String? path) {
     if (path == null || path.trim().isEmpty) return '';

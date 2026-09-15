@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -95,16 +97,18 @@ class _AuthScreenState extends State<AuthScreen>
             builder: (context, constraints) {
               final compact = constraints.maxHeight < 760;
               final maxWidth = constraints.maxWidth > 600 ? 460.0 : 520.0;
+              final width = math.min(constraints.maxWidth, maxWidth);
               return Align(
                 alignment: compact ? Alignment.topCenter : Alignment.center,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: maxWidth),
+                child: SizedBox(
+                  width: width,
                   child: SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
                       horizontal: constraints.maxWidth > 600 ? 32 : 22,
                       vertical: compact ? 12 : 20,
                     ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         FadeSlideIn(
                           animation: _logo,
@@ -186,7 +190,7 @@ class _AuthCard extends StatelessWidget {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             isLogin ? 'Welcome back' : 'Join the studio',
@@ -205,25 +209,40 @@ class _AuthCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeOutCubic,
-            alignment: Alignment.topCenter,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              switchInCurve: Curves.easeOut,
-              switchOutCurve: Curves.easeIn,
-              child: isLogin
-                  ? LoginForm(
-                      key: const ValueKey('login-form'),
-                      isLoading: isLoading,
-                      onSubmit: onLogin,
-                    )
-                  : SignupForm(
-                      key: const ValueKey('signup-form'),
-                      isLoading: isLoading,
-                      onSubmit: onSignup,
-                    ),
+          SizedBox(
+            width: double.infinity,
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                layoutBuilder: (currentChild, previousChildren) {
+                  return Stack(
+                    alignment: Alignment.topCenter,
+                    children: <Widget>[
+                      ...previousChildren,
+                      ?currentChild,
+                    ],
+                  );
+                },
+                child: SizedBox(
+                  width: double.infinity,
+                  child: isLogin
+                      ? LoginForm(
+                          key: const ValueKey('login-form'),
+                          isLoading: isLoading,
+                          onSubmit: onLogin,
+                        )
+                      : SignupForm(
+                          key: const ValueKey('signup-form'),
+                          isLoading: isLoading,
+                          onSubmit: onSignup,
+                        ),
+                ),
+              ),
             ),
           ),
         ],

@@ -56,6 +56,7 @@ class _SignupFormState extends State<SignupForm> {
       child: Form(
         key: _formKey,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             StudioTextField(
               label: 'Username',
