@@ -1,21 +1,19 @@
-import 'package:flutter/foundation.dart';
-
 class ApiConfig {
   const ApiConfig._();
 
-  /// Full URL override: `--dart-define=API_BASE_URL=http://192.168.1.9:5000/api`
-  static const String _lanOverride = String.fromEnvironment('API_BASE_URL');
-
-  /// Your computer's Wi-Fi IP. Update this if it changes.
-  /// Emulator-only alias `10.0.2.2` does not work on a real phone.
-  static const String androidHost = String.fromEnvironment(
-    'API_HOST',
-    defaultValue: '192.168.1.9',
-  );
+  /// Deployed backend origin. Edit this when the Cloudflare URL changes.
+  /// Do not include a trailing slash or `/api`.
+  static const String backendUrl = 'https://istudio-1-txuo.onrender.com/';
+  static const String _override = String.fromEnvironment('API_BASE_URL');
 
   static String get origin {
     final api = baseUrl;
     return api.endsWith('/api') ? api.substring(0, api.length - 4) : api;
+  }
+
+  static String get baseUrl {
+    if (_override.isNotEmpty) return _override;
+    return '$backendUrl/api';
   }
 
   static String resolveMedia(String? path) {
@@ -32,20 +30,5 @@ class ApiConfig {
       return '$origin/$p';
     }
     return '$origin$p';
-  }
-
-  static String get baseUrl {
-    if (_lanOverride.isNotEmpty) return _lanOverride;
-
-    if (kIsWeb) {
-      return 'http://localhost:5000/api';
-    }
-
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return 'http://$androidHost:5000/api';
-      default:
-        return 'http://localhost:5000/api';
-    }
   }
 }

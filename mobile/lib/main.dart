@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'app/providers/auth_provider.dart';
 import 'app/providers/events_provider.dart';
+import 'app/providers/invoices_provider.dart';
 import 'app/screens/auth/auth_screen.dart';
 import 'app/screens/shell/app_shell.dart';
 import 'app/theme/app_colors.dart';
@@ -35,6 +36,14 @@ class LumenApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ThemeProvider()..bootstrap()),
         ChangeNotifierProvider(create: (_) => AuthProvider()..bootstrap()),
         ChangeNotifierProvider(create: (_) => EventsProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, InvoicesProvider>(
+          create: (_) => InvoicesProvider(),
+          update: (_, auth, previous) {
+            final invoices = previous ?? InvoicesProvider();
+            invoices.syncAuth(auth);
+            return invoices;
+          },
+        ),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {

@@ -1,12 +1,13 @@
 {
   "name": "lumen-studio-api",
   "version": "1.0.0",
-  "description": "Photography studio auth API for Lumen",
+  "description": "Photography studio API for Lumen",
   "main": "src/server.js",
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "test": "node test/invoice-model.test.js"
   },
   "engines": {
     "node": ">=18"

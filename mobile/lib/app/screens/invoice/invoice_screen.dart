@@ -1,100 +1,47 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
-import '../../data/studio_demo_data.dart';
-import '../../models/invoice.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/studio_app_bar.dart';
-import '../../widgets/studio_card.dart';
+import 'create_invoice_form.dart';
+import 'invoice_history_tab.dart';
 
-class InvoiceScreen extends StatelessWidget {
+class InvoiceScreen extends StatefulWidget {
   const InvoiceScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final invoices = StudioDemoData.invoices;
-    final currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
-    final textMain = context.textMain;
-    final textMuted = context.textMuted;
-    final accent = context.accentColor;
+  State<InvoiceScreen> createState() => _InvoiceScreenState();
+}
 
+class _InvoiceScreenState extends State<InvoiceScreen> {
+  bool _isCreate = true;
+
+  @override
+  Widget build(BuildContext context) {
     return SafeArea(
       child: Column(
         children: [
-          const StudioAppBar(
+          StudioAppBar(
             title: 'Invoices',
-            subtitle: 'Payments and drafts',
+            subtitle: _isCreate
+                ? 'Create and send a bill'
+                : 'Payments, pending and overdue',
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+            child: _InvoiceModeToggle(
+              isCreate: _isCreate,
+              onChanged: (value) => setState(() => _isCreate = value),
+            ),
           ),
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-              itemCount: invoices.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (context, index) {
-                final invoice = invoices[index];
-                return StudioCard(
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: accent.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Icon(
-                          Icons.receipt_long_rounded,
-                          color: accent,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              invoice.number,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: textMain,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${invoice.clientName} · ${DateFormat('d MMM').format(invoice.issuedOn)}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: textMuted),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              currency.format(invoice.amount),
-                              maxLines: 1,
-                              style: TextStyle(
-                                color: textMain,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          _StatusChip(status: invoice.status),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              },
+            child: IndexedStack(
+              index: _isCreate ? 0 : 1,
+              children: [
+                CreateInvoiceForm(
+                  onSaved: (_) => setState(() => _isCreate = false),
+                ),
+                const InvoiceHistoryTab(),
+              ],
             ),
           ),
         ],
@@ -103,38 +50,106 @@ class InvoiceScreen extends StatelessWidget {
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
+class _InvoiceModeToggle extends StatelessWidget {
+  const _InvoiceModeToggle({
+    required this.isCreate,
+    required this.onChanged,
+  });
 
-  final InvoiceStatus status;
+  final bool isCreate;
+  final ValueChanged<bool> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final isDark = context.isDark;
-    final label = switch (status) {
-      InvoiceStatus.paid => 'Paid',
-      InvoiceStatus.due => 'Due',
-      InvoiceStatus.draft => 'Draft',
-    };
-    final color = switch (status) {
-      InvoiceStatus.paid => context.accentColor,
-      InvoiceStatus.due =>
-        isDark ? const Color(0xFFE8B86D) : const Color(0xFFD97706),
-      InvoiceStatus.draft => context.textMuted,
-    };
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(20),
+    return Semantics(
+      label: isCreate ? 'Create selected' : 'History selected',
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: context.innerBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: context.cardBorder),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final tabWidth = (constraints.maxWidth - 4) / 2;
+            return Stack(
+              children: [
+                AnimatedAlign(
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeOutCubic,
+                  alignment: isCreate
+                      ? Alignment.centerLeft
+                      : Alignment.centerRight,
+                  child: Container(
+                    width: tabWidth,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      gradient: LinearGradient(
+                        colors: isDark
+                            ? const [AppColors.aqua, AppColors.slate]
+                            : const [AppColors.lightPrimary, Color(0xFF0F766E)],
+                      ),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    _Tab(
+                      label: 'Create',
+                      selected: isCreate,
+                      onTap: () => onChanged(true),
+                    ),
+                    _Tab(
+                      label: 'History',
+                      selected: !isCreate,
+                      onTap: () => onChanged(false),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
+    );
+  }
+}
+
+class _Tab extends StatelessWidget {
+  const _Tab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: SizedBox(
+          height: 44,
+          child: Center(
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              style: Theme.of(context).textTheme.titleSmall!.copyWith(
+                color: selected
+                    ? (context.isDark ? AppColors.paper : Colors.white)
+                    : context.textMuted,
+                fontWeight: FontWeight.w600,
+              ),
+              child: Text(label),
+            ),
+          ),
         ),
       ),
     );

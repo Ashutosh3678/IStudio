@@ -131,6 +131,29 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> delete(
+    String endpoint, {
+    String? token,
+  }) async {
+    try {
+      final response = await _client
+          .delete(
+            Uri.parse('${ApiConfig.baseUrl}$endpoint'),
+            headers: _headers(token: token),
+          )
+          .timeout(_timeout);
+      return _decode(response);
+    } on ApiException {
+      rethrow;
+    } on TimeoutException {
+      throw const ApiException('The studio is taking too long to respond.');
+    } catch (_) {
+      throw const ApiException(
+        'Unable to reach the studio. Check your connection.',
+      );
+    }
+  }
+
   Map<String, dynamic> _decode(http.Response response) {
     Map<String, dynamic> payload;
     try {

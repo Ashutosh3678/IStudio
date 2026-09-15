@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 
 const { connectDb } = require('./config/db');
 const authRoutes = require('./routes/auth');
+const invoiceRoutes = require('./routes/invoices');
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
@@ -32,6 +33,14 @@ app.get('/', (_req, res) => {
       me: 'GET /api/auth/me',
       profile: 'PATCH /api/auth/profile',
       logo: 'POST /api/auth/logo',
+      invoices: 'GET /api/invoices',
+      createInvoice: 'POST /api/invoices',
+      invoice: 'GET /api/invoices/:id',
+      updateInvoice: 'PATCH /api/invoices/:id',
+      deleteInvoice: 'DELETE /api/invoices/:id',
+      markPaid: 'POST /api/invoices/:id/paid',
+      markPartial: 'POST /api/invoices/:id/partial',
+      extendDueDate: 'PATCH /api/invoices/:id/due-date',
     },
   });
 });
@@ -41,6 +50,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/invoices', invoiceRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

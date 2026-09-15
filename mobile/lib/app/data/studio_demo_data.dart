@@ -1,4 +1,3 @@
-import '../models/invoice.dart';
 import '../models/studio_session.dart';
 
 class StudioDemoData {
@@ -32,33 +31,6 @@ class StudioDemoData {
       clientName: 'The Iyer family',
       startsAt: DateTime.now().add(const Duration(days: 10)),
       location: 'Softbox suite',
-    ),
-  ];
-
-  static final List<Invoice> invoices = [
-    Invoice(
-      id: 'i1',
-      number: 'INV-1042',
-      clientName: 'Aanya & Rohan',
-      amount: 85000,
-      issuedOn: DateTime.now().subtract(const Duration(days: 4)),
-      status: InvoiceStatus.due,
-    ),
-    Invoice(
-      id: 'i2',
-      number: 'INV-1038',
-      clientName: 'Northwind Atelier',
-      amount: 42000,
-      issuedOn: DateTime.now().subtract(const Duration(days: 12)),
-      status: InvoiceStatus.paid,
-    ),
-    Invoice(
-      id: 'i3',
-      number: 'INV-1045',
-      clientName: 'Meera Kapoor',
-      amount: 18000,
-      issuedOn: DateTime.now().subtract(const Duration(days: 1)),
-      status: InvoiceStatus.draft,
     ),
   ];
 
