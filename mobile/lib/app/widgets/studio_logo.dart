@@ -14,6 +14,10 @@ class StudioLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = compact ? 52.0 : 78.0;
+    final isDark = context.isDark;
+    final accent = context.accentColor;
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
 
     return Semantics(
       header: true,
@@ -27,14 +31,16 @@ class StudioLogo extends StatelessWidget {
               height: size,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [AppColors.blossom, AppColors.merlot],
+                  colors: isDark
+                      ? const [AppColors.blossom, AppColors.merlot]
+                      : const [AppColors.lightPrimary, Color(0xFF0F766E)],
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.blossom.withValues(alpha: 0.35),
+                    color: accent.withValues(alpha: 0.35),
                     blurRadius: 22,
                     spreadRadius: 1,
                   ),
@@ -42,7 +48,7 @@ class StudioLogo extends StatelessWidget {
               ),
               child: Icon(
                 Icons.camera_alt_rounded,
-                color: AppColors.ivory,
+                color: isDark ? AppColors.ivory : Colors.white,
                 size: compact ? 24 : 34,
               ),
             ),
@@ -51,7 +57,7 @@ class StudioLogo extends StatelessWidget {
           Text(
             'LUMEN',
             style: GoogleFonts.playfairDisplay(
-              color: AppColors.ivory,
+              color: textMain,
               fontSize: compact ? 28 : 38,
               fontWeight: FontWeight.w600,
               letterSpacing: 6,
@@ -61,7 +67,7 @@ class StudioLogo extends StatelessWidget {
           Text(
             'Every frame, a story.',
             style: GoogleFonts.dmSans(
-              color: AppColors.blush,
+              color: textMuted,
               fontSize: compact ? 13 : 15,
               letterSpacing: 0.4,
             ),

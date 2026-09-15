@@ -44,6 +44,9 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<EventsProvider>();
     final allUpcoming = provider.upcomingEvents;
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+    final accent = context.accentColor;
 
     final query = _searchController.text.trim().toLowerCase();
     final filtered = allUpcoming.where((event) {
@@ -57,7 +60,6 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.ink,
       body: SafeArea(
         child: Column(
           children: [
@@ -66,15 +68,15 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
               subtitle: 'Scheduled shoots & bookings',
               leading: IconButton(
                 tooltip: 'Back',
-                icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                    color: AppColors.paper, size: 20),
+                icon: Icon(Icons.arrow_back_ios_new_rounded,
+                    color: textMain, size: 20),
                 onPressed: () => Navigator.of(context).pop(),
               ),
               actions: [
                 IconButton(
                   tooltip: 'Add Event',
-                  icon: const Icon(Icons.add_circle_outline_rounded,
-                      color: AppColors.aqua, size: 24),
+                  icon: Icon(Icons.add_circle_outline_rounded,
+                      color: accent, size: 24),
                   onPressed: () => CreateEventSheet.show(context),
                 ),
               ],
@@ -86,15 +88,13 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
                   TextField(
                     controller: _searchController,
                     onChanged: (_) => setState(() {}),
-                    style: const TextStyle(color: AppColors.paper, fontSize: 14),
+                    style: TextStyle(color: textMain, fontSize: 14),
                     decoration: InputDecoration(
                       hintText: 'Search upcoming shoots, clients, venues...',
-                      prefixIcon: const Icon(Icons.search,
-                          color: AppColors.muted, size: 20),
+                      prefixIcon: Icon(Icons.search, color: textMuted, size: 20),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear,
-                                  color: AppColors.muted, size: 18),
+                              icon: Icon(Icons.clear, color: textMuted, size: 18),
                               onPressed: () {
                                 _searchController.clear();
                                 setState(() {});
@@ -102,7 +102,7 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
                             )
                           : null,
                       filled: true,
-                      fillColor: AppColors.navy.withValues(alpha: 0.8),
+                      fillColor: context.cardBg,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),
                     ),
@@ -123,15 +123,15 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
                           onSelected: (val) {
                             if (val) setState(() => _selectedCategory = cat);
                           },
-                          selectedColor: AppColors.aqua.withValues(alpha: 0.25),
-                          backgroundColor: AppColors.navy.withValues(alpha: 0.7),
+                          selectedColor: accent.withValues(alpha: 0.25),
+                          backgroundColor: context.cardBg,
                           side: BorderSide(
                             color: isSelected
-                                ? AppColors.aqua
-                                : AppColors.slate.withValues(alpha: 0.35),
+                                ? accent
+                                : context.cardBorder,
                           ),
                           labelStyle: TextStyle(
-                            color: isSelected ? AppColors.aqua : AppColors.paper,
+                            color: isSelected ? accent : textMain,
                             fontSize: 12,
                             fontWeight: isSelected
                                 ? FontWeight.w700
@@ -153,12 +153,12 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
                         children: [
                           Icon(Icons.calendar_today_rounded,
                               size: 48,
-                              color: AppColors.muted.withValues(alpha: 0.5)),
+                              color: textMuted.withValues(alpha: 0.5)),
                           const SizedBox(height: 12),
-                          const Text(
+                          Text(
                             'No upcoming events found',
                             style: TextStyle(
-                              color: AppColors.paper,
+                              color: textMain,
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                             ),
@@ -166,8 +166,8 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
                           const SizedBox(height: 16),
                           ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.aqua,
-                              foregroundColor: AppColors.ink,
+                              backgroundColor: accent,
+                              foregroundColor: context.isDark ? AppColors.ink : Colors.white,
                             ),
                             onPressed: () => CreateEventSheet.show(context),
                             icon: const Icon(Icons.add, size: 18),
@@ -196,6 +196,9 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
     final dateStr = DateFormat('d MMM yyyy').format(event.startsAt);
     final dayStr = DateFormat('EEEE').format(event.startsAt);
     final remaining = event.remainingAmount;
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+    final accent = context.accentColor;
 
     return StudioCard(
       padding: const EdgeInsets.all(16),
@@ -220,12 +223,12 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.aqua.withValues(alpha: 0.16),
+                  color: accent.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.camera_alt_outlined,
-                  color: AppColors.aqua,
+                  color: accent,
                   size: 22,
                 ),
               ),
@@ -236,8 +239,10 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
                   children: [
                     Text(
                       event.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.playfairDisplay(
-                        color: AppColors.paper,
+                        color: textMain,
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
                       ),
@@ -245,50 +250,53 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
                     const SizedBox(height: 3),
                     Text(
                       'Client: ${event.clientName} · ${event.eventType}',
-                      style: const TextStyle(
-                        color: AppColors.muted,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: textMuted,
                         fontSize: 13,
                       ),
                     ),
                   ],
                 ),
               ),
-              _buildStatusBadge(event.status),
+              const SizedBox(width: 6),
+              Flexible(child: _buildStatusBadge(context, event.status)),
             ],
           ),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.ink.withValues(alpha: 0.5),
+              color: context.innerBg,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
               children: [
-                const Icon(Icons.schedule_rounded,
-                    color: AppColors.aqua, size: 16),
+                Icon(Icons.schedule_rounded,
+                    color: accent, size: 16),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     '$dateStr · $dayStr',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.paper,
+                    style: TextStyle(
+                      color: textMain,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.location_on_outlined,
-                    color: AppColors.muted, size: 16),
+                Icon(Icons.location_on_outlined,
+                    color: textMuted, size: 16),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     event.location,
-                    style: const TextStyle(
-                      color: AppColors.muted,
+                    style: TextStyle(
+                      color: textMuted,
                       fontSize: 12,
                     ),
                     maxLines: 1,
@@ -311,8 +319,10 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: remaining > 0
-                        ? const Color(0xFFE8B86D)
-                        : AppColors.aqua,
+                        ? (context.isDark
+                            ? const Color(0xFFE8B86D)
+                            : const Color(0xFFD97706))
+                        : accent,
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
                   ),
@@ -324,8 +334,8 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
                 child: Text(
                   'Total: ${_currency.format(event.totalAmount)}',
                   maxLines: 1,
-                  style: const TextStyle(
-                    color: AppColors.muted,
+                  style: TextStyle(
+                    color: textMuted,
                     fontSize: 12,
                   ),
                 ),
@@ -337,25 +347,8 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
     );
   }
 
-  Widget _buildStatusBadge(EventStatus status) {
-    Color color;
-    switch (status) {
-      case EventStatus.completed:
-        color = AppColors.aqua;
-        break;
-      case EventStatus.inProgress:
-        color = const Color(0xFF64B5F6);
-        break;
-      case EventStatus.paymentDue:
-        color = const Color(0xFFE8B86D);
-        break;
-      case EventStatus.upcoming:
-        color = const Color(0xFF81C784);
-        break;
-      case EventStatus.cancelled:
-        color = const Color(0xFFFF7A8A);
-        break;
-    }
+  Widget _buildStatusBadge(BuildContext context, EventStatus status) {
+    final color = AppColors.statusColor(context, status);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

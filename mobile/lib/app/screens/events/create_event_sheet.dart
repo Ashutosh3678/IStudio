@@ -17,7 +17,6 @@ class CreateEventSheet extends StatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.ink,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -34,6 +33,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
 
   final _nameController = TextEditingController();
   final _clientController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _locationController = TextEditingController();
   final _notesController = TextEditingController();
   final _totalAmountController = TextEditingController();
@@ -66,19 +66,36 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
     super.initState();
     _totalAmountController.addListener(_onAmountChanged);
     _advanceController.addListener(_onAmountChanged);
+    _clientController.addListener(_onClientNameChanged);
   }
 
   @override
   void dispose() {
     _totalAmountController.removeListener(_onAmountChanged);
     _advanceController.removeListener(_onAmountChanged);
+    _clientController.removeListener(_onClientNameChanged);
     _nameController.dispose();
     _clientController.dispose();
+    _phoneController.dispose();
     _locationController.dispose();
     _notesController.dispose();
     _totalAmountController.dispose();
     _advanceController.dispose();
     super.dispose();
+  }
+
+  void _onClientNameChanged() {
+    final name = _clientController.text.trim();
+    if (name.isNotEmpty) {
+      final provider = context.read<EventsProvider>();
+      final match = provider.clients.firstWhere(
+        (c) => c.name.toLowerCase() == name.toLowerCase(),
+        orElse: () => const Client(id: '', name: '', phone: '', email: ''),
+      );
+      if (match.id.isNotEmpty && match.phone.isNotEmpty && _phoneController.text.isEmpty) {
+        _phoneController.text = match.phone;
+      }
+    }
   }
 
   void _onAmountChanged() {
@@ -101,11 +118,10 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.aqua,
-              onPrimary: AppColors.ink,
-              surface: AppColors.navy,
-              onSurface: AppColors.paper,
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: context.accentColor,
+              surface: context.cardBg,
+              onSurface: context.textMain,
             ),
           ),
           child: child!,
@@ -124,11 +140,10 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.aqua,
-              onPrimary: AppColors.ink,
-              surface: AppColors.navy,
-              onSurface: AppColors.paper,
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: context.accentColor,
+              surface: context.cardBg,
+              onSurface: context.textMain,
             ),
           ),
           child: child!,
@@ -147,11 +162,10 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.aqua,
-              onPrimary: AppColors.ink,
-              surface: AppColors.navy,
-              onSurface: AppColors.paper,
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: context.accentColor,
+              surface: context.cardBg,
+              onSurface: context.textMain,
             ),
           ),
           child: child!,
@@ -188,42 +202,44 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
     }
 
     final provider = context.read<EventsProvider>();
-    final enteredClientName = _clientController.text.trim();
-    String? clientId;
 
-    final existingClient = provider.clients.firstWhere(
-      (c) => c.name.toLowerCase() == enteredClientName.toLowerCase(),
+    // Auto-link or auto-create client if client does not exist
+    final clientName = _clientController.text.trim();
+    final clientPhone = _phoneController.text.trim();
+    String matchedClientId = '';
+
+    final existing = provider.clients.firstWhere(
+      (c) => c.name.toLowerCase() == clientName.toLowerCase(),
       orElse: () => const Client(id: '', name: '', phone: '', email: ''),
     );
 
-    if (existingClient.id.isNotEmpty) {
-      clientId = existingClient.id;
-    } else if (enteredClientName.isNotEmpty) {
-      clientId = 'cli-${DateTime.now().millisecondsSinceEpoch}';
-      provider.addClient(
-        Client(
-          id: clientId,
-          name: enteredClientName,
-          phone: '',
-          email: '',
-          createdAt: DateTime.now(),
-        ),
+    if (existing.id.isNotEmpty) {
+      matchedClientId = existing.id;
+    } else {
+      final newClient = Client(
+        id: 'cli-${DateTime.now().millisecondsSinceEpoch}',
+        name: clientName,
+        phone: clientPhone,
+        email: '',
+        createdAt: DateTime.now(),
       );
+      provider.addClient(newClient);
+      matchedClientId = newClient.id;
     }
 
     final newEvent = StudioEvent(
       id: 'evt-${DateTime.now().millisecondsSinceEpoch}',
-      clientId: clientId,
       title: _nameController.text.trim(),
-      clientName: enteredClientName,
       eventType: _eventType,
+      clientId: matchedClientId,
+      clientName: clientName,
+      status: EventStatus.upcoming,
+      location: _locationController.text.trim().isEmpty
+          ? 'Studio / On Location'
+          : _locationController.text.trim(),
       startsAt: startsAt,
       startTime: _startTime.format(context),
       endTime: _endTime.format(context),
-      location: _locationController.text.trim().isEmpty
-          ? 'Studio floor'
-          : _locationController.text.trim(),
-      status: EventStatus.upcoming,
       totalAmount: _totalAmount,
       payments: payments,
       notes: _notesController.text.trim(),
@@ -242,13 +258,16 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Event "${newEvent.title}" added to schedule.'),
-        backgroundColor: AppColors.navy,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+    final accent = context.accentColor;
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.88,
       padding: EdgeInsets.only(
@@ -263,7 +282,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
               width: 42,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.muted.withValues(alpha: 0.3),
+                color: textMuted.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -282,29 +301,29 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.playfairDisplay(
-                          color: AppColors.paper,
+                          color: textMain,
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
+                      Text(
                         'Record shoot details & package financials',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: AppColors.muted, fontSize: 13),
+                        style: TextStyle(color: textMuted, fontSize: 13),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: AppColors.muted),
+                  icon: Icon(Icons.close_rounded, color: textMuted),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
           ),
-          const Divider(color: Color(0x22FFFFFF), height: 1),
+          Divider(color: context.cardBorder.withValues(alpha: 0.3), height: 1),
           Expanded(
             child: Form(
               key: _formKey,
@@ -312,7 +331,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                 children: [
                   // SECTION 1: Event Information
-                  _buildSectionHeader('Event Information'),
+                  _buildSectionHeader(context, 'Event Information'),
                   const SizedBox(height: 12),
                   StudioTextField(
                     label: 'Event Name',
@@ -326,10 +345,10 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                     },
                   ),
                   const SizedBox(height: 14),
-                  const Text(
+                  Text(
                     'Event Category / Type',
                     style: TextStyle(
-                      color: AppColors.blush,
+                      color: textMuted,
                       fontSize: 14,
                       letterSpacing: 0.3,
                     ),
@@ -346,15 +365,15 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                         onSelected: (val) {
                           if (val) setState(() => _eventType = type);
                         },
-                        selectedColor: AppColors.aqua.withValues(alpha: 0.28),
-                        backgroundColor: AppColors.navy.withValues(alpha: 0.8),
+                        selectedColor: accent.withValues(alpha: 0.28),
+                        backgroundColor: context.cardBg,
                         side: BorderSide(
                           color: selected
-                              ? AppColors.aqua
-                              : AppColors.slate.withValues(alpha: 0.4),
+                              ? accent
+                              : context.cardBorder.withValues(alpha: 0.4),
                         ),
                         labelStyle: TextStyle(
-                          color: selected ? AppColors.aqua : AppColors.paper,
+                          color: selected ? accent : textMain,
                           fontWeight:
                               selected ? FontWeight.w700 : FontWeight.w500,
                         ),
@@ -363,7 +382,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                   ),
                   const SizedBox(height: 14),
                   StudioTextField(
-                    label: 'Client Name',
+                    label: 'Client Name *',
                     hint: 'e.g. Aanya Sharma',
                     controller: _clientController,
                     validator: (val) {
@@ -374,11 +393,29 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                     },
                   ),
                   const SizedBox(height: 14),
+                  StudioTextField(
+                    label: 'Client Phone Number *',
+                    hint: 'e.g. 9876543210',
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Please enter client phone number';
+                      }
+                      final digitsOnly = val.replaceAll(RegExp(r'\D'), '');
+                      if (digitsOnly.length < 10) {
+                        return 'Phone number must be at least 10 digits';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 14),
                   // Date & Time selection row
                   Row(
                     children: [
                       Expanded(
                         child: _buildPickerTile(
+                          context,
                           icon: Icons.calendar_month_outlined,
                           title: 'Date',
                           value: DateFormat('d MMM yyyy').format(_selectedDate),
@@ -388,6 +425,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: _buildPickerTile(
+                          context,
                           icon: Icons.access_time_rounded,
                           title: 'Start',
                           value: _startTime.format(context),
@@ -397,6 +435,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: _buildPickerTile(
+                          context,
                           icon: Icons.access_time_rounded,
                           title: 'End',
                           value: _endTime.format(context),
@@ -420,7 +459,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                   const SizedBox(height: 24),
 
                   // SECTION 2: Financial Information
-                  _buildSectionHeader('Financial Information'),
+                  _buildSectionHeader(context, 'Financial Information'),
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -459,12 +498,14 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
-                      color: AppColors.navy.withValues(alpha: 0.9),
+                      color: context.cardBg,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: _remainingAmount > 0
-                            ? const Color(0xFFE8B86D).withValues(alpha: 0.4)
-                            : AppColors.aqua.withValues(alpha: 0.4),
+                            ? (context.isDark
+                                ? const Color(0xFFE8B86D)
+                                : const Color(0xFFD97706)).withValues(alpha: 0.4)
+                            : accent.withValues(alpha: 0.4),
                       ),
                     ),
                     child: Row(
@@ -474,12 +515,12 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
+                              Text(
                                 'Remaining Balance',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: AppColors.muted,
+                                  color: textMuted,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -489,8 +530,8 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                                 '${_currency.format(_totalAmount)} \u2212 ${_currency.format(_advanceReceived)}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppColors.blush,
+                                style: TextStyle(
+                                  color: textMuted,
                                   fontSize: 11,
                                 ),
                               ),
@@ -504,8 +545,10 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                             _currency.format(_remainingAmount),
                             style: TextStyle(
                               color: _remainingAmount > 0
-                                  ? const Color(0xFFE8B86D)
-                                  : AppColors.aqua,
+                                  ? (context.isDark
+                                      ? const Color(0xFFE8B86D)
+                                      : const Color(0xFFD97706))
+                                  : accent,
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
                             ),
@@ -530,41 +573,46 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(BuildContext context, String title) {
     return Row(
       children: [
         Text(
           title,
           style: GoogleFonts.playfairDisplay(
-            color: AppColors.paper,
+            color: context.textMain,
             fontSize: 17,
             fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(width: 8),
-        const Expanded(
-          child: Divider(color: Color(0x33FFFFFF), thickness: 0.8),
+        Expanded(
+          child: Divider(color: context.cardBorder.withValues(alpha: 0.3), thickness: 0.8),
         ),
       ],
     );
   }
 
-  Widget _buildPickerTile({
+  Widget _buildPickerTile(
+    BuildContext context, {
     required IconData icon,
     required String title,
     required String value,
     required VoidCallback onTap,
   }) {
+    final accent = context.accentColor;
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
-          color: AppColors.navy.withValues(alpha: 0.7),
+          color: context.cardBg,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: AppColors.slate.withValues(alpha: 0.45),
+            color: context.cardBorder,
           ),
         ),
         child: Column(
@@ -572,19 +620,19 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
           children: [
             Row(
               children: [
-                Icon(icon, color: AppColors.aqua, size: 14),
+                Icon(icon, color: accent, size: 14),
                 const SizedBox(width: 4),
                 Text(
                   title,
-                  style: const TextStyle(color: AppColors.blush, fontSize: 11),
+                  style: TextStyle(color: textMuted, fontSize: 11),
                 ),
               ],
             ),
             const SizedBox(height: 4),
             Text(
               value,
-              style: const TextStyle(
-                color: AppColors.paper,
+              style: TextStyle(
+                color: textMain,
                 fontWeight: FontWeight.w600,
                 fontSize: 12,
               ),

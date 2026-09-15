@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -5,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/auth_background.dart';
 import '../../utils/validators.dart';
@@ -102,7 +104,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Text(
                     'Profile Photo',
                     style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
-                          color: AppColors.paper,
+                          color: sheetContext.textMain,
                           fontWeight: FontWeight.w700,
                         ),
                   ),
@@ -112,14 +114,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.aqua.withValues(alpha: 0.16),
+                      color: sheetContext.accentColor.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.photo_library_outlined,
-                        color: AppColors.aqua),
+                    child: Icon(Icons.photo_library_outlined,
+                        color: sheetContext.accentColor),
                   ),
-                  title: const Text('Choose from Gallery',
-                      style: TextStyle(color: AppColors.paper)),
+                  title: Text('Choose from Gallery',
+                      style: TextStyle(color: sheetContext.textMain)),
                   onTap: () {
                     Navigator.of(sheetContext).pop();
                     _pickAndUpload(ImageSource.gallery);
@@ -129,14 +131,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.aqua.withValues(alpha: 0.16),
+                      color: sheetContext.accentColor.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.camera_alt_outlined,
-                        color: AppColors.aqua),
+                    child: Icon(Icons.camera_alt_outlined,
+                        color: sheetContext.accentColor),
                   ),
-                  title: const Text('Take a Photo',
-                      style: TextStyle(color: AppColors.paper)),
+                  title: Text('Take a Photo',
+                      style: TextStyle(color: sheetContext.textMain)),
                   onTap: () {
                     Navigator.of(sheetContext).pop();
                     _pickAndUpload(ImageSource.camera);
@@ -184,6 +186,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final auth = context.read<AuthProvider>();
       final bytes = await picked.readAsBytes();
       if (!mounted) return;
+
+      final base64Image = base64Encode(bytes);
+      final ext = picked.name.toLowerCase();
+      final mimeType = ext.endsWith('.png')
+          ? 'image/png'
+          : ext.endsWith('.webp')
+              ? 'image/webp'
+              : ext.endsWith('.gif')
+                  ? 'image/gif'
+                  : 'image/jpeg';
+      final dataUri = 'data:$mimeType;base64,$base64Image';
+
+      // Instantly update UI avatar visuals
+      auth.setTemporaryLogoUrl(dataUri);
 
       final success = await auth.uploadLogo(bytes, picked.name);
       if (!mounted) return;
@@ -349,7 +365,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               user?.displayStudioName ?? 'Your studio',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AppColors.paper,
+                    color: context.textMain,
                     fontWeight: FontWeight.w600,
                   ),
             ),
@@ -363,6 +379,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 22),
             if (_editing) _buildForm(isBusy) else _buildDetails(user),
+            const SizedBox(height: 20),
+            _buildThemeSelector(context),
             const SizedBox(height: 24),
             StudioButton(
               label: 'Sign out',
@@ -502,6 +520,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (value == null || value.trim().isEmpty) return '—';
     return value.trim();
   }
+
+  Widget _buildThemeSelector(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final currentMode = themeProvider.themeMode;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'App Appearance',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: AppColors.textMuted(context),
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+          ),
+        ),
+        StudioCard(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Expanded(
+                child: _ThemeOptionButton(
+                  icon: Icons.dark_mode_rounded,
+                  label: 'Dark',
+                  isSelected: currentMode == ThemeMode.dark,
+                  onTap: () => themeProvider.setThemeMode(ThemeMode.dark),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ThemeOptionButton(
+                  icon: Icons.light_mode_rounded,
+                  label: 'Light',
+                  isSelected: currentMode == ThemeMode.light,
+                  onTap: () => themeProvider.setThemeMode(ThemeMode.light),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ThemeOptionButton(
+                  icon: Icons.hdr_auto_rounded,
+                  label: 'System',
+                  isSelected: currentMode == ThemeMode.system,
+                  onTap: () => themeProvider.setThemeMode(ThemeMode.system),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _DetailRow extends StatelessWidget {
@@ -527,7 +600,7 @@ class _DetailRow extends StatelessWidget {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.muted,
+                    color: AppColors.textMuted(context),
                   ),
             ),
           ),
@@ -535,12 +608,75 @@ class _DetailRow extends StatelessWidget {
             child: Text(
               value,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.paper,
+                    color: AppColors.textMain(context),
                     fontWeight: FontWeight.w500,
                   ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ThemeOptionButton extends StatelessWidget {
+  const _ThemeOptionButton({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+    final activeBg = isDark
+        ? AppColors.aqua.withValues(alpha: 0.22)
+        : AppColors.lightPrimary.withValues(alpha: 0.15);
+    final activeBorder = isDark ? AppColors.aqua : AppColors.lightPrimary;
+    final activeText = isDark ? AppColors.aqua : AppColors.lightPrimary;
+
+    return Material(
+      color: isSelected ? activeBg : Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? activeBorder : AppColors.cardBorder(context),
+              width: isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: isSelected ? activeText : AppColors.textMuted(context),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? activeText : AppColors.textMain(context),
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

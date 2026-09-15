@@ -15,14 +15,16 @@ async function connectDb() {
   if (!hasRealMongoUri()) {
     memoryUsers.enabled = true;
     console.warn(
-      'MongoDB URI is not set yet. Auth is using an in-memory store until you add MONGODB_URI to server/.env.',
+      '⚠️  [DB] MongoDB URI is not set. Using IN-MEMORY store — data will NOT persist between restarts.',
     );
     return;
   }
 
   mongoose.set('strictQuery', true);
   await mongoose.connect(process.env.MONGODB_URI);
-  console.log('MongoDB connected');
+  const dbName = mongoose.connection.db.databaseName;
+  console.log(`✅ [MONGODB] Connected to database: "${dbName}"`);
+  console.log(`📦 [MONGODB] logoUrl will be stored in the "users" collection.`);
 }
 
 module.exports = { connectDb };

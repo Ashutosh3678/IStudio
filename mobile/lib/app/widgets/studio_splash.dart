@@ -9,20 +9,20 @@ class StudioSplash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       body: AuthBackground(
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              StudioLogo(),
-              SizedBox(height: 28),
+              const StudioLogo(),
+              const SizedBox(height: 28),
               SizedBox(
                 width: 22,
                 height: 22,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.2,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.blossom),
+                  valueColor: AlwaysStoppedAnimation<Color>(context.accentColor),
                 ),
               ),
             ],

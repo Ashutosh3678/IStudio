@@ -36,8 +36,10 @@ class StudioAppBar extends StatelessWidget implements PreferredSizeWidget {
                 children: [
                   Text(
                     title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.playfairDisplay(
-                      color: AppColors.paper,
+                      color: AppColors.textMain(context),
                       fontSize: 24,
                       fontWeight: FontWeight.w600,
                     ),
@@ -45,8 +47,10 @@ class StudioAppBar extends StatelessWidget implements PreferredSizeWidget {
                   if (subtitle != null)
                     Text(
                       subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.muted,
+                        color: AppColors.textMuted(context),
                       ),
                     ),
                 ],

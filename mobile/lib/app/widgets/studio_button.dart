@@ -24,6 +24,7 @@ class _StudioButtonState extends State<StudioButton> {
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null && !widget.isLoading;
+    final isDark = AppColors.isDark(context);
 
     return Semantics(
       button: true,
@@ -47,32 +48,36 @@ class _StudioButtonState extends State<StudioButton> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(
-                  colors: [AppColors.aqua, AppColors.slate],
+                gradient: LinearGradient(
+                  colors: isDark
+                      ? const [AppColors.aqua, AppColors.slate]
+                      : const [Color(0xFF0D9488), Color(0xFF0F766E)],
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.aqua.withValues(alpha: 0.28),
+                    color: isDark
+                        ? AppColors.aqua.withValues(alpha: 0.28)
+                        : const Color(0x330D9488),
                     blurRadius: 18,
                     offset: const Offset(0, 8),
                   ),
                 ],
               ),
               child: widget.isLoading
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.2,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          AppColors.ink,
+                          isDark ? AppColors.ink : Colors.white,
                         ),
                       ),
                     )
                   : Text(
                       widget.label,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppColors.ink,
+                        color: isDark ? AppColors.ink : Colors.white,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.4,
                       ),

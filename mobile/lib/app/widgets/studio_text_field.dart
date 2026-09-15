@@ -42,13 +42,16 @@ class _StudioTextFieldState extends State<StudioTextField> {
 
   @override
   Widget build(BuildContext context) {
+    final textMain = AppColors.textMain(context);
+    final textMuted = AppColors.textMuted(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           widget.label,
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: AppColors.blush,
+            color: textMuted,
             letterSpacing: 0.3,
           ),
         ),
@@ -63,13 +66,13 @@ class _StudioTextFieldState extends State<StudioTextField> {
           autofillHints: widget.autofillHints,
           inputFormatters: widget.inputFormatters,
           onFieldSubmitted: widget.onFieldSubmitted,
-          style: const TextStyle(color: AppColors.ivory, fontSize: 16),
-          cursorColor: AppColors.blossom,
+          style: TextStyle(color: textMain, fontSize: 16),
+          cursorColor: AppColors.accent(context),
           decoration: InputDecoration(
             hintText: widget.hint.isNotEmpty ? widget.hint : null,
             prefixIcon: widget.prefixIcon == null
                 ? null
-                : Icon(widget.prefixIcon, color: AppColors.blush),
+                : Icon(widget.prefixIcon, color: textMuted),
             suffixIcon: widget.obscureText
                 ? IconButton(
                     tooltip: _obscured ? 'Show password' : 'Hide password',
@@ -78,7 +81,7 @@ class _StudioTextFieldState extends State<StudioTextField> {
                       _obscured
                           ? Icons.visibility_outlined
                           : Icons.visibility_off_outlined,
-                      color: AppColors.blush,
+                      color: textMuted,
                     ),
                   )
                 : null,

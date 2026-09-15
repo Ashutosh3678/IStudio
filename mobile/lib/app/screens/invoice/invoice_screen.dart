@@ -14,6 +14,9 @@ class InvoiceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final invoices = StudioDemoData.invoices;
     final currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+    final accent = context.accentColor;
 
     return SafeArea(
       child: Column(
@@ -36,12 +39,12 @@ class InvoiceScreen extends StatelessWidget {
                         width: 46,
                         height: 46,
                         decoration: BoxDecoration(
-                          color: AppColors.aqua.withValues(alpha: 0.14),
+                          color: accent.withValues(alpha: 0.14),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.receipt_long_rounded,
-                          color: AppColors.aqua,
+                          color: accent,
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -53,8 +56,8 @@ class InvoiceScreen extends StatelessWidget {
                               invoice.number,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: AppColors.paper,
+                              style: TextStyle(
+                                color: textMain,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -64,7 +67,7 @@ class InvoiceScreen extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: AppColors.muted),
+                                  ?.copyWith(color: textMuted),
                             ),
                           ],
                         ),
@@ -78,8 +81,8 @@ class InvoiceScreen extends StatelessWidget {
                             child: Text(
                               currency.format(invoice.amount),
                               maxLines: 1,
-                              style: const TextStyle(
-                                color: AppColors.paper,
+                              style: TextStyle(
+                                color: textMain,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -107,15 +110,17 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDark;
     final label = switch (status) {
       InvoiceStatus.paid => 'Paid',
       InvoiceStatus.due => 'Due',
       InvoiceStatus.draft => 'Draft',
     };
     final color = switch (status) {
-      InvoiceStatus.paid => AppColors.aqua,
-      InvoiceStatus.due => const Color(0xFFE8B86D),
-      InvoiceStatus.draft => AppColors.muted,
+      InvoiceStatus.paid => context.accentColor,
+      InvoiceStatus.due =>
+        isDark ? const Color(0xFFE8B86D) : const Color(0xFFD97706),
+      InvoiceStatus.draft => context.textMuted,
     };
 
     return Container(

@@ -32,7 +32,7 @@ class _AppShellState extends State<AppShell> {
         body: IndexedStack(index: _index, children: _pages),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _index,
-          backgroundColor: AppColors.navy.withValues(alpha: 0.96),
+          backgroundColor: context.cardBg.withValues(alpha: 0.96),
           onDestinationSelected: (value) => setState(() => _index = value),
           destinations: const [
             NavigationDestination(

@@ -60,6 +60,9 @@ class _ClientsScreenState extends State<ClientsScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<EventsProvider>();
     final allClients = provider.clients;
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+    final accent = context.accentColor;
 
     final query = _searchController.text.trim().toLowerCase();
 
@@ -109,8 +112,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
             actions: [
               IconButton(
                 tooltip: 'Add Client',
-                icon: const Icon(Icons.person_add_alt_1_rounded,
-                    color: AppColors.aqua, size: 22),
+                icon: Icon(Icons.person_add_alt_1_rounded,
+                    color: accent, size: 22),
                 onPressed: () => _showAddClientSheet(context),
               ),
             ],
@@ -121,28 +124,28 @@ class _ClientsScreenState extends State<ClientsScreen> {
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
             child: Container(
               decoration: BoxDecoration(
-                color: AppColors.navy.withValues(alpha: 0.7),
+                color: context.cardBg,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: AppColors.slate.withValues(alpha: 0.35),
+                  color: context.cardBorder.withValues(alpha: 0.35),
                 ),
               ),
               child: TextField(
                 controller: _searchController,
-                style: const TextStyle(color: AppColors.paper, fontSize: 14),
+                style: TextStyle(color: textMain, fontSize: 14),
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   hintText: 'Search by client, phone, email, or event...',
                   hintStyle: TextStyle(
-                    color: AppColors.muted.withValues(alpha: 0.7),
+                    color: textMuted.withValues(alpha: 0.7),
                     fontSize: 13,
                   ),
-                  prefixIcon: const Icon(Icons.search_rounded,
-                      color: AppColors.aqua, size: 20),
+                  prefixIcon: Icon(Icons.search_rounded,
+                      color: accent, size: 20),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear,
-                              color: AppColors.muted, size: 18),
+                          icon: Icon(Icons.clear,
+                              color: textMuted, size: 18),
                           onPressed: () {
                             _searchController.clear();
                             setState(() {});
@@ -169,19 +172,21 @@ class _ClientsScreenState extends State<ClientsScreen> {
                   child: FilterChip(
                     label: Text(filter.label),
                     selected: isSelected,
-                    selectedColor: AppColors.aqua,
-                    backgroundColor: AppColors.navy.withValues(alpha: 0.6),
+                    selectedColor: accent,
+                    backgroundColor: context.cardBg,
                     showCheckmark: false,
                     labelStyle: TextStyle(
-                      color: isSelected ? AppColors.ink : AppColors.paper,
+                      color: isSelected
+                          ? (context.isDark ? AppColors.ink : Colors.white)
+                          : textMain,
                       fontSize: 12,
                       fontWeight:
                           isSelected ? FontWeight.w700 : FontWeight.w500,
                     ),
                     side: BorderSide(
                       color: isSelected
-                          ? AppColors.aqua
-                          : AppColors.slate.withValues(alpha: 0.3),
+                          ? accent
+                          : context.cardBorder.withValues(alpha: 0.3),
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
@@ -208,21 +213,21 @@ class _ClientsScreenState extends State<ClientsScreen> {
                         children: [
                           Icon(Icons.person_search_rounded,
                               size: 48,
-                              color: AppColors.muted.withValues(alpha: 0.5)),
+                              color: textMuted.withValues(alpha: 0.5)),
                           const SizedBox(height: 12),
                           Text(
                             'No clients found',
                             style: GoogleFonts.playfairDisplay(
-                              color: AppColors.paper,
+                              color: textMain,
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 6),
-                          const Text(
+                          Text(
                             'Try modifying your search or filters.',
                             style: TextStyle(
-                                color: AppColors.muted, fontSize: 13),
+                                color: textMuted, fontSize: 13),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -265,15 +270,15 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                   children: [
                                     CircleAvatar(
                                       radius: 22,
-                                      backgroundColor: AppColors.aqua
+                                      backgroundColor: accent
                                           .withValues(alpha: 0.16),
                                       child: Text(
                                         client.name.isNotEmpty
                                             ? client.name.characters.first
                                                 .toUpperCase()
                                             : 'C',
-                                        style: const TextStyle(
-                                          color: AppColors.aqua,
+                                        style: TextStyle(
+                                          color: accent,
                                           fontWeight: FontWeight.w700,
                                           fontSize: 16,
                                         ),
@@ -287,8 +292,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                         children: [
                                           Text(
                                             client.name,
-                                            style: const TextStyle(
-                                              color: AppColors.paper,
+                                            style: TextStyle(
+                                              color: textMain,
                                               fontWeight: FontWeight.w700,
                                               fontSize: 15,
                                             ),
@@ -300,23 +305,24 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                                 : (client.email.isNotEmpty
                                                     ? client.email
                                                     : 'No contact details'),
-                                            style: const TextStyle(
-                                              color: AppColors.muted,
+                                            style: TextStyle(
+                                              color: textMuted,
                                               fontSize: 12,
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
-                                    const Icon(
+                                    Icon(
                                       Icons.chevron_right_rounded,
-                                      color: AppColors.muted,
+                                      color: textMuted,
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 12),
-                                const Divider(
-                                    color: Color(0x18FFFFFF), height: 1),
+                                Divider(
+                                    color: context.cardBorder.withValues(alpha: 0.3),
+                                    height: 1),
                                 const SizedBox(height: 10),
                                 Row(
                                   children: [
@@ -325,7 +331,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                         children: [
                                           Icon(Icons.event_note_outlined,
                                               size: 13,
-                                              color: AppColors.aqua
+                                              color: accent
                                                   .withValues(alpha: 0.8)),
                                           const SizedBox(width: 4),
                                           Flexible(
@@ -334,8 +340,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                               '${events.isNotEmpty ? ' · ${_currency.format(totalValue)}' : ''}',
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                color: AppColors.paper,
+                                              style: TextStyle(
+                                                color: textMain,
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
                                               ),
@@ -350,12 +356,16 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 7, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFE8B86D)
+                                          color: (context.isDark
+                                                  ? const Color(0xFFE8B86D)
+                                                  : const Color(0xFFD97706))
                                               .withValues(alpha: 0.16),
                                           borderRadius:
                                               BorderRadius.circular(8),
                                           border: Border.all(
-                                            color: const Color(0xFFE8B86D)
+                                            color: (context.isDark
+                                                    ? const Color(0xFFE8B86D)
+                                                    : const Color(0xFFD97706))
                                                 .withValues(alpha: 0.4),
                                           ),
                                         ),
@@ -363,8 +373,10 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                           '${_currency.format(totalRemaining)} Due',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            color: Color(0xFFE8B86D),
+                                          style: TextStyle(
+                                            color: context.isDark
+                                                ? const Color(0xFFE8B86D)
+                                                : const Color(0xFFD97706),
                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -375,15 +387,14 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 7, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: AppColors.aqua
-                                              .withValues(alpha: 0.14),
+                                          color: accent.withValues(alpha: 0.14),
                                           borderRadius:
                                               BorderRadius.circular(8),
                                         ),
-                                        child: const Text(
+                                        child: Text(
                                           'All Paid',
                                           style: TextStyle(
-                                            color: AppColors.aqua,
+                                            color: accent,
                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -414,7 +425,6 @@ class _ClientsScreenState extends State<ClientsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.navy,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -437,13 +447,13 @@ class _ClientsScreenState extends State<ClientsScreen> {
                     Text(
                       'New Client Profile',
                       style: GoogleFonts.playfairDisplay(
-                        color: AppColors.paper,
+                        color: sheetContext.textMain,
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: AppColors.muted),
+                      icon: Icon(Icons.close, color: sheetContext.textMuted),
                       onPressed: () => Navigator.of(sheetContext).pop(),
                     ),
                   ],
@@ -456,8 +466,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 ),
                 const SizedBox(height: 14),
                 StudioTextField(
-                  label: 'Phone Number',
-                  hint: 'e.g. +91 98765 43210',
+                  label: 'Phone Number *',
+                  hint: 'e.g. 9876543210',
                   controller: phoneController,
                   keyboardType: TextInputType.phone,
                 ),
@@ -485,27 +495,55 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 StudioButton(
                   label: 'Create Client',
                   onPressed: () {
-                    if (nameController.text.trim().isNotEmpty) {
-                      final newClient = Client(
-                        id: 'cli-${DateTime.now().millisecondsSinceEpoch}',
-                        name: nameController.text.trim(),
-                        phone: phoneController.text.trim(),
-                        email: emailController.text.trim(),
-                        address: addressController.text.trim(),
-                        notes: notesController.text.trim(),
-                        createdAt: DateTime.now(),
-                      );
+                    final name = nameController.text.trim();
+                    final phone = phoneController.text.trim();
+                    final digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
 
-                      context.read<EventsProvider>().addClient(newClient);
-                      Navigator.of(sheetContext).pop();
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Client "${newClient.name}" created.'),
-                          backgroundColor: AppColors.navy,
+                    if (name.isEmpty) {
+                      ScaffoldMessenger.of(sheetContext).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter client full name'),
                         ),
                       );
+                      return;
                     }
+
+                    if (phone.isEmpty) {
+                      ScaffoldMessenger.of(sheetContext).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter phone number'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (digitsOnly.length < 10) {
+                      ScaffoldMessenger.of(sheetContext).showSnackBar(
+                        const SnackBar(
+                          content: Text('Phone number must be at least 10 digits'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final newClient = Client(
+                      id: 'cli-${DateTime.now().millisecondsSinceEpoch}',
+                      name: name,
+                      phone: phone,
+                      email: emailController.text.trim(),
+                      address: addressController.text.trim(),
+                      notes: notesController.text.trim(),
+                      createdAt: DateTime.now(),
+                    );
+
+                    context.read<EventsProvider>().addClient(newClient);
+                    Navigator.of(sheetContext).pop();
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Client "${newClient.name}" created.'),
+                      ),
+                    );
                   },
                 ),
               ],

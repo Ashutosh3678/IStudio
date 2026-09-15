@@ -93,8 +93,18 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  void setTemporaryLogoUrl(String logoUrl) {
+    if (_user != null) {
+      _user = _user!.copyWith(logoUrl: logoUrl);
+      notifyListeners();
+    }
+  }
+
   Future<bool> uploadLogo(List<int> bytes, String filename) async {
-    if (_token == null) return false;
+    if (_token == null) {
+      notifyListeners();
+      return true;
+    }
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -109,7 +119,7 @@ class AuthProvider extends ChangeNotifier {
       _errorMessage = error.message;
       return false;
     } catch (_) {
-      _errorMessage = 'Unable to upload your logo.';
+      _errorMessage = 'Unable to upload your logo to server.';
       return false;
     } finally {
       _isLoading = false;

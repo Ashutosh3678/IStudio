@@ -38,6 +38,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final allEvents = provider.events;
     final today = _dateOnly(DateTime.now());
 
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+    final accent = context.accentColor;
+
     final dayEvents = allEvents.where((event) {
       final date = event.startsAt;
       return date.year == _selected.year &&
@@ -81,8 +85,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
             actions: [
               IconButton(
                 tooltip: 'Add Shoot',
-                icon: const Icon(Icons.add_circle_outline_rounded,
-                    color: AppColors.aqua, size: 22),
+                icon: Icon(Icons.add_circle_outline_rounded,
+                    color: accent, size: 22),
                 onPressed: () => CreateEventSheet.show(context),
               ),
             ],
@@ -106,7 +110,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 Text(
                   DateFormat('EEEE, d MMMM').format(_selected),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.paper,
+                    color: textMain,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -116,7 +120,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     child: Text(
                       'No shoots booked for this day.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.muted,
+                        color: textMuted,
                       ),
                     ),
                   )
@@ -150,6 +154,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget _buildEventCard(BuildContext context, StudioEvent event) {
     final amountDue = event.remainingAmount;
     final amountText = amountDue > 0 ? _currency.format(amountDue) : 'None';
+    final accent = context.accentColor;
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
 
     return StudioCard(
       onTap: () => _openEventDetails(context, event),
@@ -167,8 +174,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       event.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.paper,
+                      style: TextStyle(
+                        color: textMain,
                         fontWeight: FontWeight.w700,
                         fontSize: 15,
                       ),
@@ -179,7 +186,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.muted,
+                            color: textMuted,
                           ),
                     ),
                   ],
@@ -192,15 +199,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.aqua.withValues(alpha: 0.15),
+                    color: accent.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     event.eventType,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.aqua,
+                    style: TextStyle(
+                      color: accent,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -218,14 +225,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
           _EventInfoRow(
             icon: Icons.account_balance_wallet_outlined,
             text: 'Amount due: $amountText',
-            color: amountDue > 0 ? const Color(0xFFE8B86D) : AppColors.aqua,
+            color: amountDue > 0
+                ? (context.isDark
+                    ? const Color(0xFFE8B86D)
+                    : const Color(0xFFD97706))
+                : accent,
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.location_on_outlined,
-                color: AppColors.aqua,
+                color: accent,
                 size: 16,
               ),
               const SizedBox(width: 8),
@@ -234,8 +245,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   event.location,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.muted,
+                  style: TextStyle(
+                    color: textMuted,
                     fontSize: 13,
                   ),
                 ),
@@ -244,12 +255,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
               InkWell(
                 borderRadius: BorderRadius.circular(8),
                 onTap: () => _openEventDetails(context, event),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
                   child: Text(
                     'Details →',
                     style: TextStyle(
-                      color: AppColors.aqua,
+                      color: accent,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
@@ -268,18 +279,21 @@ class _EventInfoRow extends StatelessWidget {
   const _EventInfoRow({
     required this.icon,
     required this.text,
-    this.color = AppColors.muted,
+    this.color,
   });
 
   final IconData icon;
   final String text;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
+    final defaultMuted = context.textMuted;
+    final rowColor = color ?? defaultMuted;
+
     return Row(
       children: [
-        Icon(icon, color: AppColors.aqua, size: 16),
+        Icon(icon, color: context.accentColor, size: 16),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -287,11 +301,9 @@ class _EventInfoRow extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: color,
+              color: rowColor,
               fontSize: 13,
-              fontWeight: color == AppColors.muted
-                  ? FontWeight.w500
-                  : FontWeight.w700,
+              fontWeight: color == null ? FontWeight.w500 : FontWeight.w700,
             ),
           ),
         ),

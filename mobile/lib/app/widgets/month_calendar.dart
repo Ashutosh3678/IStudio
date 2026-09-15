@@ -47,6 +47,10 @@ class MonthCalendar extends StatelessWidget {
     final nearestNorm =
         nearestUpcomingDay != null ? _dateOnly(nearestUpcomingDay!) : null;
 
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+    final accent = context.accentColor;
+
     return Column(
       children: [
         // Month nav
@@ -57,15 +61,14 @@ class MonthCalendar extends StatelessWidget {
               onPressed: () => onMonthChanged(
                 DateTime(visibleMonth.year, visibleMonth.month - 1),
               ),
-              icon: const Icon(Icons.chevron_left_rounded,
-                  color: AppColors.paper),
+              icon: Icon(Icons.chevron_left_rounded, color: textMain),
             ),
             Expanded(
               child: Text(
                 DateFormat('MMMM yyyy').format(visibleMonth),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.playfairDisplay(
-                  color: AppColors.paper,
+                  color: textMain,
                   fontSize: 22,
                   fontWeight: FontWeight.w600,
                 ),
@@ -76,8 +79,7 @@ class MonthCalendar extends StatelessWidget {
               onPressed: () => onMonthChanged(
                 DateTime(visibleMonth.year, visibleMonth.month + 1),
               ),
-              icon: const Icon(Icons.chevron_right_rounded,
-                  color: AppColors.paper),
+              icon: Icon(Icons.chevron_right_rounded, color: textMain),
             ),
           ],
         ),
@@ -152,8 +154,8 @@ class MonthCalendar extends StatelessWidget {
             Container(
               width: 6,
               height: 6,
-              decoration: const BoxDecoration(
-                color: AppColors.aqua,
+              decoration: BoxDecoration(
+                color: accent,
                 shape: BoxShape.circle,
               ),
             ),
@@ -161,7 +163,7 @@ class MonthCalendar extends StatelessWidget {
             Text(
               'Upcoming event',
               style: TextStyle(
-                color: AppColors.muted.withValues(alpha: 0.8),
+                color: textMuted,
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
               ),
@@ -193,57 +195,60 @@ class _DayCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDark;
+    final accent = context.accentColor;
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+
     Color bgColor = Colors.transparent;
     Border? border;
     List<BoxShadow>? shadows;
 
     if (isSelected) {
-      bgColor = AppColors.aqua;
+      bgColor = accent;
     } else if (isNearest) {
-      bgColor = AppColors.aqua.withValues(alpha: 0.25);
-      border = Border.all(color: AppColors.aqua, width: 1.5);
+      bgColor = accent.withValues(alpha: 0.25);
+      border = Border.all(color: accent, width: 1.5);
       shadows = [
         BoxShadow(
-          color: AppColors.aqua.withValues(alpha: 0.25),
+          color: accent.withValues(alpha: 0.25),
           blurRadius: 8,
           spreadRadius: 1,
         ),
       ];
     } else if (isToday) {
-      bgColor = AppColors.aqua.withValues(alpha: 0.14);
-      border = Border.all(color: AppColors.aqua.withValues(alpha: 0.50));
+      bgColor = accent.withValues(alpha: 0.14);
+      border = Border.all(color: accent.withValues(alpha: 0.50));
     } else if (isUpcoming) {
-      bgColor = AppColors.aqua.withValues(alpha: 0.10);
+      bgColor = accent.withValues(alpha: 0.10);
     }
 
     Color textColor;
     FontWeight textWeight;
     if (isSelected) {
-      textColor = AppColors.ink;
+      textColor = isDark ? AppColors.ink : Colors.white;
       textWeight = FontWeight.w700;
     } else if (isNearest) {
-      textColor = AppColors.aqua;
+      textColor = accent;
       textWeight = FontWeight.w700;
     } else if (isToday) {
-      textColor = AppColors.paper;
+      textColor = textMain;
       textWeight = FontWeight.w700;
     } else if (isUpcoming) {
-      textColor = AppColors.paper;
+      textColor = textMain;
       textWeight = FontWeight.w600;
     } else {
-      textColor = AppColors.paper.withValues(alpha: 0.75);
+      textColor = textMain.withValues(alpha: 0.75);
       textWeight = FontWeight.w400;
     }
 
     Color dotColor = Colors.transparent;
     if (isSelected && (isUpcoming || isNearest || isToday)) {
-      dotColor = AppColors.ink; // visible on aqua bg
-    } else if (isNearest) {
-      dotColor = AppColors.aqua;
-    } else if (isUpcoming) {
-      dotColor = AppColors.aqua;
+      dotColor = isDark ? AppColors.ink : Colors.white;
+    } else if (isNearest || isUpcoming) {
+      dotColor = accent;
     } else if (isPastMarked) {
-      dotColor = AppColors.muted.withValues(alpha: 0.40);
+      dotColor = textMuted.withValues(alpha: 0.50);
     }
 
     return AnimatedContainer(
@@ -292,7 +297,7 @@ class _WeekLabel extends StatelessWidget {
         label,
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.muted,
+              color: context.textMuted,
               fontWeight: FontWeight.w600,
             ),
       ),

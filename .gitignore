@@ -1,0 +1,52 @@
+# Environment & Secrets (Crucial for security)
+.env
+.env.*
+*.env
+server/.env
+
+# Node backend
+node_modules/
+server/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Flutter / Mobile
+.dart_tool/
+mobile/.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+mobile/build/
+mobile/coverage/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/app/debug/
+mobile/android/app/profile/
+mobile/android/app/release/
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/ios/Flutter/Flutter.framework
+mobile/ios/Flutter/Flutter.podspec
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Flutter/app.flr
+mobile/ios/Runner.xcworkspace/
+mobile/.widget_preview/
+
+# IDE & OS Junk
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+Thumbs.db
+
+# Agent & Local tooling workspace metadata
+.agents/
+.gemini/

@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 
 const userRepository = require('../repositories/userRepository');
+const { uploadToCloudinary } = require('../config/cloudinary');
 
 function normalizePhone(value = '') {
   let digits = String(value).replace(/\D/g, '');
@@ -206,11 +207,34 @@ async function uploadLogo(req, res) {
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        message: 'Choose a studio logo to upload.',
+        message: 'Choose a profile image or studio logo to upload.',
       });
     }
 
-    const logoUrl = `/uploads/${req.file.filename}`;
+    console.log(`\n📸 [UPLOAD] User ${req.userId} uploading image: ${req.file.originalname} (${req.file.size} bytes)`);
+
+    let logoUrl = '';
+    let source = 'cloudinary';
+
+    try {
+      // Upload actual image to Cloudinary (free CDN)
+      console.log(`☁️  [CLOUDINARY] Uploading to Cloudinary...`);
+      const cloudinaryResult = await uploadToCloudinary(req.file.path, {
+        folder: 'lumen_studio/profiles',
+      });
+      logoUrl = cloudinaryResult.secure_url || cloudinaryResult.url;
+      console.log(`✅ [CLOUDINARY] Upload successful!`);
+      console.log(`🔗 [CLOUDINARY] URL: ${logoUrl}`);
+      console.log(`🆔 [CLOUDINARY] Public ID: ${cloudinaryResult.public_id}`);
+    } catch (cloudinaryError) {
+      console.error('❌ [CLOUDINARY] Upload failed, falling back to local:', cloudinaryError.message);
+      logoUrl = `/uploads/${req.file.filename}`;
+      source = 'local';
+      console.log(`📁 [LOCAL] Fallback URL: ${logoUrl}`);
+    }
+
+    // Save ONLY the URL in MongoDB (no binary/base64 stored in database)
+    console.log(`💾 [MONGODB] Saving logoUrl to user document (userId: ${req.userId})...`);
     const user = await userRepository.updateUser(req.userId, { logoUrl });
     if (!user) {
       return res.status(404).json({
@@ -219,15 +243,21 @@ async function uploadLogo(req, res) {
       });
     }
 
+    console.log(`✅ [MONGODB] logoUrl saved successfully for user: ${user.username}`);
+    console.log(`📋 [MONGODB] Stored value: ${user.logoUrl}`);
+    console.log(`📦 [UPLOAD COMPLETE] source=${source}, user=${user.username}\n`);
+
     return res.json({
       success: true,
+      imageUrl: logoUrl,
+      source,
       user: user.toPublicJSON(),
     });
   } catch (error) {
     console.error('Logo upload error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Unable to upload your logo right now.',
+      message: 'Unable to upload your profile image right now.',
     });
   }
 }

@@ -10,6 +10,8 @@ import 'app/theme/app_colors.dart';
 import 'app/theme/app_theme.dart';
 import 'app/widgets/studio_splash.dart';
 
+import 'app/providers/theme_provider.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(
@@ -30,15 +32,21 @@ class LumenApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()..bootstrap()),
         ChangeNotifierProvider(create: (_) => AuthProvider()..bootstrap()),
         ChangeNotifierProvider(create: (_) => EventsProvider()),
       ],
-      child: MaterialApp(
-        title: 'Lumen Studio',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.dark,
-        themeMode: ThemeMode.dark,
-        home: const _AuthGate(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            title: 'Lumen Studio',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light,
+            darkTheme: AppTheme.dark,
+            themeMode: themeProvider.themeMode,
+            home: const _AuthGate(),
+          );
+        },
       ),
     );
   }

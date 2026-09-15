@@ -19,9 +19,19 @@ class ApiConfig {
   }
 
   static String resolveMedia(String? path) {
-    if (path == null || path.isEmpty) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    return '$origin$path';
+    if (path == null || path.trim().isEmpty) return '';
+    final p = path.trim();
+    if (p.startsWith('http://') ||
+        p.startsWith('https://') ||
+        p.startsWith('data:image/') ||
+        p.startsWith('file://') ||
+        p.startsWith('content://')) {
+      return p;
+    }
+    if (!p.startsWith('/')) {
+      return '$origin/$p';
+    }
+    return '$origin$p';
   }
 
   static String get baseUrl {

@@ -29,7 +29,7 @@ class EventDetailsScreen extends StatelessWidget {
 
     if (event == null) {
       return Scaffold(
-        backgroundColor: AppColors.ink,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: const StudioAppBar(
           title: 'Event Not Found',
           subtitle: 'Lumen studio',
@@ -38,8 +38,10 @@ class EventDetailsScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('This event could not be found.',
-                  style: TextStyle(color: AppColors.paper)),
+              Text(
+                'This event could not be found.',
+                style: TextStyle(color: context.textMain),
+              ),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -52,7 +54,7 @@ class EventDetailsScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.ink,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -61,15 +63,21 @@ class EventDetailsScreen extends StatelessWidget {
               subtitle: '${event.eventType} Details',
               leading: IconButton(
                 tooltip: 'Back',
-                icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                    color: AppColors.paper, size: 20),
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: context.textMain,
+                  size: 20,
+                ),
                 onPressed: () => Navigator.of(context).pop(),
               ),
               actions: [
                 IconButton(
                   tooltip: 'Edit Event',
-                  icon: const Icon(Icons.edit_outlined,
-                      color: AppColors.aqua, size: 20),
+                  icon: Icon(
+                    Icons.edit_outlined,
+                    color: context.accentColor,
+                    size: 20,
+                  ),
                   onPressed: () => _showEditEventDialog(context, event),
                 ),
               ],
@@ -128,8 +136,10 @@ class EventDetailsScreen extends StatelessWidget {
                   children: [
                     Text(
                       event.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.playfairDisplay(
-                        color: AppColors.paper,
+                        color: context.textMain,
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
                       ),
@@ -137,8 +147,10 @@ class EventDetailsScreen extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       '${event.eventType} · Client: ${event.clientName}',
-                      style: const TextStyle(
-                        color: AppColors.muted,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: context.textMuted,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -146,33 +158,36 @@ class EventDetailsScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              _buildStatusBadge(event.status),
+              _buildStatusBadge(context, event.status),
             ],
           ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: AppColors.ink.withValues(alpha: 0.5),
+              color: context.innerBg,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: AppColors.slate.withValues(alpha: 0.35),
+                color: context.cardBorder,
               ),
             ),
             child: Column(
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.calendar_month_outlined,
-                        color: AppColors.aqua, size: 18),
+                    Icon(
+                      Icons.calendar_month_outlined,
+                      color: context.accentColor,
+                      size: 18,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         '$dateStr ($dayStr) · ${event.startTime} - ${event.endTime}',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.paper,
+                        style: TextStyle(
+                          color: context.textMain,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),
@@ -183,14 +198,17 @@ class EventDetailsScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.location_on_outlined,
-                        color: AppColors.aqua, size: 18),
+                    Icon(
+                      Icons.location_on_outlined,
+                      color: context.accentColor,
+                      size: 18,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         event.location,
-                        style: const TextStyle(
-                          color: AppColors.paper,
+                        style: TextStyle(
+                          color: context.textMain,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),
@@ -206,28 +224,23 @@ class EventDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusBadge(EventStatus status) {
-    Color color;
+  Widget _buildStatusBadge(BuildContext context, EventStatus status) {
+    final color = AppColors.statusColor(context, status);
     IconData icon;
     switch (status) {
       case EventStatus.completed:
-        color = AppColors.aqua;
         icon = Icons.check_circle_outline_rounded;
         break;
       case EventStatus.inProgress:
-        color = const Color(0xFF64B5F6);
         icon = Icons.timelapse_rounded;
         break;
       case EventStatus.paymentDue:
-        color = const Color(0xFFE8B86D);
         icon = Icons.error_outline_rounded;
         break;
       case EventStatus.upcoming:
-        color = const Color(0xFF81C784);
         icon = Icons.schedule_rounded;
         break;
       case EventStatus.cancelled:
-        color = const Color(0xFFFF7A8A);
         icon = Icons.cancel_outlined;
         break;
     }
@@ -235,7 +248,7 @@ class EventDetailsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.16),
+        color: color.withValues(alpha: context.isDark ? 0.16 : 0.12),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
@@ -244,12 +257,16 @@ class EventDetailsScreen extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 14),
           const SizedBox(width: 5),
-          Text(
-            status.label,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+          Flexible(
+            child: Text(
+              status.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -261,6 +278,7 @@ class EventDetailsScreen extends StatelessWidget {
   Widget _buildFinancialSummary(BuildContext context, StudioEvent event) {
     final remaining = event.remainingAmount;
     final hasRemaining = remaining > 0;
+    final dueColor = context.isDark ? const Color(0xFFE8B86D) : const Color(0xFFB57200);
 
     return StudioCard(
       padding: const EdgeInsets.all(20),
@@ -274,7 +292,7 @@ class EventDetailsScreen extends StatelessWidget {
                 child: Text(
                   'Event Financials',
                   style: GoogleFonts.playfairDisplay(
-                    color: AppColors.paper,
+                    color: context.textMain,
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
@@ -288,18 +306,18 @@ class EventDetailsScreen extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE8B86D).withValues(alpha: 0.18),
+                      color: dueColor.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: const Color(0xFFE8B86D).withValues(alpha: 0.5),
+                        color: dueColor.withValues(alpha: 0.5),
                       ),
                     ),
                     child: Text(
                       '${_currency.format(remaining)} Due',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFFE8B86D),
+                      style: TextStyle(
+                        color: dueColor,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -310,13 +328,13 @@ class EventDetailsScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.aqua.withValues(alpha: 0.16),
+                    color: context.accentColor.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Fully Paid',
                     style: TextStyle(
-                      color: AppColors.aqua,
+                      color: context.accentColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -329,74 +347,89 @@ class EventDetailsScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.ink.withValues(alpha: 0.6),
+              color: context.innerBg,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: AppColors.slate.withValues(alpha: 0.35),
+                color: context.cardBorder,
               ),
             ),
             child: Column(
               children: [
                 _buildFinanceRow(
+                  context,
                   label: 'Total Package',
                   value: _currency.format(event.totalAmount),
-                  valueColor: AppColors.paper,
+                  valueColor: context.textMain,
                 ),
-                const Divider(color: Color(0x22FFFFFF), height: 16),
+                Divider(color: context.cardBorder, height: 16),
                 _buildFinanceRow(
+                  context,
                   label: 'Amount Received',
                   value: _currency.format(event.amountReceived),
-                  valueColor: AppColors.aqua,
+                  valueColor: context.accentColor,
                 ),
-                const Divider(color: Color(0x22FFFFFF), height: 16),
+                Divider(color: context.cardBorder, height: 16),
                 _buildFinanceRow(
+                  context,
                   label: 'Remaining Balance',
                   value: _currency.format(event.remainingAmount),
-                  valueColor: hasRemaining
-                      ? const Color(0xFFE8B86D)
-                      : AppColors.muted,
+                  valueColor: hasRemaining ? dueColor : context.textMuted,
                   subtitle: hasRemaining ? 'Pending client settlement' : 'Settled',
                 ),
-                const Divider(color: Color(0x22FFFFFF), height: 16),
+                Divider(color: context.cardBorder, height: 16),
                 _buildFinanceRow(
+                  context,
                   label: 'Total Expenses',
                   value: _currency.format(event.totalExpenses),
-                  valueColor: const Color(0xFFFF7A8A),
+                  valueColor: AppColors.expense(context),
                   subtitle: '${event.expenses.length} recorded items',
                 ),
-                const Divider(color: Color(0x445BC0BE), height: 20),
+                Divider(color: context.accentColor.withValues(alpha: 0.4), height: 20),
                 // Prominent Net Profit
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Net Profit',
-                          style: TextStyle(
-                            color: AppColors.paper,
-                            fontSize: 15,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Net Profit',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: context.textMain,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            'Received − Expenses',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: context.textMuted,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          _currency.format(event.netProfit),
+                          style: GoogleFonts.playfairDisplay(
+                            color: event.netProfit >= 0
+                                ? AppColors.profit(context)
+                                : AppColors.expense(context),
+                            fontSize: 22,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        Text(
-                          'Received − Expenses',
-                          style: TextStyle(
-                            color: AppColors.muted.withValues(alpha: 0.8),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      _currency.format(event.netProfit),
-                      style: GoogleFonts.playfairDisplay(
-                        color: event.netProfit >= 0
-                            ? AppColors.aqua
-                            : const Color(0xFFFF7A8A),
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
@@ -409,7 +442,8 @@ class EventDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFinanceRow({
+  Widget _buildFinanceRow(
+    BuildContext context, {
     required String label,
     required String value,
     required Color valueColor,
@@ -426,8 +460,8 @@ class EventDetailsScreen extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.muted,
+                style: TextStyle(
+                  color: context.textMuted,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
@@ -438,7 +472,7 @@ class EventDetailsScreen extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: AppColors.muted.withValues(alpha: 0.6),
+                    color: context.textMuted.withValues(alpha: 0.7),
                     fontSize: 11,
                   ),
                 ),
@@ -474,7 +508,7 @@ class EventDetailsScreen extends StatelessWidget {
               Text(
                 'Payments',
                 style: GoogleFonts.playfairDisplay(
-                  color: AppColors.paper,
+                  color: context.textMain,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                 ),
@@ -486,10 +520,10 @@ class EventDetailsScreen extends StatelessWidget {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 onPressed: () => _showAddPaymentSheet(context, event.id),
-                icon: const Icon(Icons.add, size: 16, color: AppColors.aqua),
-                label: const Text(
+                icon: Icon(Icons.add, size: 16, color: context.accentColor),
+                label: Text(
                   'Add Payment',
-                  style: TextStyle(color: AppColors.aqua, fontSize: 13),
+                  style: TextStyle(color: context.accentColor, fontSize: 13),
                 ),
               ),
             ],
@@ -501,12 +535,12 @@ class EventDetailsScreen extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: AppColors.ink.withValues(alpha: 0.3),
+                color: context.innerBg,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
+              child: Text(
                 'No payments logged yet.',
-                style: TextStyle(color: AppColors.muted, fontSize: 13),
+                style: TextStyle(color: context.textMuted, fontSize: 13),
               ),
             )
           else
@@ -516,10 +550,10 @@ class EventDetailsScreen extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.ink.withValues(alpha: 0.45),
+                  color: context.innerBg,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.slate.withValues(alpha: 0.25),
+                    color: context.cardBorder,
                   ),
                 ),
                 child: Column(
@@ -531,11 +565,14 @@ class EventDetailsScreen extends StatelessWidget {
                           width: 32,
                           height: 32,
                           decoration: BoxDecoration(
-                            color: AppColors.aqua.withValues(alpha: 0.15),
+                            color: context.accentColor.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(p.method.icon,
-                              color: AppColors.aqua, size: 16),
+                          child: Icon(
+                            p.method.icon,
+                            color: context.accentColor,
+                            size: 16,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -544,37 +581,46 @@ class EventDetailsScreen extends StatelessWidget {
                             children: [
                               Text(
                                 p.title,
-                                style: const TextStyle(
-                                  color: AppColors.paper,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: context.textMain,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 14,
                                 ),
                               ),
                               Row(
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 5, vertical: 1),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.slate
-                                          .withValues(alpha: 0.3),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      p.method.label,
-                                      style: const TextStyle(
-                                        color: AppColors.paper,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
+                                  Flexible(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 5, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: context.cardBorder,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        p.method.label,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: context.textMain,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
                                   ),
                                   const SizedBox(width: 6),
-                                  Text(
-                                    dateStr,
-                                    style: const TextStyle(
-                                      color: AppColors.muted,
-                                      fontSize: 11,
+                                  Flexible(
+                                    child: Text(
+                                      dateStr,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: context.textMuted,
+                                        fontSize: 11,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -582,19 +628,26 @@ class EventDetailsScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                        Text(
-                          _currency.format(p.amount),
-                          style: const TextStyle(
-                            color: AppColors.aqua,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              _currency.format(p.amount),
+                              style: TextStyle(
+                                color: context.accentColor,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
+                            ),
                           ),
                         ),
                       ],
                     ),
                     if (p.reference != null || p.hasProof) ...[
                       const SizedBox(height: 6),
-                      const Divider(color: Color(0x18FFFFFF), height: 1),
+                      Divider(color: context.cardBorder, height: 1),
                       const SizedBox(height: 6),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -603,7 +656,7 @@ class EventDetailsScreen extends StatelessWidget {
                             Text(
                               'Ref: ${p.reference}',
                               style: TextStyle(
-                                color: AppColors.muted.withValues(alpha: 0.8),
+                                color: context.textMuted,
                                 fontSize: 11,
                               ),
                             )
@@ -617,22 +670,22 @@ class EventDetailsScreen extends StatelessWidget {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: AppColors.aqua.withValues(alpha: 0.16),
+                                  color: context.accentColor.withValues(alpha: 0.16),
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
-                                    color: AppColors.aqua.withValues(alpha: 0.4),
+                                    color: context.accentColor.withValues(alpha: 0.4),
                                   ),
                                 ),
-                                child: const Row(
+                                child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(Icons.attachment_rounded,
-                                        size: 11, color: AppColors.aqua),
-                                    SizedBox(width: 3),
+                                        size: 11, color: context.accentColor),
+                                    const SizedBox(width: 3),
                                     Text(
                                       'View Proof',
                                       style: TextStyle(
-                                        color: AppColors.aqua,
+                                        color: context.accentColor,
                                         fontSize: 10,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -652,18 +705,18 @@ class EventDetailsScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Total Received',
                 style: TextStyle(
-                  color: AppColors.paper,
+                  color: context.textMain,
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),
               ),
               Text(
                 _currency.format(event.amountReceived),
-                style: const TextStyle(
-                  color: AppColors.aqua,
+                style: TextStyle(
+                  color: context.accentColor,
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
                 ),
@@ -677,6 +730,8 @@ class EventDetailsScreen extends StatelessWidget {
 
   // ================= D. Expense Summary =================
   Widget _buildExpenseSummary(BuildContext context, StudioEvent event) {
+    final expColor = AppColors.expense(context);
+
     return StudioCard(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -688,7 +743,7 @@ class EventDetailsScreen extends StatelessWidget {
               Text(
                 'Event Expenses',
                 style: GoogleFonts.playfairDisplay(
-                  color: AppColors.paper,
+                  color: context.textMain,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                 ),
@@ -700,10 +755,10 @@ class EventDetailsScreen extends StatelessWidget {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 onPressed: () => _showAddExpenseSheet(context, event.id),
-                icon: const Icon(Icons.add, size: 16, color: AppColors.aqua),
-                label: const Text(
+                icon: Icon(Icons.add, size: 16, color: context.accentColor),
+                label: Text(
                   '+ Add Expense',
-                  style: TextStyle(color: AppColors.aqua, fontSize: 13),
+                  style: TextStyle(color: context.accentColor, fontSize: 13),
                 ),
               ),
             ],
@@ -715,12 +770,12 @@ class EventDetailsScreen extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: AppColors.ink.withValues(alpha: 0.3),
+                color: context.innerBg,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
+              child: Text(
                 'No expenses recorded yet.',
-                style: TextStyle(color: AppColors.muted, fontSize: 13),
+                style: TextStyle(color: context.textMuted, fontSize: 13),
               ),
             )
           else
@@ -732,7 +787,7 @@ class EventDetailsScreen extends StatelessWidget {
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.only(right: 16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF7A8A).withValues(alpha: 0.8),
+                    color: expColor.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.delete_outline, color: Colors.white),
@@ -744,10 +799,10 @@ class EventDetailsScreen extends StatelessWidget {
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
-                    color: AppColors.ink.withValues(alpha: 0.45),
+                    color: context.innerBg,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppColors.slate.withValues(alpha: 0.25),
+                      color: context.cardBorder,
                     ),
                   ),
                   child: Row(
@@ -756,11 +811,11 @@ class EventDetailsScreen extends StatelessWidget {
                         width: 32,
                         height: 32,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFF7A8A).withValues(alpha: 0.15),
+                          color: expColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.receipt_outlined,
-                            color: Color(0xFFFF7A8A), size: 18),
+                        child: Icon(Icons.receipt_outlined,
+                            color: expColor, size: 18),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -769,16 +824,16 @@ class EventDetailsScreen extends StatelessWidget {
                           children: [
                             Text(
                               ex.title,
-                              style: const TextStyle(
-                                color: AppColors.paper,
+                              style: TextStyle(
+                                color: context.textMain,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
                               ),
                             ),
                             Text(
                               '${ex.category} · ${DateFormat('d MMM').format(ex.incurredAt)}',
-                              style: const TextStyle(
-                                color: AppColors.muted,
+                              style: TextStyle(
+                                color: context.textMuted,
                                 fontSize: 12,
                               ),
                             ),
@@ -787,8 +842,8 @@ class EventDetailsScreen extends StatelessWidget {
                       ),
                       Text(
                         _currency.format(ex.amount),
-                        style: const TextStyle(
-                          color: Color(0xFFFF7A8A),
+                        style: TextStyle(
+                          color: expColor,
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
                         ),
@@ -802,18 +857,18 @@ class EventDetailsScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Total Expenses',
                 style: TextStyle(
-                  color: AppColors.paper,
+                  color: context.textMain,
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),
               ),
               Text(
                 _currency.format(event.totalExpenses),
-                style: const TextStyle(
-                  color: Color(0xFFFF7A8A),
+                style: TextStyle(
+                  color: expColor,
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
                 ),
@@ -851,7 +906,7 @@ class EventDetailsScreen extends StatelessWidget {
                 child: Text(
                   'Work Progress',
                   style: GoogleFonts.playfairDisplay(
-                    color: AppColors.paper,
+                    color: context.textMain,
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
@@ -866,7 +921,7 @@ class EventDetailsScreen extends StatelessWidget {
                   '$completed / $total',
                   key: ValueKey('progress-count-$completed-$total'),
                   style: GoogleFonts.playfairDisplay(
-                    color: AppColors.aqua,
+                    color: context.accentColor,
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                   ),
@@ -880,8 +935,8 @@ class EventDetailsScreen extends StatelessWidget {
             child: Text(
               '$percent% Complete',
               key: ValueKey('progress-percent-$percent'),
-              style: const TextStyle(
-                color: AppColors.muted,
+              style: TextStyle(
+                color: context.textMuted,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -898,22 +953,21 @@ class EventDetailsScreen extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: value,
                   minHeight: 8,
-                  backgroundColor: AppColors.slate.withValues(alpha: 0.35),
-                  valueColor:
-                      const AlwaysStoppedAnimation<Color>(AppColors.aqua),
+                  backgroundColor: context.cardBorder,
+                  valueColor: AlwaysStoppedAnimation<Color>(context.accentColor),
                 ),
               );
             },
           ),
           const SizedBox(height: 16),
           if (event.deliverables.isEmpty)
-            const Text(
+            Text(
               'No deliverables listed for this shoot.',
-              style: TextStyle(color: AppColors.muted, fontSize: 13),
+              style: TextStyle(color: context.textMuted, fontSize: 13),
             )
           else ...[
             if (nextTask == null)
-              _buildAllWorkCompleteCard(completed, total)
+              _buildAllWorkCompleteCard(context, completed, total)
             else
               _buildNextTaskCard(context, event.id, nextTask),
             const SizedBox(height: 18),
@@ -1019,7 +1073,7 @@ class EventDetailsScreen extends StatelessWidget {
         Text(
           'NEXT UP',
           style: TextStyle(
-            color: AppColors.aqua.withValues(alpha: 0.85),
+            color: context.accentColor,
             fontSize: 11,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.8,
@@ -1037,14 +1091,14 @@ class EventDetailsScreen extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.aqua.withValues(alpha: 0.12),
+                color: context.accentColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
-                  color: AppColors.aqua.withValues(alpha: 0.36),
+                  color: context.accentColor.withValues(alpha: 0.36),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.aqua.withValues(alpha: 0.08),
+                    color: context.accentColor.withValues(alpha: 0.08),
                     blurRadius: 18,
                     spreadRadius: 1,
                   ),
@@ -1056,12 +1110,12 @@ class EventDetailsScreen extends StatelessWidget {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: AppColors.aqua.withValues(alpha: 0.14),
+                      color: context.accentColor.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(
                       _taskIcon(task.title),
-                      color: AppColors.aqua,
+                      color: context.accentColor,
                       size: 21,
                     ),
                   ),
@@ -1074,8 +1128,8 @@ class EventDetailsScreen extends StatelessWidget {
                           task.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.paper,
+                          style: TextStyle(
+                            color: context.textMain,
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                           ),
@@ -1085,8 +1139,8 @@ class EventDetailsScreen extends StatelessWidget {
                           'Continue ${_taskSubtitle(task).toLowerCase()}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.muted,
+                          style: TextStyle(
+                            color: context.textMuted,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -1095,10 +1149,10 @@ class EventDetailsScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Text(
+                  Text(
                     'START ->',
                     style: TextStyle(
-                      color: AppColors.aqua,
+                      color: context.accentColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
@@ -1112,18 +1166,18 @@ class EventDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAllWorkCompleteCard(int completed, int total) {
+  Widget _buildAllWorkCompleteCard(BuildContext context, int completed, int total) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 260),
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.aqua.withValues(alpha: 0.13),
+        color: context.accentColor.withValues(alpha: 0.13),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.aqua.withValues(alpha: 0.42)),
+        border: Border.all(color: context.accentColor.withValues(alpha: 0.42)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.aqua.withValues(alpha: 0.10),
+            color: context.accentColor.withValues(alpha: 0.10),
             blurRadius: 22,
             spreadRadius: 1,
           ),
@@ -1131,17 +1185,17 @@ class EventDetailsScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(
+          Icon(
             Icons.verified_rounded,
-            color: AppColors.aqua,
+            color: context.accentColor,
             size: 28,
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'ALL WORK COMPLETED',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: AppColors.paper,
+              color: context.textMain,
               fontSize: 13,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.7,
@@ -1150,8 +1204,8 @@ class EventDetailsScreen extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '$completed / $total tasks finished',
-            style: const TextStyle(
-              color: AppColors.muted,
+            style: TextStyle(
+              color: context.textMuted,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -1182,7 +1236,7 @@ class EventDetailsScreen extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: AppColors.aqua.withValues(alpha: 0.82),
+                    color: context.accentColor,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.8,
@@ -1192,8 +1246,8 @@ class EventDetailsScreen extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 '$completed / $total',
-                style: const TextStyle(
-                  color: AppColors.muted,
+                style: TextStyle(
+                  color: context.textMuted,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1218,7 +1272,7 @@ class EventDetailsScreen extends StatelessWidget {
     DeliverableTask task,
   ) {
     final isCompleted = task.isCompleted;
-    final statusColor = isCompleted ? AppColors.aqua : AppColors.muted;
+    final statusColor = isCompleted ? context.accentColor : context.textMuted;
 
     return Material(
       color: Colors.transparent,
@@ -1231,13 +1285,13 @@ class EventDetailsScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
           decoration: BoxDecoration(
             color: isCompleted
-                ? AppColors.aqua.withValues(alpha: 0.10)
-                : AppColors.ink.withValues(alpha: 0.45),
+                ? context.accentColor.withValues(alpha: 0.10)
+                : context.innerBg,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isCompleted
-                  ? AppColors.aqua.withValues(alpha: 0.38)
-                  : AppColors.slate.withValues(alpha: 0.28),
+                  ? context.accentColor.withValues(alpha: 0.38)
+                  : context.cardBorder,
             ),
           ),
           child: Row(
@@ -1255,16 +1309,18 @@ class EventDetailsScreen extends StatelessWidget {
                   width: 28,
                   height: 28,
                   decoration: BoxDecoration(
-                    color: isCompleted ? AppColors.aqua : Colors.transparent,
+                    color: isCompleted ? context.accentColor : Colors.transparent,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isCompleted ? AppColors.aqua : AppColors.muted,
+                      color: isCompleted ? context.accentColor : context.textMuted,
                       width: 1.4,
                     ),
                   ),
                   child: Icon(
                     isCompleted ? Icons.check_rounded : Icons.circle_outlined,
-                    color: isCompleted ? AppColors.ink : Colors.transparent,
+                    color: isCompleted
+                        ? (context.isDark ? AppColors.ink : Colors.white)
+                        : Colors.transparent,
                     size: 18,
                   ),
                 ),
@@ -1286,8 +1342,8 @@ class EventDetailsScreen extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: isCompleted
-                            ? AppColors.paper.withValues(alpha: 0.78)
-                            : AppColors.paper,
+                            ? context.textMain.withValues(alpha: 0.78)
+                            : context.textMain,
                         fontSize: 14,
                         fontWeight:
                             isCompleted ? FontWeight.w600 : FontWeight.w700,
@@ -1298,8 +1354,8 @@ class EventDetailsScreen extends StatelessWidget {
                       _taskSubtitle(task),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.muted,
+                      style: TextStyle(
+                        color: context.textMuted,
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                       ),
@@ -1336,7 +1392,7 @@ class EventDetailsScreen extends StatelessWidget {
           Text(
             'Notes',
             style: GoogleFonts.playfairDisplay(
-              color: AppColors.paper,
+              color: context.textMain,
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
@@ -1346,8 +1402,8 @@ class EventDetailsScreen extends StatelessWidget {
             event.notes.isNotEmpty
                 ? event.notes
                 : 'No notes recorded for this event.',
-            style: const TextStyle(
-              color: AppColors.paper,
+            style: TextStyle(
+              color: context.textMain,
               fontSize: 14,
               height: 1.5,
             ),
@@ -1370,7 +1426,7 @@ class EventDetailsScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.navy,
+      backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -1395,13 +1451,13 @@ class EventDetailsScreen extends StatelessWidget {
                         Text(
                           'Record Payment',
                           style: GoogleFonts.playfairDisplay(
-                            color: AppColors.paper,
+                            color: context.textMain,
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, color: AppColors.muted),
+                          icon: Icon(Icons.close, color: context.textMuted),
                           onPressed: () => Navigator.of(sheetContext).pop(),
                         ),
                       ],
@@ -1422,10 +1478,10 @@ class EventDetailsScreen extends StatelessWidget {
                     const SizedBox(height: 14),
 
                     // Payment Method selector
-                    const Text(
+                    Text(
                       'Payment Method',
                       style: TextStyle(
-                        color: AppColors.paper,
+                        color: context.textMain,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1440,14 +1496,18 @@ class EventDetailsScreen extends StatelessWidget {
                           avatar: Icon(
                             method.icon,
                             size: 14,
-                            color: isSelected ? AppColors.ink : AppColors.muted,
+                            color: isSelected
+                                ? (context.isDark ? AppColors.ink : Colors.white)
+                                : context.textMuted,
                           ),
                           label: Text(method.label),
                           selected: isSelected,
-                          selectedColor: AppColors.aqua,
-                          backgroundColor: AppColors.ink.withValues(alpha: 0.6),
+                          selectedColor: context.accentColor,
+                          backgroundColor: context.innerBg,
                           labelStyle: TextStyle(
-                            color: isSelected ? AppColors.ink : AppColors.paper,
+                            color: isSelected
+                                ? (context.isDark ? AppColors.ink : Colors.white)
+                                : context.textMain,
                             fontSize: 12,
                             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                           ),
@@ -1471,17 +1531,17 @@ class EventDetailsScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'Attach Payment Proof',
                           style: TextStyle(
-                            color: AppColors.paper,
+                            color: context.textMain,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         Switch(
                           value: attachProof,
-                          activeThumbColor: AppColors.aqua,
+                          activeThumbColor: context.accentColor,
                           onChanged: (val) {
                             setModalState(() {
                               attachProof = val;
@@ -1546,7 +1606,7 @@ class EventDetailsScreen extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.navy,
+      backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -1563,13 +1623,13 @@ class EventDetailsScreen extends StatelessWidget {
                   Text(
                     'Payment Proof & Receipt',
                     style: GoogleFonts.playfairDisplay(
-                      color: AppColors.paper,
+                      color: context.textMain,
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: AppColors.muted),
+                    icon: Icon(Icons.close, color: context.textMuted),
                     onPressed: () => Navigator.of(sheetContext).pop(),
                   ),
                 ],
@@ -1579,10 +1639,10 @@ class EventDetailsScreen extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.ink,
+                  color: context.innerBg,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppColors.aqua.withValues(alpha: 0.35),
+                    color: context.accentColor.withValues(alpha: 0.35),
                   ),
                 ),
                 child: Column(
@@ -1591,12 +1651,12 @@ class EventDetailsScreen extends StatelessWidget {
                       width: 52,
                       height: 52,
                       decoration: BoxDecoration(
-                        color: AppColors.aqua.withValues(alpha: 0.16),
+                        color: context.accentColor.withValues(alpha: 0.16),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.verified_outlined,
-                        color: AppColors.aqua,
+                        color: context.accentColor,
                         size: 28,
                       ),
                     ),
@@ -1604,7 +1664,7 @@ class EventDetailsScreen extends StatelessWidget {
                     Text(
                       _currency.format(payment.amount),
                       style: GoogleFonts.playfairDisplay(
-                        color: AppColors.paper,
+                        color: context.textMain,
                         fontSize: 26,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1612,23 +1672,23 @@ class EventDetailsScreen extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       'Payment Verified · ${payment.method.label}',
-                      style: const TextStyle(
-                        color: AppColors.aqua,
+                      style: TextStyle(
+                        color: context.accentColor,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Divider(color: Color(0x22FFFFFF), height: 1),
+                    Divider(color: context.cardBorder, height: 1),
                     const SizedBox(height: 14),
-                    _buildProofDetailRow('Description', payment.title),
+                    _buildProofDetailRow(context, 'Description', payment.title),
                     const SizedBox(height: 8),
-                    _buildProofDetailRow('Date & Time', dateStr),
+                    _buildProofDetailRow(context, 'Date & Time', dateStr),
                     const SizedBox(height: 8),
-                    _buildProofDetailRow(
+                    _buildProofDetailRow(context, 
                         'Transaction Ref', payment.reference ?? 'REF-AUTO-9281'),
                     const SizedBox(height: 8),
-                    _buildProofDetailRow(
+                    _buildProofDetailRow(context, 
                         'Attachment File', payment.proof ?? 'receipt_doc.pdf'),
                   ],
                 ),
@@ -1645,7 +1705,7 @@ class EventDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProofDetailRow(String label, String value) {
+  Widget _buildProofDetailRow(BuildContext context, String label, String value) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1653,8 +1713,8 @@ class EventDetailsScreen extends StatelessWidget {
           width: 110,
           child: Text(
             label,
-            style: const TextStyle(
-              color: AppColors.muted,
+            style: TextStyle(
+              color: context.textMuted,
               fontSize: 12,
             ),
           ),
@@ -1665,8 +1725,8 @@ class EventDetailsScreen extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: AppColors.paper,
+            style: TextStyle(
+              color: context.textMain,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -1684,13 +1744,13 @@ class EventDetailsScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.navy,
+      backgroundColor: Theme.of(context).bottomSheetTheme.backgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) {
         return StatefulBuilder(
-          builder: (context, setModalState) {
+          builder: (modalContext, setModalState) {
             return Padding(
               padding: EdgeInsets.only(
                 left: 20,
@@ -1705,7 +1765,7 @@ class EventDetailsScreen extends StatelessWidget {
                   Text(
                     'Add Event Expense',
                     style: GoogleFonts.playfairDisplay(
-                      color: AppColors.paper,
+                      color: context.textMain,
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1724,9 +1784,9 @@ class EventDetailsScreen extends StatelessWidget {
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 14),
-                  const Text(
+                  Text(
                     'Category',
-                    style: TextStyle(color: AppColors.blush, fontSize: 13),
+                    style: TextStyle(color: context.textMain, fontSize: 13),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -1740,10 +1800,10 @@ class EventDetailsScreen extends StatelessWidget {
                         onSelected: (val) {
                           if (val) setModalState(() => category = cat);
                         },
-                        selectedColor: AppColors.aqua.withValues(alpha: 0.25),
-                        backgroundColor: AppColors.ink.withValues(alpha: 0.6),
+                        selectedColor: context.accentColor.withValues(alpha: 0.25),
+                        backgroundColor: context.innerBg,
                         labelStyle: TextStyle(
-                          color: selected ? AppColors.aqua : AppColors.paper,
+                          color: selected ? context.accentColor : context.textMain,
                           fontWeight:
                               selected ? FontWeight.w700 : FontWeight.normal,
                         ),
@@ -1789,15 +1849,15 @@ class EventDetailsScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder: (modalContext, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppColors.navy,
+              backgroundColor: Theme.of(context).dialogTheme.backgroundColor,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20)),
               title: Text(
                 'Update Event Status',
                 style: GoogleFonts.playfairDisplay(
-                  color: AppColors.paper,
+                  color: context.textMain,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1816,13 +1876,13 @@ class EventDetailsScreen extends StatelessWidget {
                           horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? AppColors.aqua.withValues(alpha: 0.15)
-                            : AppColors.ink.withValues(alpha: 0.4),
+                            ? context.accentColor.withValues(alpha: 0.15)
+                            : context.innerBg,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: isSelected
-                              ? AppColors.aqua
-                              : AppColors.slate.withValues(alpha: 0.25),
+                              ? context.accentColor
+                              : context.cardBorder,
                         ),
                       ),
                       child: Row(
@@ -1832,17 +1892,15 @@ class EventDetailsScreen extends StatelessWidget {
                                 ? Icons.radio_button_checked
                                 : Icons.radio_button_off,
                             color: isSelected
-                                ? AppColors.aqua
-                                : AppColors.muted,
+                                ? context.accentColor
+                                : context.textMuted,
                             size: 18,
                           ),
                           const SizedBox(width: 10),
                           Text(
                             status.label,
                             style: TextStyle(
-                              color: isSelected
-                                  ? AppColors.paper
-                                  : AppColors.blush,
+                              color: context.textMain,
                               fontWeight: isSelected
                                   ? FontWeight.w700
                                   : FontWeight.normal,
@@ -1857,13 +1915,13 @@ class EventDetailsScreen extends StatelessWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel',
-                      style: TextStyle(color: AppColors.muted)),
+                  child: Text('Cancel',
+                      style: TextStyle(color: context.textMuted)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.aqua,
-                    foregroundColor: AppColors.ink,
+                    backgroundColor: context.accentColor,
+                    foregroundColor: context.isDark ? AppColors.ink : Colors.white,
                   ),
                   onPressed: () {
                     context.read<EventsProvider>().updateEvent(

@@ -62,5 +62,6 @@ function handleLogoUpload(req, res, next) {
 router.get('/me', requireAuth, me);
 router.patch('/profile', requireAuth, updateProfile);
 router.post('/logo', requireAuth, handleLogoUpload, uploadLogo);
+router.post('/profile-image', requireAuth, handleLogoUpload, uploadLogo);
 
 module.exports = router;

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../services/api_config.dart';
@@ -8,46 +9,102 @@ class ProfileAvatar extends StatelessWidget {
     super.key,
     this.logoUrl,
     this.size = 44,
-    this.heroTag = 'studio-logo',
+    this.heroTag,
   });
 
   final String? logoUrl;
   final double size;
-  final String heroTag;
+  final String? heroTag;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDark;
     final resolved = ApiConfig.resolveMedia(logoUrl);
-    final image = resolved.isEmpty
-        ? null
-        : DecorationImage(image: NetworkImage(resolved), fit: BoxFit.cover);
+    final accent = context.accentColor;
+    final iconColor = isDark ? AppColors.ink : Colors.white;
 
-    return Hero(
-      tag: heroTag,
-      child: Container(
+    Widget avatarContent;
+    if (resolved.isEmpty) {
+      avatarContent = Icon(
+        Icons.camera_alt_rounded,
+        color: iconColor,
+        size: size * 0.42,
+      );
+    } else if (resolved.startsWith('data:image/')) {
+      try {
+        final base64Str = resolved.split(',').last;
+        final bytes = base64Decode(base64Str);
+        avatarContent = Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          width: size,
+          height: size,
+          errorBuilder: (context, error, stackTrace) => Icon(
+            Icons.camera_alt_rounded,
+            color: iconColor,
+            size: size * 0.42,
+          ),
+        );
+      } catch (_) {
+        avatarContent = Icon(
+          Icons.camera_alt_rounded,
+          color: iconColor,
+          size: size * 0.42,
+        );
+      }
+    } else {
+      avatarContent = Image.network(
+        resolved,
+        fit: BoxFit.cover,
         width: size,
         height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            colors: [AppColors.aqua, AppColors.slate],
-          ),
-          image: image,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.aqua.withValues(alpha: 0.28),
-              blurRadius: 12,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Center(
+            child: SizedBox(
+              width: size * 0.35,
+              height: size * 0.35,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: accent,
+              ),
             ),
-          ],
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return Icon(
+            Icons.camera_alt_rounded,
+            color: iconColor,
+            size: size * 0.42,
+          );
+        },
+      );
+    }
+
+    final container = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: isDark
+              ? const [AppColors.aqua, AppColors.slate]
+              : const [AppColors.lightPrimary, Color(0xFF0F766E)],
         ),
-        child: image == null
-            ? Icon(
-                Icons.camera_alt_rounded,
-                color: AppColors.ink,
-                size: size * 0.42,
-              )
-            : null,
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.28),
+            blurRadius: 12,
+          ),
+        ],
       ),
+      child: ClipOval(child: avatarContent),
     );
+
+    if (heroTag != null && heroTag!.isNotEmpty) {
+      return Hero(tag: heroTag!, child: container);
+    }
+
+    return container;
   }
 }

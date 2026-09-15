@@ -165,17 +165,21 @@ class _AuthCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDark;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 280),
       curve: Curves.easeOutCubic,
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
       decoration: BoxDecoration(
-        color: AppColors.plum.withValues(alpha: 0.42),
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.merlot.withValues(alpha: 0.4)),
+        border: Border.all(color: context.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: AppColors.midnight.withValues(alpha: 0.35),
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.35)
+                : const Color(0x0D0F172A),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
@@ -187,6 +191,7 @@ class _AuthCard extends StatelessWidget {
           Text(
             isLogin ? 'Welcome back' : 'Join the studio',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: context.textMain,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -196,7 +201,7 @@ class _AuthCard extends StatelessWidget {
                 ? 'Sign in with your phone number and password.'
                 : 'Create your account to book sessions and view galleries.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.blush,
+              color: context.textMuted,
             ),
           ),
           const SizedBox(height: 22),

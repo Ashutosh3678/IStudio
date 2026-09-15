@@ -16,13 +16,24 @@ class StudioCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+
     final card = Container(
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
-        color: AppColors.navy.withValues(alpha: 0.78),
+        color: AppColors.cardBackground(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.slate.withValues(alpha: 0.45)),
+        border: Border.all(color: AppColors.cardBorder(context)),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.22)
+                : const Color(0x0D0F172A),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: child,
     );

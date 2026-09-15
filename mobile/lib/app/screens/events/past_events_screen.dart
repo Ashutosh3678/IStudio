@@ -44,6 +44,9 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<EventsProvider>();
     final allPast = provider.pastEvents;
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+    final accent = context.accentColor;
 
     final query = _searchController.text.trim().toLowerCase();
     final filtered = allPast.where((event) {
@@ -63,7 +66,6 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.ink,
       body: SafeArea(
         child: Column(
           children: [
@@ -72,8 +74,8 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
               subtitle: 'Completed shoots & business history',
               leading: IconButton(
                 tooltip: 'Back',
-                icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                    color: AppColors.paper, size: 20),
+                icon: Icon(Icons.arrow_back_ios_new_rounded,
+                    color: textMain, size: 20),
                 onPressed: () => Navigator.of(context).pop(),
               ),
               actions: [
@@ -83,7 +85,7 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
                     _newestFirst
                         ? Icons.arrow_downward_rounded
                         : Icons.arrow_upward_rounded,
-                    color: AppColors.aqua,
+                    color: accent,
                     size: 20,
                   ),
                   onPressed: () {
@@ -100,15 +102,13 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
                   TextField(
                     controller: _searchController,
                     onChanged: (_) => setState(() {}),
-                    style: const TextStyle(color: AppColors.paper, fontSize: 14),
+                    style: TextStyle(color: textMain, fontSize: 14),
                     decoration: InputDecoration(
                       hintText: 'Search past shoots, clients, locations...',
-                      prefixIcon: const Icon(Icons.search,
-                          color: AppColors.muted, size: 20),
+                      prefixIcon: Icon(Icons.search, color: textMuted, size: 20),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear,
-                                  color: AppColors.muted, size: 18),
+                              icon: Icon(Icons.clear, color: textMuted, size: 18),
                               onPressed: () {
                                 _searchController.clear();
                                 setState(() {});
@@ -116,7 +116,7 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
                             )
                           : null,
                       filled: true,
-                      fillColor: AppColors.navy.withValues(alpha: 0.8),
+                      fillColor: context.cardBg,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),
                     ),
@@ -137,15 +137,15 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
                           onSelected: (val) {
                             if (val) setState(() => _selectedCategory = cat);
                           },
-                          selectedColor: AppColors.aqua.withValues(alpha: 0.25),
-                          backgroundColor: AppColors.navy.withValues(alpha: 0.7),
+                          selectedColor: accent.withValues(alpha: 0.25),
+                          backgroundColor: context.cardBg,
                           side: BorderSide(
                             color: isSelected
-                                ? AppColors.aqua
-                                : AppColors.slate.withValues(alpha: 0.35),
+                                ? accent
+                                : context.cardBorder,
                           ),
                           labelStyle: TextStyle(
-                            color: isSelected ? AppColors.aqua : AppColors.paper,
+                            color: isSelected ? accent : textMain,
                             fontSize: 12,
                             fontWeight: isSelected
                                 ? FontWeight.w700
@@ -167,20 +167,20 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
                         children: [
                           Icon(Icons.history_rounded,
                               size: 48,
-                              color: AppColors.muted.withValues(alpha: 0.5)),
+                              color: textMuted.withValues(alpha: 0.5)),
                           const SizedBox(height: 12),
-                          const Text(
+                          Text(
                             'No completed events match your search',
                             style: TextStyle(
-                              color: AppColors.paper,
+                              color: textMain,
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
+                          Text(
                             'Try adjusting your search query or category filters',
-                            style: TextStyle(color: AppColors.muted, fontSize: 13),
+                            style: TextStyle(color: textMuted, fontSize: 13),
                           ),
                         ],
                       ),
@@ -203,6 +203,9 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
 
   Widget _buildPastEventCard(BuildContext context, StudioEvent event) {
     final dateStr = DateFormat('d MMM yyyy').format(event.startsAt);
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+    final statusColor = AppColors.statusColor(context, EventStatus.completed);
 
     return StudioCard(
       padding: const EdgeInsets.all(16),
@@ -227,12 +230,12 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: AppColors.aqua.withValues(alpha: 0.16),
+                  color: statusColor.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.photo_camera_rounded,
-                  color: AppColors.aqua,
+                  color: statusColor,
                   size: 20,
                 ),
               ),
@@ -243,8 +246,10 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
                   children: [
                     Text(
                       event.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.playfairDisplay(
-                        color: AppColors.paper,
+                        color: textMain,
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
                       ),
@@ -252,38 +257,47 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
                     const SizedBox(height: 3),
                     Text(
                       '$dateStr · ${event.eventType} · ${event.location}',
-                      style: const TextStyle(
-                        color: AppColors.muted,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: textMuted,
                         fontSize: 12,
                       ),
                     ),
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.aqua.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: AppColors.aqua.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.check_circle_rounded,
-                        color: AppColors.aqua, size: 12),
-                    SizedBox(width: 4),
-                    Text(
-                      'Completed',
-                      style: TextStyle(
-                        color: AppColors.aqua,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.3),
                     ),
-                  ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle_rounded,
+                          color: statusColor, size: 12),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          'Completed',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -293,43 +307,43 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: AppColors.ink.withValues(alpha: 0.6),
+              color: context.innerBg,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppColors.slate.withValues(alpha: 0.3),
+                color: context.cardBorder.withValues(alpha: 0.3),
               ),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: _buildCompactMetric(
-                      'Total', _currency.format(event.totalAmount)),
+                      context, 'Total', _currency.format(event.totalAmount)),
                 ),
                 Container(
                     width: 1,
                     height: 24,
-                    color: AppColors.slate.withValues(alpha: 0.3)),
+                    color: context.cardBorder.withValues(alpha: 0.3)),
                 Expanded(
                   child: _buildCompactMetric(
-                      'Received', _currency.format(event.amountReceived)),
+                      context, 'Received', _currency.format(event.amountReceived)),
                 ),
                 Container(
                     width: 1,
                     height: 24,
-                    color: AppColors.slate.withValues(alpha: 0.3)),
+                    color: context.cardBorder.withValues(alpha: 0.3)),
                 Expanded(
                   child: _buildCompactMetric(
-                      'Expenses', _currency.format(event.totalExpenses),
-                      valueColor: const Color(0xFFFF7A8A)),
+                      context, 'Expenses', _currency.format(event.totalExpenses),
+                      valueColor: AppColors.expense(context)),
                 ),
                 Container(
                     width: 1,
                     height: 24,
-                    color: AppColors.slate.withValues(alpha: 0.3)),
+                    color: context.cardBorder.withValues(alpha: 0.3)),
                 Expanded(
                   child: _buildCompactMetric(
-                      'Net Profit', _currency.format(event.netProfit),
-                      valueColor: AppColors.aqua, isBold: true),
+                      context, 'Net Profit', _currency.format(event.netProfit),
+                      valueColor: AppColors.profit(context), isBold: true),
                 ),
               ],
             ),
@@ -340,9 +354,10 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
   }
 
   Widget _buildCompactMetric(
+    BuildContext context,
     String label,
     String value, {
-    Color valueColor = AppColors.paper,
+    Color? valueColor,
     bool isBold = false,
   }) {
     return Column(
@@ -352,8 +367,8 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppColors.muted,
+          style: TextStyle(
+            color: context.textMuted,
             fontSize: 10,
             fontWeight: FontWeight.w500,
           ),
@@ -365,7 +380,7 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
             value,
             maxLines: 1,
             style: TextStyle(
-              color: valueColor,
+              color: valueColor ?? context.textMain,
               fontSize: 12,
               fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
             ),

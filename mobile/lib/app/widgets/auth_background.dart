@@ -11,35 +11,50 @@ class AuthBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDark;
+
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            AppColors.ink,
-            AppColors.navy,
-            AppColors.slate,
-            AppColors.ink,
-          ],
-          stops: [0.0, 0.38, 0.72, 1.0],
+          colors: isDark
+              ? const [
+                  AppColors.ink,
+                  AppColors.navy,
+                  AppColors.slate,
+                  AppColors.ink,
+                ]
+              : const [
+                  Color(0xFFF8FAFC),
+                  Color(0xFFEFF6FF),
+                  Color(0xFFF1F5F9),
+                  Color(0xFFF8FAFC),
+                ],
+          stops: const [0.0, 0.38, 0.72, 1.0],
         ),
       ),
       child: Stack(
         children: [
-          const Positioned(
+          Positioned(
             top: -80,
             right: -60,
-            child: _GlowOrb(size: 240, color: AppColors.blossom),
+            child: _GlowOrb(
+              size: 240,
+              color: isDark ? AppColors.blossom : AppColors.lightPrimary,
+            ),
           ),
-          const Positioned(
+          Positioned(
             bottom: 40,
             left: -70,
-            child: _GlowOrb(size: 220, color: AppColors.merlot),
+            child: _GlowOrb(
+              size: 220,
+              color: isDark ? AppColors.merlot : const Color(0xFFCBD5E1),
+            ),
           ),
-          const Positioned.fill(
+          Positioned.fill(
             child: RepaintBoundary(
-              child: CustomPaint(painter: _AperturePainter()),
+              child: CustomPaint(painter: _AperturePainter(isDark: isDark)),
             ),
           ),
           child,
@@ -76,7 +91,9 @@ class _GlowOrb extends StatelessWidget {
 }
 
 class _AperturePainter extends CustomPainter {
-  const _AperturePainter();
+  const _AperturePainter({required this.isDark});
+
+  final bool isDark;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -84,14 +101,16 @@ class _AperturePainter extends CustomPainter {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = AppColors.blossom.withValues(alpha: 0.12);
+      ..color = (isDark ? AppColors.blossom : AppColors.lightPrimary)
+          .withValues(alpha: 0.12);
 
     for (var i = 0; i < 5; i++) {
       canvas.drawCircle(center, 28.0 + (i * 18), paint);
     }
 
     final lower = Offset(size.width * 0.12, size.height * 0.78);
-    paint.color = AppColors.merlot.withValues(alpha: 0.16);
+    paint.color = (isDark ? AppColors.merlot : AppColors.lightBorder)
+        .withValues(alpha: 0.16);
     for (var i = 0; i < 4; i++) {
       canvas.drawCircle(lower, 18.0 + (i * 16), paint);
     }
@@ -99,7 +118,8 @@ class _AperturePainter extends CustomPainter {
     final spoke = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.8
-      ..color = AppColors.ivory.withValues(alpha: 0.05);
+      ..color = (isDark ? AppColors.ivory : AppColors.lightTextMain)
+          .withValues(alpha: 0.05);
 
     for (var i = 0; i < 8; i++) {
       final angle = (math.pi / 4) * i;
@@ -115,5 +135,6 @@ class _AperturePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _AperturePainter oldDelegate) =>
+      oldDelegate.isDark != isDark;
 }

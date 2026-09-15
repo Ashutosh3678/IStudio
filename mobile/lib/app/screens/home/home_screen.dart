@@ -50,6 +50,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final upcoming = eventsProvider.upcomingEvents.take(5).toList();
     final past = eventsProvider.pastEvents.take(3).toList();
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
 
     return SafeArea(
       child: Column(
@@ -90,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   'Welcome back, ${user?.displayOwner ?? 'there'}',
                   style: GoogleFonts.playfairDisplay(
-                    color: AppColors.paper,
+                    color: textMain,
                     fontSize: 28,
                     fontWeight: FontWeight.w600,
                   ),
@@ -99,8 +101,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   'Sessions, invoices, and clients sit together on one desk.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.muted,
-                  ),
+                        color: textMuted,
+                      ),
                 ),
                 const SizedBox(height: 24),
 
@@ -130,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (upcoming.isEmpty)
                   _buildEmptyUpcomingState(context)
                 else
-                  _buildUpcomingCarousel(upcoming),
+                  _buildUpcomingCarousel(context, upcoming),
 
                 const SizedBox(height: 18),
 
@@ -172,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Text(
                         'No past events recorded yet.',
                         style: TextStyle(
-                          color: AppColors.muted.withValues(alpha: 0.8),
+                          color: textMuted.withValues(alpha: 0.8),
                           fontSize: 14,
                         ),
                       ),
@@ -204,10 +206,10 @@ class _HomeScreenState extends State<HomeScreen> {
         Text(
           title,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: AppColors.paper,
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-          ),
+                color: context.textMain,
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+              ),
         ),
         InkWell(
           onTap: onAction,
@@ -216,8 +218,8 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
             child: Text(
               actionLabel,
-              style: const TextStyle(
-                color: AppColors.aqua,
+              style: TextStyle(
+                color: context.accentColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -229,7 +231,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ================= Carousel Widget =================
-  Widget _buildUpcomingCarousel(List<StudioEvent> events) {
+  Widget _buildUpcomingCarousel(BuildContext context, List<StudioEvent> events) {
+    final accent = context.accentColor;
+    final border = context.cardBorder;
+
     return Column(
       children: [
         SizedBox(
@@ -256,7 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        // Subtle Page Dots Indicator (● ○ ○)
+        // Page Dots Indicator
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(events.length, (index) {
@@ -267,9 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: isCurrent ? 18 : 6,
               height: 6,
               decoration: BoxDecoration(
-                color: isCurrent
-                    ? AppColors.aqua
-                    : AppColors.slate.withValues(alpha: 0.6),
+                color: isCurrent ? accent : border.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(3),
               ),
             );
@@ -284,6 +287,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final dateStr = DateFormat('d MMM yyyy').format(event.startsAt);
     final dayStr = DateFormat('EEEE').format(event.startsAt);
     final remaining = event.remainingAmount;
+    final accent = context.accentColor;
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+    final innerBg = context.innerBg;
+    final cardBorder = context.cardBorder;
 
     return StudioCard(
       padding: const EdgeInsets.all(16),
@@ -309,12 +317,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.aqua.withValues(alpha: 0.16),
+                  color: accent.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.camera_alt_outlined,
-                  color: AppColors.aqua,
+                  color: accent,
                   size: 22,
                 ),
               ),
@@ -326,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       event.title,
                       style: GoogleFonts.playfairDisplay(
-                        color: AppColors.paper,
+                        color: textMain,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
@@ -336,8 +344,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 3),
                     Text(
                       'Client: ${event.clientName} · ${event.eventType}',
-                      style: const TextStyle(
-                        color: AppColors.muted,
+                      style: TextStyle(
+                        color: textMuted,
                         fontSize: 12,
                       ),
                       maxLines: 1,
@@ -347,22 +355,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(width: 6),
-              Flexible(child: _buildStatusBadge(event.status)),
+              Flexible(child: _buildStatusBadge(context, event.status)),
             ],
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
-              color: AppColors.ink.withValues(alpha: 0.55),
+              color: innerBg,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: AppColors.slate.withValues(alpha: 0.25),
+                color: cardBorder.withValues(alpha: 0.25),
               ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.calendar_month_outlined,
-                    color: AppColors.aqua, size: 14),
+                Icon(Icons.calendar_month_outlined,
+                    color: accent, size: 14),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text.rich(
@@ -370,16 +378,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         TextSpan(
                           text: dateStr,
-                          style: const TextStyle(
-                            color: AppColors.paper,
+                          style: TextStyle(
+                            color: textMain,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         TextSpan(
                           text: ' · $dayStr · ${event.location}',
-                          style: const TextStyle(
-                            color: AppColors.muted,
+                          style: TextStyle(
+                            color: textMuted,
                             fontSize: 11,
                           ),
                         ),
@@ -401,8 +409,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       : 'Fully Paid',
                   style: TextStyle(
                     color: remaining > 0
-                        ? const Color(0xFFE8B86D)
-                        : AppColors.aqua,
+                        ? (context.isDark
+                            ? const Color(0xFFE8B86D)
+                            : const Color(0xFFD97706))
+                        : accent,
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
                   ),
@@ -417,14 +427,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     'Details',
                     style: TextStyle(
-                      color: AppColors.aqua.withValues(alpha: 0.85),
+                      color: accent.withValues(alpha: 0.85),
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(width: 2),
-                  const Icon(Icons.arrow_forward_ios_rounded,
-                      color: AppColors.aqua, size: 10),
+                  Icon(Icons.arrow_forward_ios_rounded,
+                      color: accent, size: 10),
                 ],
               ),
             ],
@@ -443,27 +453,27 @@ class _HomeScreenState extends State<HomeScreen> {
           Icon(
             Icons.event_available_outlined,
             size: 42,
-            color: AppColors.muted.withValues(alpha: 0.6),
+            color: context.textMuted.withValues(alpha: 0.6),
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'No upcoming events',
             style: TextStyle(
-              color: AppColors.paper,
+              color: context.textMain,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Your upcoming photo sessions will appear here.',
-            style: TextStyle(color: AppColors.muted, fontSize: 13),
+            style: TextStyle(color: context.textMuted, fontSize: 13),
           ),
           const SizedBox(height: 14),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.aqua,
-              foregroundColor: AppColors.ink,
+              backgroundColor: context.accentColor,
+              foregroundColor: context.isDark ? AppColors.ink : Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             ),
             onPressed: () => CreateEventSheet.show(context),
@@ -478,6 +488,9 @@ class _HomeScreenState extends State<HomeScreen> {
   // ================= Past Event Compact Card =================
   Widget _buildPastEventCard(BuildContext context, StudioEvent event) {
     final dateStr = DateFormat('d MMM yyyy').format(event.startsAt);
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+    final statusColor = AppColors.statusColor(context, EventStatus.completed);
 
     return StudioCard(
       padding: const EdgeInsets.all(16),
@@ -504,8 +517,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Text(
                       event.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.playfairDisplay(
-                        color: AppColors.paper,
+                        color: textMain,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
@@ -513,29 +528,36 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 3),
                     Text(
                       '$dateStr · ${event.eventType}',
-                      style: const TextStyle(
-                        color: AppColors.muted,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: textMuted,
                         fontSize: 12,
                       ),
                     ),
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.aqua.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: AppColors.aqua.withValues(alpha: 0.35),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.35),
+                    ),
                   ),
-                ),
-                child: const Text(
-                  'Completed',
-                  style: TextStyle(
-                    color: AppColors.aqua,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                  child: Text(
+                    'Completed',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -546,31 +568,33 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.ink.withValues(alpha: 0.5),
+              color: context.innerBg,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: _buildCompactMetric(
-                      'Total', _currency.format(event.totalAmount)),
+                      context, 'Total', _currency.format(event.totalAmount)),
                 ),
                 Expanded(
                   child: _buildCompactMetric(
-                      'Received', _currency.format(event.amountReceived)),
+                      context, 'Received', _currency.format(event.amountReceived)),
                 ),
                 Expanded(
                   child: _buildCompactMetric(
+                    context,
                     'Expenses',
                     _currency.format(event.totalExpenses),
-                    valueColor: const Color(0xFFFF7A8A),
+                    valueColor: AppColors.expense(context),
                   ),
                 ),
                 Expanded(
                   child: _buildCompactMetric(
+                    context,
                     'Net Profit',
                     _currency.format(event.netProfit),
-                    valueColor: AppColors.aqua,
+                    valueColor: AppColors.profit(context),
                     isBold: true,
                   ),
                 ),
@@ -583,9 +607,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCompactMetric(
+    BuildContext context,
     String label,
     String value, {
-    Color valueColor = AppColors.paper,
+    Color? valueColor,
     bool isBold = false,
   }) {
     return Column(
@@ -595,8 +620,8 @@ class _HomeScreenState extends State<HomeScreen> {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppColors.muted,
+          style: TextStyle(
+            color: context.textMuted,
             fontSize: 10,
             fontWeight: FontWeight.w500,
           ),
@@ -608,7 +633,7 @@ class _HomeScreenState extends State<HomeScreen> {
             value,
             maxLines: 1,
             style: TextStyle(
-              color: valueColor,
+              color: valueColor ?? context.textMain,
               fontSize: 12,
               fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
             ),
@@ -618,25 +643,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStatusBadge(EventStatus status) {
-    Color color;
-    switch (status) {
-      case EventStatus.completed:
-        color = AppColors.aqua;
-        break;
-      case EventStatus.inProgress:
-        color = const Color(0xFF64B5F6);
-        break;
-      case EventStatus.paymentDue:
-        color = const Color(0xFFE8B86D);
-        break;
-      case EventStatus.upcoming:
-        color = const Color(0xFF81C784);
-        break;
-      case EventStatus.cancelled:
-        color = const Color(0xFFFF7A8A);
-        break;
-    }
+  Widget _buildStatusBadge(BuildContext context, EventStatus status) {
+    final color = AppColors.statusColor(context, status);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

@@ -14,14 +14,16 @@ class AuthModeToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDark;
+
     return Semantics(
       label: isLogin ? 'Sign in selected' : 'Sign up selected',
       child: Container(
         padding: const EdgeInsets.all(5),
         decoration: BoxDecoration(
-          color: AppColors.midnight.withValues(alpha: 0.45),
+          color: context.innerBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.merlot.withValues(alpha: 0.45)),
+          border: Border.all(color: context.cardBorder),
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -39,8 +41,10 @@ class AuthModeToggle extends StatelessWidget {
                     height: 44,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      gradient: const LinearGradient(
-                        colors: [AppColors.aqua, AppColors.slate],
+                      gradient: LinearGradient(
+                        colors: isDark
+                            ? const [AppColors.aqua, AppColors.slate]
+                            : const [AppColors.lightPrimary, Color(0xFF0F766E)],
                       ),
                     ),
                   ),
@@ -91,7 +95,9 @@ class _Tab extends StatelessWidget {
             child: AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 200),
               style: Theme.of(context).textTheme.titleSmall!.copyWith(
-                color: selected ? AppColors.ivory : AppColors.blush,
+                color: selected
+                    ? (context.isDark ? AppColors.paper : Colors.white)
+                    : context.textMuted,
                 fontWeight: FontWeight.w600,
               ),
               child: Text(label),
