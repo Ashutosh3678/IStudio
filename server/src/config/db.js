@@ -24,7 +24,6 @@ async function connectDb() {
   await mongoose.connect(process.env.MONGODB_URI);
   const dbName = mongoose.connection.db.databaseName;
   console.log(`✅ [MONGODB] Connected to database: "${dbName}"`);
-  console.log(`📦 [MONGODB] logoUrl will be stored in the "users" collection.`);
 }
 
 module.exports = { connectDb };
