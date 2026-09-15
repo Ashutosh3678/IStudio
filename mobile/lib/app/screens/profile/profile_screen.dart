@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -364,10 +365,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text(
               user?.displayStudioName ?? 'Your studio',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: context.textMain,
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: GoogleFonts.syne(
+                color: context.textMain,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.4,
+              ),
             ),
             const SizedBox(height: 4),
             Text(

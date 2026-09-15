@@ -10,18 +10,35 @@ class StudioAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.subtitle,
     this.leading,
     this.actions,
+    this.isStudioName = false,
+    this.titleStyle,
   });
 
   final String title;
   final String? subtitle;
   final Widget? leading;
   final List<Widget>? actions;
+  final bool isStudioName;
+  final TextStyle? titleStyle;
 
   @override
   Size get preferredSize => Size.fromHeight(subtitle == null ? 64 : 78);
 
   @override
   Widget build(BuildContext context) {
+    final defaultStyle = isStudioName
+        ? GoogleFonts.syne(
+            color: AppColors.textMain(context),
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.4,
+          )
+        : GoogleFonts.playfairDisplay(
+            color: AppColors.textMain(context),
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+          );
+
     return SafeArea(
       bottom: false,
       child: Padding(
@@ -38,11 +55,7 @@ class StudioAppBar extends StatelessWidget implements PreferredSizeWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.playfairDisplay(
-                      color: AppColors.textMain(context),
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: titleStyle ?? defaultStyle,
                   ),
                   if (subtitle != null)
                     Text(

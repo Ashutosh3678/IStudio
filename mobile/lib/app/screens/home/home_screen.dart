@@ -57,8 +57,9 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         children: [
           StudioAppBar(
-            title: user?.displayStudioName ?? 'Lumen',
+            title: user?.displayStudioName ?? 'Your studio',
             subtitle: 'Studio desk',
+            isStudioName: true,
             actions: [
               Semantics(
                 button: true,
