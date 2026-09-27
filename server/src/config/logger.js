@@ -1,6 +1,6 @@
 const LEVELS = { error: 0, warn: 1, info: 2, debug: 3 };
 
-const SENSITIVE_KEY = /password|secret|token|authorization|otp|mongodb_uri|api[_-]?key|api[_-]?secret|cookie/i;
+const SENSITIVE_KEY = /password|secret|token|authorization|otp|mongodb_uri|api[_-]?key|api[_-]?secret|cookie|encryption_key/i;
 
 function levelFromEnv(env = process.env) {
   const raw = String(env.LOG_LEVEL || '').trim().toLowerCase();
@@ -54,6 +54,28 @@ function maskPhone(phone) {
   const digits = String(phone || '').replace(/\D/g, '');
   if (digits.length < 4) return '[redacted]';
   return `${digits.slice(0, 2)}****${digits.slice(-2)}`;
+}
+
+function maskEmail(email) {
+  if (!email) return '';
+  const plain = String(email).trim();
+  const atIdx = plain.indexOf('@');
+  if (atIdx <= 1) return '***@' + (plain.split('@')[1] || '');
+  const userPart = plain.slice(0, atIdx);
+  const domainPart = plain.slice(atIdx);
+  if (userPart.length <= 2) {
+    return `${userPart[0]}***${domainPart}`;
+  }
+  return `${userPart[0]}***${userPart[userPart.length - 1]}${domainPart}`;
+}
+
+function maskReference(ref) {
+  if (!ref) return '';
+  const plain = String(ref).trim();
+  if (plain.length < 8) return '****';
+  const prefix = plain.slice(0, Math.min(3, Math.floor(plain.length / 3)));
+  const suffix = plain.slice(-Math.min(4, Math.floor(plain.length / 3)));
+  return `${prefix}****${suffix}`;
 }
 
 function fromRequest(req, extra) {
@@ -134,4 +156,6 @@ module.exports.redact = redact;
 module.exports.serializeError = serializeError;
 module.exports.levelFromEnv = levelFromEnv;
 module.exports.maskPhone = maskPhone;
+module.exports.maskEmail = maskEmail;
+module.exports.maskReference = maskReference;
 module.exports.fromRequest = fromRequest;

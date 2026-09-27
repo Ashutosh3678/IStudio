@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const dataSecurity = require('../services/dataSecurity');
 
 const userSchema = new mongoose.Schema(
   {
@@ -23,7 +24,13 @@ const userSchema = new mongoose.Schema(
       },
       unique: true,
       sparse: true,
-      match: /^\d{10}$/,
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          return /^\d{10}$/.test(v) || String(v).startsWith('enc:');
+        },
+        message: 'Phone number must be a valid 10-digit number',
+      },
     },
     password: {
       type: String,
@@ -50,16 +57,25 @@ const userSchema = new mongoose.Schema(
   },
 );
 
+userSchema.plugin(dataSecurity.encryptedFieldsPlugin, {
+  deterministicFields: ['phone'],
+  fields: ['email', 'address'],
+});
+
 userSchema.methods.toPublicJSON = function toPublicJSON() {
+  const plainPhone = dataSecurity.decrypt(this.phone || '');
+  const plainEmail = dataSecurity.decrypt(this.email || '');
   return {
     id: this._id.toString(),
     username: this.username,
-    phone: this.phone,
+    phone: plainPhone,
+    maskedPhone: dataSecurity.maskPhone(plainPhone),
     studioName: this.studioName || '',
     ownerName: this.ownerName || this.username,
-    email: this.email || '',
+    email: plainEmail,
+    maskedEmail: dataSecurity.maskEmail(plainEmail),
     city: this.city || '',
-    address: this.address || '',
+    address: dataSecurity.decrypt(this.address || ''),
     about: this.about || '',
     instagram: this.instagram || '',
     youtube: this.youtube || '',

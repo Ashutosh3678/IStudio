@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const dataSecurity = require('../services/dataSecurity');
 
 function invoiceTotals(deliverables = [], amountReceived = 0) {
   const total = deliverables.reduce(
@@ -38,17 +39,19 @@ function toPublicInvoice(doc) {
   const issuedOn = doc.issuedOn ? new Date(doc.issuedOn) : new Date();
   const dueDate = doc.dueDate ? new Date(doc.dueDate) : issuedOn;
 
+  const plainPhone = dataSecurity.decrypt(doc.phone || '');
   return {
     id: doc.id || (doc._id ? doc._id.toString() : ''),
     number: doc.number || '',
     eventName: doc.eventName || '',
     contactName: doc.contactName || '',
-    phone: doc.phone || '',
-    address: doc.address || '',
+    phone: plainPhone,
+    maskedPhone: dataSecurity.maskPhone(plainPhone),
+    address: dataSecurity.decrypt(doc.address || ''),
     issuedOn: issuedOn.toISOString(),
     dueDate: dueDate.toISOString(),
     deliverables,
-    upiId: doc.upiId || '',
+    upiId: dataSecurity.decrypt(doc.upiId || ''),
     amountReceived: totals.received,
     total: totals.total,
     pendingAmount: totals.pending,
@@ -89,6 +92,11 @@ const invoiceSchema = new mongoose.Schema(
 
 invoiceSchema.index({ userId: 1, number: 1 }, { unique: true });
 invoiceSchema.index({ userId: 1, issuedOn: -1 });
+
+invoiceSchema.plugin(dataSecurity.encryptedFieldsPlugin, {
+  deterministicFields: ['phone'],
+  fields: ['address', 'upiId'],
+});
 
 invoiceSchema.methods.toPublicJSON = function toPublicJSON() {
   return toPublicInvoice(this);

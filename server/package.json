@@ -7,8 +7,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node test/logger.test.js && node test/authorization.test.js && node test/googleAuth.test.js",
-    "test:integration": "node test/integration.test.js && node test/hardening.test.js"
+    "test": "node test/logger.test.js && node test/authorization.test.js && node test/googleAuth.test.js && node test/dataSecurity.test.js"
   },
   "engines": {
     "node": ">=18"

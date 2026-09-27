@@ -3,6 +3,8 @@ const path = require('path');
 const { randomUUID } = require('crypto');
 const logger = require('../config/logger');
 
+const dataSecurity = require('../services/dataSecurity');
+
 const dataDir = path.join(__dirname, '..', '..', 'data');
 const dataFile = path.join(dataDir, 'users.json');
 
@@ -13,7 +15,15 @@ function loadUsersFromDisk() {
     }
     if (fs.existsSync(dataFile)) {
       const content = fs.readFileSync(dataFile, 'utf8');
-      return JSON.parse(content);
+      const rawUsers = JSON.parse(content);
+      if (Array.isArray(rawUsers)) {
+        return rawUsers.map((user) => ({
+          ...user,
+          phone: dataSecurity.decrypt(user.phone || ''),
+          email: dataSecurity.decrypt(user.email || ''),
+          address: dataSecurity.decrypt(user.address || ''),
+        }));
+      }
     }
   } catch (e) {
     logger.warn('Could not read users.json from disk', { error: e });
@@ -26,7 +36,13 @@ function saveUsersToDisk(usersList) {
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
     }
-    fs.writeFileSync(dataFile, JSON.stringify(usersList, null, 2), 'utf8');
+    const encryptedUsers = usersList.map((user) => ({
+      ...user,
+      phone: user.phone ? dataSecurity.encryptDeterministic(user.phone) : '',
+      email: user.email ? dataSecurity.encrypt(user.email) : '',
+      address: user.address ? dataSecurity.encrypt(user.address) : '',
+    }));
+    fs.writeFileSync(dataFile, JSON.stringify(encryptedUsers, null, 2), 'utf8');
   } catch (e) {
     logger.warn('Could not save users.json to disk', { error: e });
   }

@@ -1,12 +1,17 @@
 const User = require('../models/User');
 const memoryUsers = require('../store/memoryUsers');
+const dataSecurity = require('../services/dataSecurity');
 
 async function findByPhone(phone, { withPassword = false } = {}) {
   if (memoryUsers.enabled) {
     return memoryUsers.findByPhone(phone, withPassword);
   }
 
-  const query = User.findOne({ phone });
+  const rawPhone = String(phone).trim();
+  const encryptedPhone = dataSecurity.encryptDeterministic(rawPhone);
+  const query = User.findOne({
+    $or: [{ phone: encryptedPhone }, { phone: rawPhone }],
+  });
   if (withPassword) query.select('+password');
   return query;
 }
@@ -43,32 +48,49 @@ async function findByEmail(email) {
   if (memoryUsers.enabled) {
     return memoryUsers.findByEmail(email);
   }
+  const rawEmail = String(email).trim();
+  const encryptedEmail = dataSecurity.encrypt(rawEmail);
   return User.findOne({
-    email: { $regex: new RegExp(`^${escapeRegex(email)}$`, 'i') },
+    $or: [
+      { email: { $regex: new RegExp(`^${escapeRegex(rawEmail)}$`, 'i') } },
+      { email: encryptedEmail },
+    ],
   });
 }
 
 async function createUser(data) {
-  const { username, phone = '', password = '', googleId = null, email = '', ownerName = '', logoUrl = '' } = data;
+  const { username, phone = '', password = '', googleId = null, email = '', ownerName = '', logoUrl = '', address = '' } = data;
   if (memoryUsers.enabled) {
-    return memoryUsers.create({ username, phone, password, googleId, email, ownerName: ownerName || username, logoUrl });
+    return memoryUsers.create({ username, phone, password, googleId, email, ownerName: ownerName || username, logoUrl, address });
   }
   return User.create({
     username,
-    phone: phone || undefined,
+    phone: phone ? dataSecurity.encryptDeterministic(phone) : undefined,
     password: password || undefined,
     googleId: googleId || undefined,
-    email: email || '',
+    email: email ? dataSecurity.encrypt(email) : '',
     ownerName: ownerName || username,
     logoUrl: logoUrl || '',
+    address: address ? dataSecurity.encrypt(address) : '',
   });
 }
 
 async function updateUser(id, fields) {
+  const secureFields = { ...fields };
+  if (secureFields.phone) {
+    secureFields.phone = dataSecurity.encryptDeterministic(secureFields.phone);
+  }
+  if (secureFields.email) {
+    secureFields.email = dataSecurity.encrypt(secureFields.email);
+  }
+  if (secureFields.address) {
+    secureFields.address = dataSecurity.encrypt(secureFields.address);
+  }
+
   if (memoryUsers.enabled) {
     return memoryUsers.update(id, fields);
   }
-  return User.findByIdAndUpdate(id, { $set: fields }, { new: true });
+  return User.findByIdAndUpdate(id, { $set: secureFields }, { new: true });
 }
 
 function escapeRegex(value) {
