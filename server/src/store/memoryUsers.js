@@ -151,6 +151,13 @@ const memoryUsers = {
     saveUsersToDisk(users);
     return toDoc(user);
   },
+  remove(id) {
+    const index = users.findIndex((item) => item.id === id);
+    if (index === -1) return false;
+    users.splice(index, 1);
+    saveUsersToDisk(users);
+    return true;
+  },
 };
 
 module.exports = memoryUsers;

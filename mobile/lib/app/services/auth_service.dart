@@ -178,6 +178,10 @@ class AuthService {
     );
   }
 
+  Future<void> deleteAccount({required String token}) async {
+    await _api.delete('/auth/account', token: token);
+  }
+
   User _parseUser(Map<String, dynamic> payload) {
     final userJson = payload['user'] as Map<String, dynamic>?;
     if (userJson == null) {

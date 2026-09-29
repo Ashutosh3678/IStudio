@@ -97,6 +97,36 @@ function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+async function deleteUserAccount(userId) {
+  if (memoryUsers.enabled) {
+    memoryUsers.remove(userId);
+    const memoryInvoices = require('../store/memoryInvoices');
+    const userInvoices = memoryInvoices.listByUser(userId);
+    for (const inv of userInvoices) {
+      memoryInvoices.remove(inv.id, userId);
+    }
+    return true;
+  }
+
+  const Client = require('../models/Client');
+  const Event = require('../models/Event');
+  const Payment = require('../models/Payment');
+  const Expense = require('../models/Expense');
+  const Deliverable = require('../models/Deliverable');
+  const { Invoice } = require('../models/Invoice');
+
+  await Promise.all([
+    Client.deleteMany({ userId }),
+    Event.deleteMany({ userId }),
+    Payment.deleteMany({ userId }),
+    Expense.deleteMany({ userId }),
+    Deliverable.deleteMany({ userId }),
+    Invoice.deleteMany({ userId }),
+    User.deleteOne({ _id: userId }),
+  ]);
+  return true;
+}
+
 module.exports = {
   findByPhone,
   findByUsername,
@@ -105,4 +135,5 @@ module.exports = {
   findById,
   createUser,
   updateUser,
+  deleteUserAccount,
 };

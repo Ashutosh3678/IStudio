@@ -1,0 +1,55 @@
+openapi: 3.0.3
+info:
+  title: Lumen Studio API
+  description: Photography studio booking, clients, and financial management API.
+  version: 1.0.0
+servers:
+  - url: /api
+    description: Current Environment API
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+  /health/ready:
+    get:
+      summary: Readiness probe
+      responses:
+        '200':
+          description: Dependencies are ready
+  /auth/login:
+    post:
+      summary: User login with phone and password
+      responses:
+        '200':
+          description: Login successful
+  /auth/signup:
+    post:
+      summary: Register a new studio user
+      responses:
+        '201':
+          description: Signup successful
+  /auth/me:
+    get:
+      summary: Get current authenticated user profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile
+  /auth/account:
+    delete:
+      summary: Delete user account and associated business data
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Account deleted successfully
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

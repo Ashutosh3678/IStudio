@@ -17,6 +17,7 @@ const {
   forgotPasswordVerifyUsername,
   verifyCurrentPassword,
   changePassword,
+  deleteAccount,
 } = require('../controllers/authController');
 const { requireAuth } = require('../middleware/auth');
 const {
@@ -172,5 +173,7 @@ router.post(
   ],
   changePassword,
 );
+router.delete('/account', requireAuth, deleteAccount);
+router.delete('/me', requireAuth, deleteAccount);
 
 module.exports = router;

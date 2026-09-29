@@ -701,6 +701,30 @@ async function googleAuth(req, res) {
   }
 }
 
+async function deleteAccount(req, res) {
+  try {
+    const user = await userRepository.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Account not found.',
+      });
+    }
+
+    await userRepository.deleteUserAccount(req.userId);
+    return res.json({
+      success: true,
+      message: 'Account and associated data deleted successfully.',
+    });
+  } catch (error) {
+    logCaught(req, 'Delete account error', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to delete account at this time.',
+    });
+  }
+}
+
 module.exports = {
   signup,
   signupSendOtp,
@@ -717,4 +741,5 @@ module.exports = {
   forgotPasswordVerifyUsername,
   verifyCurrentPassword,
   changePassword,
+  deleteAccount,
 };

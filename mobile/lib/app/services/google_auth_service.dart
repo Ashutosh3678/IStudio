@@ -21,6 +21,11 @@ class GoogleAuthService {
   GoogleAuthService({GoogleSignIn? googleSignIn})
       : _googleSignIn = googleSignIn ??
             GoogleSignIn(
+              serverClientId: const String.fromEnvironment(
+                'GOOGLE_WEB_CLIENT_ID',
+                defaultValue:
+                    '764740513996-q44or6khoaunemro3fogq4ps44o2o13m.apps.googleusercontent.com',
+              ),
               scopes: const ['email', 'profile'],
             );
 

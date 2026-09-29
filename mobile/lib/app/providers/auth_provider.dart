@@ -272,8 +272,39 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    try {
+      await _googleAuthService.signOut();
+    } catch (_) {}
     await _clearSession();
     notifyListeners();
+  }
+
+  Future<bool> deleteAccount() async {
+    if (_token == null) {
+      _errorMessage = 'Please sign in to delete your account.';
+      notifyListeners();
+      return false;
+    }
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _authService.deleteAccount(token: _token!);
+      try {
+        await _googleAuthService.signOut();
+      } catch (_) {}
+      await _clearSession();
+      return true;
+    } on ApiException catch (error) {
+      _errorMessage = error.message;
+      return false;
+    } catch (_) {
+      _errorMessage = 'Unable to delete account at this time.';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> handleUnauthorized() async {
