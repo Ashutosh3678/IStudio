@@ -226,8 +226,23 @@ class AuthService {
     );
   }
 
-  Future<void> deleteAccount({required String token}) async {
-    await _api.delete('/auth/account', token: token);
+  Future<Map<String, dynamic>> sendDeleteAccountOtp({required String token}) async {
+    return _api.post('/auth/delete-account/send-otp', {}, token: token);
+  }
+
+  Future<void> deleteAccount({
+    required String token,
+    required String otp,
+    required String password,
+  }) async {
+    await _api.post(
+      '/auth/delete-account/confirm',
+      {
+        'otp': otp,
+        'password': password,
+      },
+      token: token,
+    );
   }
 
   User _parseUser(Map<String, dynamic> payload) {
