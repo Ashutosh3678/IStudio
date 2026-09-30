@@ -10,12 +10,19 @@ function getTransporter() {
   const user = process.env.SMTP_USER || process.env.GMAIL_USER;
   const pass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD;
 
+  const smtpTimeoutOpts = {
+    connectionTimeout: 10000,  // 10s to establish TCP connection
+    socketTimeout: 15000,      // 15s of inactivity on socket
+    greetingTimeout: 10000,    // 10s to wait for server greeting
+  };
+
   if (host && user && pass) {
     transporter = nodemailer.createTransport({
       host,
       port: Number(process.env.SMTP_PORT) || 587,
       secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
       auth: { user, pass },
+      ...smtpTimeoutOpts,
     });
   } else if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
     transporter = nodemailer.createTransport({
@@ -24,6 +31,7 @@ function getTransporter() {
         user: process.env.GMAIL_USER,
         pass: process.env.GMAIL_APP_PASSWORD,
       },
+      ...smtpTimeoutOpts,
     });
   }
 
@@ -166,13 +174,12 @@ async function sendVerificationEmail({ to, otp, username = '' }) {
   }
 
   try {
-    const info = await mailTransporter.sendMail({
-      from,
-      to,
-      subject,
-      text,
-      html,
-    });
+    const SEND_TIMEOUT_MS = 15000;
+    const sendPromise = mailTransporter.sendMail({ from, to, subject, text, html });
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('SMTP send timed out after 15s')), SEND_TIMEOUT_MS)
+    );
+    const info = await Promise.race([sendPromise, timeoutPromise]);
     logger.info('[EmailService] Verification email sent successfully', {
       to,
       messageId: info.messageId,
