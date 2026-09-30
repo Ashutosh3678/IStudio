@@ -931,7 +931,7 @@ async function setPassword(req, res) {
   }
 }
 
-async function deleteAccount(req, res) {
+async function deleteAccountSendOtp(req, res) {
   try {
     const user = await userRepository.findById(req.userId);
     if (!user) {
@@ -939,6 +939,79 @@ async function deleteAccount(req, res) {
         success: false,
         message: 'Account not found.',
       });
+    }
+
+    const email = user.email ? String(user.email).trim().toLowerCase() : '';
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'No registered email found for this account.',
+      });
+    }
+
+    const result = await otpService.generateAndSendEmailOtp(email);
+    return res.json({
+      success: true,
+      message: `Verification code sent to ${email}.`,
+      email,
+      debugOtp: result.debugOtp,
+    });
+  } catch (error) {
+    logCaught(req, 'deleteAccountSendOtp error', error);
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || 'Unable to send verification code at this time.',
+    });
+  }
+}
+
+async function deleteAccount(req, res) {
+  try {
+    const user = await userRepository.findById(req.userId, { withPassword: true });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Account not found.',
+      });
+    }
+
+    const otp = String(req.body.otp || req.query.otp || '').trim();
+    const password = String(req.body.password || req.query.password || '');
+
+    if (!otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide the email verification code.',
+      });
+    }
+
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide your account password to confirm deletion.',
+      });
+    }
+
+    // 1. Verify email OTP (verify user owns email)
+    try {
+      await otpService.verifyEmailOtp(user.email, otp);
+    } catch (otpErr) {
+      return res.status(400).json({
+        success: false,
+        message: otpErr.message || 'Invalid or expired verification code.',
+      });
+    }
+
+    // 2. Verify account password
+    if (user.password) {
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(400).json({
+          success: false,
+          message: 'Incorrect password. Account deletion aborted.',
+        });
+      }
     }
 
     await userRepository.deleteUserAccount(req.userId);
@@ -975,5 +1048,6 @@ module.exports = {
   forgotPasswordVerifyUsername,
   verifyCurrentPassword,
   changePassword,
+  deleteAccountSendOtp,
   deleteAccount,
 };

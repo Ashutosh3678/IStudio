@@ -21,6 +21,7 @@ const {
   forgotPasswordVerifyUsername,
   verifyCurrentPassword,
   changePassword,
+  deleteAccountSendOtp,
   deleteAccount,
 } = require('../controllers/authController');
 const { requireAuth } = require('../middleware/auth');
@@ -217,6 +218,8 @@ router.post(
   ],
   changePassword,
 );
+router.post('/delete-account/send-otp', requireAuth, deleteAccountSendOtp);
+router.post('/delete-account/confirm', requireAuth, deleteAccount);
 router.delete('/account', requireAuth, deleteAccount);
 router.delete('/me', requireAuth, deleteAccount);
 
