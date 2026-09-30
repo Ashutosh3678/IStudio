@@ -25,6 +25,9 @@ class InvoicesProvider extends ChangeNotifier {
   bool _loading = false;
 
   List<Invoice> get invoices => List.unmodifiable(_invoices);
+  List<Invoice> get estimates => List.unmodifiable(
+        _invoices.where((invoice) => invoice.isEstimate),
+      );
   String get lastUpiId => _lastUpiId;
   String? get errorMessage => _errorMessage;
   bool get isReady => _ready;
@@ -33,7 +36,7 @@ class InvoicesProvider extends ChangeNotifier {
   InvoiceOverview get overview {
     var total = 0.0;
     var received = 0.0;
-    for (final invoice in _invoices) {
+    for (final invoice in _invoices.where((invoice) => !invoice.isEstimate)) {
       total += invoice.total;
       received += invoice.amountReceived.clamp(0, invoice.total);
     }
@@ -46,6 +49,7 @@ class InvoicesProvider extends ChangeNotifier {
 
   List<Invoice> filtered(InvoiceFilter filter) {
     final items = _invoices.where((invoice) {
+      if (invoice.isEstimate) return false;
       switch (filter) {
         case InvoiceFilter.all:
           return true;
@@ -80,6 +84,18 @@ class InvoicesProvider extends ChangeNotifier {
       if (value > max) max = value;
     }
     return 'INV-${max + 1}';
+  }
+
+  String nextEstimateNumber() {
+    var max = 1000;
+    final pattern = RegExp(r'EST-(\d+)', caseSensitive: false);
+    for (final invoice in _invoices) {
+      final match = pattern.firstMatch(invoice.number);
+      if (match == null) continue;
+      final value = int.tryParse(match.group(1) ?? '') ?? 0;
+      if (value > max) max = value;
+    }
+    return 'EST-${max + 1}';
   }
 
   void syncAuth(AuthProvider auth) {
@@ -165,7 +181,9 @@ class InvoicesProvider extends ChangeNotifier {
 
   Future<Invoice> addInvoice(Invoice invoice) async {
     final stored = invoice.number.trim().isEmpty
-        ? invoice.copyWith(number: nextNumber())
+        ? invoice.copyWith(
+            number: invoice.isEstimate ? nextEstimateNumber() : nextNumber(),
+          )
         : invoice;
 
     if (_useApi) {

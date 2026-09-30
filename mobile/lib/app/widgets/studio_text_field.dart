@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../theme/app_colors.dart';
+
 class StudioTextField extends StatefulWidget {
   const StudioTextField({
     super.key,
@@ -49,6 +51,13 @@ class _StudioTextFieldState extends State<StudioTextField> {
     final textInputAction =
         isMultiline ? TextInputAction.newline : widget.textInputAction;
 
+    final textMain = context.textMain;
+    final textSecondary = context.textSecondary;
+    final textMuted = context.textMuted;
+    final inputBg = context.inputBg;
+    final inputBorder = context.inputBorder;
+    final inputFocusBorder = context.inputFocusBorder;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         Widget? suffix;
@@ -61,7 +70,7 @@ class _StudioTextFieldState extends State<StudioTextField> {
               _obscured
                   ? Icons.visibility_outlined
                   : Icons.visibility_off_outlined,
-              color: const Color(0xFF94A3B8),
+              color: textSecondary,
               size: 20,
             ),
           );
@@ -82,24 +91,24 @@ class _StudioTextFieldState extends State<StudioTextField> {
           inputFormatters: widget.inputFormatters,
           onFieldSubmitted: widget.onFieldSubmitted,
           style: GoogleFonts.plusJakartaSans(
-            color: Colors.white,
+            color: textMain,
             fontSize: 15,
             fontWeight: FontWeight.w500,
           ),
-          cursorColor: const Color(0xFF38BDF8),
+          cursorColor: inputFocusBorder,
           decoration: InputDecoration(
             hintText: widget.hint.isNotEmpty ? widget.hint : null,
             hintStyle: GoogleFonts.plusJakartaSans(
-              color: const Color(0xFF64748B),
+              color: textMuted,
               fontSize: 14.5,
               fontWeight: FontWeight.w400,
             ),
             filled: true,
-            fillColor: const Color(0xFF0B1322).withValues(alpha: 0.55),
+            fillColor: inputBg,
             isDense: true,
             errorMaxLines: 3,
             errorStyle: GoogleFonts.plusJakartaSans(
-              color: const Color(0xFFF87171),
+              color: const Color(0xFFEF4444),
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
@@ -121,28 +130,28 @@ class _StudioTextFieldState extends State<StudioTextField> {
                 ? null
                 : Icon(
                     widget.prefixIcon,
-                    color: const Color(0xFF94A3B8),
+                    color: textSecondary,
                     size: 21,
                   ),
             suffixIcon: suffix,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(20),
               borderSide: BorderSide(
-                color: Colors.white.withValues(alpha: 0.12),
+                color: inputBorder,
                 width: 1.1,
               ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(20),
               borderSide: BorderSide(
-                color: Colors.white.withValues(alpha: 0.12),
+                color: inputBorder,
                 width: 1.1,
               ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(20),
-              borderSide: const BorderSide(
-                color: Color(0xFF38BDF8),
+              borderSide: BorderSide(
+                color: inputFocusBorder,
                 width: 1.5,
               ),
             ),
@@ -170,7 +179,7 @@ class _StudioTextFieldState extends State<StudioTextField> {
             Text(
               widget.label,
               style: GoogleFonts.plusJakartaSans(
-                color: const Color(0xFFCBD5E1),
+                color: textSecondary,
                 fontSize: 13.5,
                 fontWeight: FontWeight.w500,
                 letterSpacing: 0.1,

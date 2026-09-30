@@ -139,6 +139,10 @@ class BusinessService {
     return DeliverableTask.fromJson(_map(payload['deliverable']));
   }
 
+  Future<void> deleteDeliverable(String token, String id) async {
+    await _api.delete('/deliverables/$id', token: token);
+  }
+
   Map<String, dynamic> _eventPayload(StudioEvent event) => {
     'clientId': event.clientId,
     'title': event.title,

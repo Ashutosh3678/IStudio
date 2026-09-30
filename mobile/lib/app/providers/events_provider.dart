@@ -407,12 +407,22 @@ class EventsProvider extends ChangeNotifier {
       }
 
       final saved = await _service.addPayment(_token!, eventId, payment);
-      final refreshed = (await _service.listEvents(_token!)).firstWhere(
+      var refreshed = (await _service.listEvents(_token!)).firstWhere(
         (item) => item.id == eventId,
         orElse: () => _events[index].copyWith(
           payments: [..._events[index].payments, saved],
         ),
       );
+
+      final allTasksDone = refreshed.deliverables.isNotEmpty &&
+          refreshed.deliverables.every((t) => t.isCompleted);
+      final isFullPayment = refreshed.remainingAmount <= 0.01;
+
+      if (allTasksDone && isFullPayment && refreshed.status != EventStatus.completed) {
+        refreshed = refreshed.copyWith(status: EventStatus.completed);
+        await _service.updateEvent(_token!, refreshed);
+      }
+
       _events[index] = refreshed;
       notifyListeners();
       return saved;
@@ -460,7 +470,22 @@ class EventsProvider extends ChangeNotifier {
         }
         return task;
       }).toList();
-      _events[index] = current.copyWith(deliverables: updatedDeliverables);
+
+      EventStatus newStatus = current.status;
+      final allTasksDone = updatedDeliverables.isNotEmpty &&
+          updatedDeliverables.every((t) => t.isCompleted);
+      final isFullPayment = current.remainingAmount <= 0.01;
+
+      if (allTasksDone && isFullPayment && current.status != EventStatus.completed) {
+        newStatus = EventStatus.completed;
+      } else if (!allTasksDone && current.status == EventStatus.completed) {
+        newStatus = EventStatus.inProgress;
+      }
+
+      _events[index] = current.copyWith(
+        deliverables: updatedDeliverables,
+        status: newStatus,
+      );
       try {
         if (_token != null) {
           final saved = await _service.updateDeliverable(
@@ -470,6 +495,9 @@ class EventsProvider extends ChangeNotifier {
                 .firstWhere((item) => item.id == taskId)
                 .isCompleted,
           );
+          if (newStatus != current.status) {
+            await _service.updateEvent(_token!, _events[index]);
+          }
           _events[index] = _events[index].copyWith(
             deliverables: _events[index].deliverables
                 .map((item) => item.id == taskId ? saved : item)
@@ -484,6 +512,75 @@ class EventsProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<void> deleteDeliverable(String eventId, String taskId) async {
+    final index = _events.indexWhere((e) => e.id == eventId);
+    if (index != -1) {
+      final current = _events[index];
+      final previous = current;
+      final updatedDeliverables = current.deliverables
+          .where((t) => t.id != taskId)
+          .toList();
+
+      EventStatus newStatus = current.status;
+      final allTasksDone = updatedDeliverables.isNotEmpty &&
+          updatedDeliverables.every((t) => t.isCompleted);
+      final isFullPayment = current.remainingAmount <= 0.01;
+
+      if (allTasksDone && isFullPayment && current.status != EventStatus.completed) {
+        newStatus = EventStatus.completed;
+      }
+
+      _events[index] = current.copyWith(
+        deliverables: updatedDeliverables,
+        status: newStatus,
+      );
+      notifyListeners();
+      try {
+        if (_token != null && !taskId.startsWith('wf-') && !taskId.startsWith('dup-')) {
+          await _service.deleteDeliverable(_token!, taskId);
+          if (newStatus != current.status) {
+            await _service.updateEvent(_token!, _events[index]);
+          }
+        }
+      } catch (_) {
+        _events[index] = previous;
+        notifyListeners();
+        rethrow;
+      }
+    }
+  }
+
+  Future<DeliverableTask?> addDeliverable(
+    String eventId,
+    DeliverableTask task,
+  ) async {
+    final index = _events.indexWhere((e) => e.id == eventId);
+    if (index == -1) return null;
+    final current = _events[index];
+    _events[index] = current.copyWith(
+      deliverables: [...current.deliverables, task],
+    );
+    notifyListeners();
+    if (_token != null) {
+      try {
+        final saved = await _service.createDeliverable(_token!, eventId, task);
+        _events[index] = _events[index].copyWith(
+          deliverables: _events[index].deliverables
+              .map((t) => t.id == task.id ? saved : t)
+              .toList(),
+        );
+        notifyListeners();
+        return saved;
+      } catch (_) {
+        _events[index] = current;
+        notifyListeners();
+        rethrow;
+      }
+    }
+    return task;
+  }
+
   Future<void> addDeliverables(
     String eventId,
     List<DeliverableTask> tasks,

@@ -17,9 +17,14 @@ import 'invoice_preview_screen.dart';
 import 'invoice_sheets.dart';
 
 class CreateInvoiceForm extends StatefulWidget {
-  const CreateInvoiceForm({super.key, required this.onSaved});
+  const CreateInvoiceForm({
+    super.key,
+    required this.onSaved,
+    this.documentType = InvoiceDocumentType.receipt,
+  });
 
   final ValueChanged<Invoice> onSaved;
+  final InvoiceDocumentType documentType;
 
   @override
   State<CreateInvoiceForm> createState() => CreateInvoiceFormState();
@@ -84,7 +89,9 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
     final provider = context.read<InvoicesProvider>();
     return Invoice(
       id: 'inv-${DateTime.now().millisecondsSinceEpoch}',
-      number: provider.nextNumber(),
+      number: widget.documentType == InvoiceDocumentType.estimate
+          ? provider.nextEstimateNumber()
+          : provider.nextNumber(),
       eventName: _eventController.text.trim(),
       contactName: _contactController.text.trim(),
       phone: Validators.normalizePhone(_phoneController.text),
@@ -93,6 +100,7 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
       dueDate: _dueDate,
       deliverables: List.unmodifiable(_deliverables),
       upiId: _upiController.text.trim(),
+      documentType: widget.documentType,
     );
   }
 
@@ -142,7 +150,13 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save receipt.')),
+        SnackBar(
+          content: Text(
+            widget.documentType == InvoiceDocumentType.estimate
+                ? 'Could not save estimated cost.'
+                : 'Could not save receipt.',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -194,7 +208,9 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
       event.clientId ?? '',
     );
     setState(() {
-      _eventController.text = event.title;
+      _eventController.text = widget.documentType == InvoiceDocumentType.estimate
+          ? '${event.title} · ${DateFormat('d MMM yyyy').format(event.startsAt)} · ${event.location}'
+          : event.title;
       _contactController.text = event.clientName;
       if ((client?.phone ?? '').isNotEmpty) {
         _phoneController.text = client!.phone;
@@ -431,7 +447,12 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
               );
             }),
           const SizedBox(height: 16),
-          _sectionTitle(context, 'Bill Summary'),
+          _sectionTitle(
+            context,
+            widget.documentType == InvoiceDocumentType.estimate
+                ? 'Estimate Summary'
+                : 'Bill Summary',
+          ),
           const SizedBox(height: 12),
           StudioCard(
             child: Column(
@@ -447,29 +468,35 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          _sectionTitle(context, 'Payment (UPI)'),
-          const SizedBox(height: 12),
-          StudioTextField(
-            label: 'UPI ID',
-            hint: 'e.g. lumenstudio@okaxis',
-            controller: _upiController,
-            prefixIcon: Icons.qr_code_2_rounded,
-            textInputAction: TextInputAction.done,
-            validator: (value) {
-              final trimmed = value?.trim() ?? '';
-              if (trimmed.isEmpty) return null;
-              if (!trimmed.contains('@') || trimmed.length < 5) {
-                return 'Enter a valid UPI ID';
-              }
-              return null;
-            },
-          ),
+          if (widget.documentType == InvoiceDocumentType.receipt) ...[
+            const SizedBox(height: 24),
+            _sectionTitle(context, 'Payment (UPI)'),
+            const SizedBox(height: 12),
+            StudioTextField(
+              label: 'UPI ID',
+              hint: 'e.g. lumenstudio@okaxis',
+              controller: _upiController,
+              prefixIcon: Icons.qr_code_2_rounded,
+              textInputAction: TextInputAction.done,
+              validator: (value) {
+                final trimmed = value?.trim() ?? '';
+                if (trimmed.isEmpty) return null;
+                if (!trimmed.contains('@') || trimmed.length < 5) {
+                  return 'Enter a valid UPI ID';
+                }
+                return null;
+              },
+            ),
+          ],
           const SizedBox(height: 24),
           OutlinedButton.icon(
             onPressed: _saving ? null : _preview,
             icon: const Icon(Icons.visibility_outlined),
-            label: const Text('Check Receipt'),
+            label: Text(
+              widget.documentType == InvoiceDocumentType.estimate
+                  ? 'Preview Estimated Cost'
+                  : 'Check Receipt',
+            ),
             style: OutlinedButton.styleFrom(
               foregroundColor: textMain,
               side: BorderSide(color: context.cardBorder),
@@ -481,7 +508,9 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
           ),
           const SizedBox(height: 12),
           StudioButton(
-            label: 'Save & Share Receipt',
+            label: widget.documentType == InvoiceDocumentType.estimate
+                ? 'Save Estimated Cost'
+                : 'Save & Share Receipt',
             isLoading: _saving,
             onPressed: _save,
           ),

@@ -8,13 +8,11 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/client.dart';
-import '../../models/invoice.dart';
 import '../../models/studio_event.dart';
 import '../../models/user.dart';
 import '../clients/client_details_screen.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/events_provider.dart';
-import '../../providers/invoices_provider.dart';
 import '../../providers/notifications_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../theme/app_colors.dart';
@@ -33,7 +31,6 @@ import '../shell/app_shell.dart';
 import '../../routes/smooth_page_route.dart';
 import '../../utils/launcher_utils.dart';
 import '../../widgets/shimmer_loading.dart';
-import '../../widgets/animated_financial_text.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -114,13 +111,11 @@ class _HomeScreenState extends State<HomeScreen>
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
     final eventsProvider = context.watch<EventsProvider>();
-    final invoicesProvider = context.watch<InvoicesProvider>();
     final notifsProvider = context.watch<NotificationsProvider?>();
 
     final upcoming = eventsProvider.upcomingEvents;
     final past = eventsProvider.pastEvents.take(4).toList();
     final recentInfoClients = eventsProvider.recentInformationClients;
-    final overview = invoicesProvider.overview;
     final unreadAlerts = notifsProvider?.unreadCount ?? 0;
 
     final shootsWithin7Days = upcoming.where((e) => e.isWithin7Days).toList();
@@ -160,25 +155,54 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                       const SizedBox(height: 12),
 
-                      // Studio Earnings & Dues Strip
+                      // Compact event-backed financial summary
                       _AnimatedSection(
                         animation: _sAnim1,
-                        child: _buildEarningsStrip(context, overview),
+                        child: _buildFinancialCards(context, eventsProvider.events),
                       ),
                       const SizedBox(height: 14),
 
-                      // Promotional Banners Carousel
+                      // Upcoming Shoot is the primary dashboard focus
                       _AnimatedSection(
                         animation: _sAnim2,
+                        child: _buildSectionHeader(
+                          context,
+                          title: 'Upcoming Shoot',
+                          badgeCount: upcoming.length,
+                          actionLabel: 'See all',
+                          onAction: () {
+                            Navigator.of(context).push(
+                              SmoothPageRoute(
+                                builder: (_) => const UpcomingEventsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _AnimatedSection(
+                        animation: _sAnim3,
+                        child: eventsProvider.isLoading
+                            ? _buildUpcomingShimmer()
+                            : upcoming.isEmpty
+                                ? _buildEmptyUpcomingState(context)
+                                : _buildUpcomingCarousel(
+                                    context, upcoming.take(6).toList()),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Compact promotional banner
+                      _AnimatedSection(
+                        animation: _sAnim4,
                         child: _buildBannerCarousel(context),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 16),
 
-                    // 4. 7-Day Countdown Alert Hero Banner
+                    // 7-Day Countdown Alert Hero Banner
                     if (nearestHeroEvent != null &&
                         !_dismissedHeroAlert) ...[
                       _AnimatedSection(
-                        animation: _sAnim3,
+                        animation: _sAnim5,
                         child: EventCountdownBanner(
                           event: nearestHeroEvent,
                           onDismiss: () =>
@@ -191,7 +215,7 @@ class _HomeScreenState extends State<HomeScreen>
                     // Information Inquiries Box (active within 3 days / 72h TTL)
                     if (recentInfoClients.isNotEmpty) ...[
                       _AnimatedSection(
-                        animation: _sAnim3,
+                        animation: _sAnim5,
                         child: _buildInformationInquiriesBox(
                           context,
                           recentInfoClients,
@@ -200,39 +224,9 @@ class _HomeScreenState extends State<HomeScreen>
                       const SizedBox(height: 22),
                     ],
 
-                    // 5. Coming Up Section Header
-                    _AnimatedSection(
-                      animation: _sAnim4,
-                      child: _buildSectionHeader(
-                        context,
-                        title: 'Coming Up',
-                        badgeCount: upcoming.length,
-                        actionLabel: 'See all',
-                        onAction: () {
-                          Navigator.of(context).push(
-                            SmoothPageRoute(
-                              builder: (_) => const UpcomingEventsScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 6. Upcoming Events Carousel (shimmer while loading)
-                    _AnimatedSection(
-                      animation: _sAnim5,
-                      child: eventsProvider.isLoading
-                          ? _buildUpcomingShimmer()
-                          : upcoming.isEmpty
-                              ? _buildEmptyUpcomingState(context)
-                              : _buildUpcomingCarousel(
-                                  context, upcoming.take(6).toList()),
-                    ),
-
                     const SizedBox(height: 30),
 
-                    // 7. Done Section Header
+                    // Done Section Header
                     _AnimatedSection(
                       animation: _sAnim6,
                       child: _buildSectionHeader(
@@ -250,7 +244,6 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                     const SizedBox(height: 14),
 
-                    // 8. Past Events List
                     _AnimatedSection(
                       animation: _sAnim7,
                       child: past.isEmpty
@@ -543,7 +536,7 @@ class _HomeScreenState extends State<HomeScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Studio Services',
+                'Quick actions',
                 style: TextStyle(
                   color: isDark ? AppColors.paper : AppColors.lightTextMain,
                   fontSize: 13.5,
@@ -586,18 +579,24 @@ class _HomeScreenState extends State<HomeScreen>
                 onTap: () => AppShellScope.of(context)?.switchTab(2),
               ),
               _QuickActionItem(
-                icon: Icons.calendar_month_rounded,
-                label: 'Calendar',
+                icon: Icons.payments_rounded,
+                label: 'Payments',
                 color: const Color(0xFF6EE7B7), // Pastel Mint
                 isDark: isDark,
-                onTap: () => AppShellScope.of(context)?.switchTab(1),
+                onTap: () => _pickEventAndOpenDetails(
+                  context,
+                  action: _HomeEventAction.payments,
+                ),
               ),
               _QuickActionItem(
-                icon: Icons.people_rounded,
-                label: 'Clients',
+                icon: Icons.receipt_long_rounded,
+                label: 'Expenses',
                 color: const Color(0xFFC084FC), // Pastel Lilac
                 isDark: isDark,
-                onTap: () => AppShellScope.of(context)?.switchTab(3),
+                onTap: () => _pickEventAndOpenDetails(
+                  context,
+                  action: _HomeEventAction.expenses,
+                ),
               ),
             ],
           ),
@@ -606,132 +605,169 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // ================= 3. Studio Earnings Strip =================
-  Widget _buildEarningsStrip(BuildContext context, InvoiceOverview overview) {
-    final isDark = context.isDark;
+  // ================= 3. Compact Financial Cards =================
+  Widget _buildFinancialCards(
+    BuildContext context,
+    List<StudioEvent> events,
+  ) {
+    final received = events.fold<double>(0, (sum, event) => sum + event.amountReceived);
+    final outstanding = events.fold<double>(0, (sum, event) => sum + event.remainingAmount);
+    final expenses = events.fold<double>(0, (sum, event) => sum + event.totalExpenses);
 
-    return StudioCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      borderRadius: 20,
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.sky.withValues(alpha: 0.14),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.account_balance_wallet_rounded,
-              color: AppColors.sky,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Studio Earnings',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? AppColors.muted : AppColors.lightTextMuted,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                SizedBox(
-                  width: double.infinity,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AnimatedFinancialText(
-                          amount: overview.received,
-                          style: const TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.pastelMint,
-                          ),
-                        ),
-                        Text(
-                          ' recvd',
+    final cards = [
+      ('Received', received, AppColors.pastelMint, Icons.south_west_rounded),
+      ('Outstanding', outstanding, AppColors.sky, Icons.schedule_rounded),
+      ('Expenses', expenses, AppColors.pastelRose, Icons.receipt_long_rounded),
+    ];
+
+    return Row(
+      children: cards
+          .map(
+            (card) => Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(right: card == cards.last ? 0 : 8),
+                child: StudioCard(
+                  padding: const EdgeInsets.fromLTRB(10, 11, 10, 10),
+                  borderRadius: 16,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(card.$4, color: card.$3, size: 16),
+                      const SizedBox(height: 7),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _currency.format(card.$2),
                           style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: isDark ? AppColors.muted : AppColors.lightTextMuted,
+                            color: context.textMain,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                        if (overview.pending > 0) ...[
-                          Text(
-                            ' · ',
-                            style: TextStyle(
-                              color: isDark ? AppColors.muted : AppColors.lightTextMuted,
-                            ),
-                          ),
-                          AnimatedFinancialText(
-                            amount: overview.pending,
-                            style: const TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.sky,
-                            ),
-                          ),
-                          Text(
-                            ' due',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: isDark ? AppColors.muted : AppColors.lightTextMuted,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Total ${card.$1}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: context.textMuted, fontSize: 10),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          InkWell(
-            borderRadius: BorderRadius.circular(999),
-            onTap: () => MonthlyFinancialSummarySheet.show(context),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.sky.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(999),
               ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Summary',
-                    style: TextStyle(
-                      color: AppColors.sky,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  Future<void> _pickEventAndOpenDetails(
+    BuildContext context, {
+    required _HomeEventAction action,
+  }) async {
+    final provider = context.read<EventsProvider>();
+    final events = provider.events.toList()
+      ..sort((a, b) => b.startsAt.compareTo(a.startsAt));
+
+    if (events.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Create an event before recording payments or expenses.')),
+      );
+      return;
+    }
+
+    final selected = await showModalBottomSheet<StudioEvent>(
+      context: context,
+      backgroundColor: context.cardBg,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(sheetContext).height * 0.62,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        action == _HomeEventAction.payments
+                            ? 'Select event for payment'
+                            : 'Select event for expense',
+                        style: TextStyle(
+                          color: context.textMain,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
-                  ),
-                  SizedBox(width: 3),
-                  Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    color: AppColors.sky,
-                    size: 9,
-                  ),
-                ],
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.pop(sheetContext),
+                      icon: Icon(Icons.close_rounded, color: context.textMuted),
+                    ),
+                  ],
+                ),
               ),
-            ),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+                  itemCount: events.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (_, index) {
+                    final event = events[index];
+                    return ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(color: context.cardBorder),
+                      ),
+                      tileColor: context.innerBg,
+                      leading: CircleAvatar(
+                        backgroundColor: context.accentColor.withValues(alpha: 0.14),
+                        child: Text(
+                          event.clientName.isEmpty
+                              ? 'E'
+                              : event.clientName.characters.first.toUpperCase(),
+                          style: TextStyle(color: context.accentColor, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      title: Text(
+                        event.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: context.textMain, fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        '${event.clientName} · ${DateFormat('d MMM yyyy').format(event.startsAt)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: context.textMuted, fontSize: 12),
+                      ),
+                      trailing: Icon(Icons.chevron_right_rounded, color: context.textMuted),
+                      onTap: () => Navigator.pop(sheetContext, event),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+
+    if (!context.mounted || selected == null) return;
+    Navigator.of(context).push(
+      SmoothPageRoute(
+        builder: (_) => EventDetailsScreen(
+          eventId: selected.id,
+          autoOpenPayment: action == _HomeEventAction.payments,
+          autoOpenExpense: action == _HomeEventAction.expenses,
+        ),
       ),
     );
   }
@@ -744,7 +780,7 @@ class _HomeScreenState extends State<HomeScreen>
         subtitle: 'Fast & easy receipts to WhatsApp',
         icon: Icons.receipt_long_rounded,
         actionLabel: 'Make Bill',
-        gradient: AppColors.skyGradient,
+        color: AppColors.sky,
         onTap: () => AppShellScope.of(context)?.switchTab(2),
       ),
       _BannerData(
@@ -752,9 +788,7 @@ class _HomeScreenState extends State<HomeScreen>
         subtitle: 'Never double-book wedding dates',
         icon: Icons.calendar_today_rounded,
         actionLabel: 'Calendar',
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFF9F43), Color(0xFFE65100)],
-        ),
+        color: const Color(0xFFE67E22),
         onTap: () => AppShellScope.of(context)?.switchTab(1),
       ),
       _BannerData(
@@ -762,9 +796,7 @@ class _HomeScreenState extends State<HomeScreen>
         subtitle: 'Check income, profit & pending',
         icon: Icons.account_balance_wallet_rounded,
         actionLabel: 'See Profit',
-        gradient: const LinearGradient(
-          colors: [Color(0xFF10B981), Color(0xFF047857)],
-        ),
+        color: const Color(0xFF059669),
         onTap: () => MonthlyFinancialSummarySheet.show(context),
       ),
     ];
@@ -772,7 +804,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Column(
       children: [
         SizedBox(
-          height: 132,
+          height: 92,
           child: PageView.builder(
             controller: _bannerPageController,
             physics: const BouncingScrollPhysics(),
@@ -791,11 +823,11 @@ class _HomeScreenState extends State<HomeScreen>
                     onTap: banner.onTap,
                     child: Ink(
                       decoration: BoxDecoration(
-                        gradient: banner.gradient,
+                        color: banner.color,
                         borderRadius: BorderRadius.circular(22),
                         boxShadow: [
                           BoxShadow(
-                            color: banner.gradient.colors.first.withValues(alpha: 0.32),
+                            color: banner.color.withValues(alpha: 0.24),
                             blurRadius: 16,
                             offset: const Offset(0, 6),
                           ),
@@ -811,9 +843,9 @@ class _HomeScreenState extends State<HomeScreen>
                               children: [
                                 Text(
                                   banner.title,
-                                  style: GoogleFonts.plusJakartaSans(
+                                  style: GoogleFonts.outfit(
                                     color: Colors.white,
-                                    fontSize: 18,
+                                  fontSize: 15,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: -0.3,
                                   ),
@@ -829,7 +861,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 5),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 10,
@@ -864,8 +896,8 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                           const SizedBox(width: 12),
                           Container(
-                            width: 52,
-                            height: 52,
+                            width: 40,
+                            height: 40,
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(16),
@@ -877,7 +909,7 @@ class _HomeScreenState extends State<HomeScreen>
                             child: Icon(
                               banner.icon,
                               color: Colors.white,
-                              size: 26,
+                              size: 20,
                             ),
                           ),
                         ],
@@ -889,7 +921,7 @@ class _HomeScreenState extends State<HomeScreen>
             },
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 7),
         // Banner dots
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -934,7 +966,7 @@ class _HomeScreenState extends State<HomeScreen>
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.outfit(
                     color: context.textMain,
                     fontWeight: FontWeight.w700,
                     fontSize: 19,
@@ -1094,7 +1126,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ? event.clientName.characters.first
                             .toUpperCase()
                         : 'S',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: GoogleFonts.outfit(
                       color: accent,
                       fontWeight: FontWeight.w800,
                       fontSize: 18,
@@ -1109,7 +1141,7 @@ class _HomeScreenState extends State<HomeScreen>
                   children: [
                     Text(
                       event.title,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.outfit(
                         color: textMain,
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
@@ -1287,7 +1319,7 @@ class _HomeScreenState extends State<HomeScreen>
           const SizedBox(height: 14),
           Text(
             'No shoots yet',
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.outfit(
               color: context.textMain,
               fontSize: 17,
               fontWeight: FontWeight.w700,
@@ -1341,7 +1373,7 @@ class _HomeScreenState extends State<HomeScreen>
                       event.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.outfit(
                         color: textMain,
                         fontSize: 16.5,
                         fontWeight: FontWeight.w700,
@@ -1537,7 +1569,7 @@ class _HomeScreenState extends State<HomeScreen>
                   children: [
                     Text(
                       'Information Inquiries',
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.outfit(
                         color: textMain,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -1638,7 +1670,7 @@ class _HomeScreenState extends State<HomeScreen>
                               client.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.plusJakartaSans(
+                              style: GoogleFonts.outfit(
                                 color: textMain,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -1797,13 +1829,15 @@ class _QuickActionItem extends StatelessWidget {
   }
 }
 
+enum _HomeEventAction { payments, expenses }
+
 // ===================== Banner Data Model =====================
 class _BannerData {
   const _BannerData({
     required this.title,
     required this.subtitle,
     required this.icon,
-    required this.gradient,
+    required this.color,
     required this.actionLabel,
     this.onTap,
   });
@@ -1811,7 +1845,7 @@ class _BannerData {
   final String title;
   final String subtitle;
   final IconData icon;
-  final LinearGradient gradient;
+  final Color color;
   final String actionLabel;
   final VoidCallback? onTap;
 }
@@ -1886,4 +1920,3 @@ class _PressableButtonState extends State<_PressableButton> {
     );
   }
 }
-

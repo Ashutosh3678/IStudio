@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../theme/app_colors.dart';
 import '../../utils/validators.dart';
 import '../../widgets/studio_button.dart';
 import '../../widgets/studio_text_field.dart';
@@ -100,13 +101,13 @@ class _LoginFormState extends State<LoginForm> {
                 },
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
-                  foregroundColor: const Color(0xFF60A5FA),
+                  foregroundColor: context.accentColor,
                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                 ),
                 child: Text(
                   'Forgot password?',
                   style: GoogleFonts.plusJakartaSans(
-                    color: const Color(0xFF60A5FA),
+                    color: context.accentColor,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),

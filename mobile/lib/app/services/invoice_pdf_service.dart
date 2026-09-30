@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -151,7 +149,7 @@ class InvoicePdfService {
           _itemsTable(invoice),
           pw.SizedBox(height: 16),
           _totals(invoice),
-          if (invoice.upiId.trim().isNotEmpty) ...[
+          if (!invoice.isEstimate && invoice.upiId.trim().isNotEmpty) ...[
             pw.SizedBox(height: 18),
             _payment(invoice),
           ],
@@ -317,7 +315,7 @@ class InvoicePdfService {
         pw.Expanded(
           child: _infoBlock('DOCUMENT', [
             '${_documentLabel(invoice)} date: ${_date.format(invoice.issuedOn)}',
-            'Due / valid until: ${_date.format(invoice.dueDate)}',
+            '${invoice.isEstimate ? 'Valid until' : 'Due date'}: ${_date.format(invoice.dueDate)}',
             '${invoice.deliverables.length} deliverable${invoice.deliverables.length == 1 ? '' : 's'}',
           ]),
         ),
@@ -426,17 +424,30 @@ class InvoicePdfService {
         child: pw.Column(
           children: [
             _totalRow('Subtotal', _money.format(invoice.total)),
-            _totalRow('Amount received', _money.format(invoice.amountReceived)),
-            pw.SizedBox(height: 6),
-            pw.Container(height: 0.7, color: _line),
-            pw.SizedBox(height: 7),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Balance due', style: pw.TextStyle(color: _ink, fontSize: 11, fontWeight: pw.FontWeight.bold)),
-                pw.Text(_money.format(invoice.pendingAmount), style: pw.TextStyle(color: _navy, fontSize: 12, fontWeight: pw.FontWeight.bold)),
-              ],
-            ),
+            if (invoice.isEstimate) ...[
+              pw.SizedBox(height: 6),
+              pw.Container(height: 0.7, color: _line),
+              pw.SizedBox(height: 7),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Estimated total', style: pw.TextStyle(color: _ink, fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                  pw.Text(_money.format(invoice.total), style: pw.TextStyle(color: _navy, fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                ],
+              ),
+            ] else ...[
+              _totalRow('Amount received', _money.format(invoice.amountReceived)),
+              pw.SizedBox(height: 6),
+              pw.Container(height: 0.7, color: _line),
+              pw.SizedBox(height: 7),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Balance due', style: pw.TextStyle(color: _ink, fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                  pw.Text(_money.format(invoice.pendingAmount), style: pw.TextStyle(color: _navy, fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -534,7 +545,9 @@ class InvoicePdfService {
         _sectionLabel('TERMS & CONDITIONS'),
         pw.SizedBox(height: 5),
         pw.Text(
-          'This is an estimated cost and may vary with final requirements. Advance payment confirms the booking. Remaining balance is payable before final delivery. Delivery timelines may vary by package and project scope.',
+          invoice.isEstimate
+              ? 'This estimated cost is a proposal based on the requirements known today. It is not proof of payment or a financial receipt. Final pricing may change if the scope, date, location, package, or add-ons change. The booking is confirmed only after client acceptance and confirmation through the existing booking and payment process.'
+              : 'This is an estimated cost and may vary with final requirements. Advance payment confirms the booking. Remaining balance is payable before final delivery. Delivery timelines may vary by package and project scope.',
           style: const pw.TextStyle(color: _muted, fontSize: 8.2, lineSpacing: 2),
         ),
       ],
@@ -560,6 +573,7 @@ class InvoicePdfService {
   }
 
   static _DocumentKind _documentKind(Invoice invoice) {
+    if (invoice.isEstimate) return _DocumentKind.estimate;
     final number = invoice.number.toUpperCase();
     if (number.startsWith('EST')) return _DocumentKind.estimate;
     if (number.startsWith('REC')) return _DocumentKind.receipt;

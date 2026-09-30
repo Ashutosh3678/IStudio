@@ -174,6 +174,90 @@ class AppColors {
     }
     return urgencyNotice(context);
   }
+  // ================= 26. Full Light + Dark Studio Theme Palette =================
+  // Dark Theme Palette Specifications
+  static const Color darkBg1 = Color(0xFF070A12);
+  static const Color darkBg2 = Color(0xFF0B1020);
+  static const Color darkBg3 = Color(0xFF10172A);
+
+  static const Color darkSurface1 = Color(0xFF111827);
+  static const Color darkSurface2 = Color(0xFF151D30);
+  static const Color darkSurface3 = Color(0xFF182136);
+
+  static const Color darkTextPrimary = Color(0xFFF5F7FF);
+  static const Color darkTextSecondary = Color(0xFFA7B1C8);
+  static const Color darkTextMuted = Color(0xFF69748C);
+  static const Color darkBorderTransparent = Color(0x2EFFFFFF);
+
+  // Light Theme Palette Specifications
+  static const Color lightBg1 = Color(0xFFF6F8FC);
+  static const Color lightBg2 = Color(0xFFEEF2F8);
+  static const Color lightBg3 = Color(0xFFFFFFFF);
+
+  static const Color lightSurface1 = Color(0xFFFFFFFF);
+  static const Color lightSurface2 = Color(0xFFF3F5FA);
+
+  static const Color lightTextPrimary = Color(0xFF111827);
+  static const Color lightTextSecondary = Color(0xFF5B6475);
+  static const Color lightTextTertiary = Color(0xFF7B8496);
+  static const Color lightBorderColor = Color(0xFFDCE2EE);
+
+  // Accents
+  // Dark: Cyan -> Blue -> Violet
+  static const Color darkAccentCyan = Color(0xFF00E5FF);
+  static const Color darkAccentBlue = Color(0xFF38BDF8);
+  static const Color darkAccentIndigo = Color(0xFF6366F1);
+  static const Color darkAccentViolet = Color(0xFF8B5CF6);
+
+  // Light: Deeper contrast Cyan -> Blue -> Violet
+  static const Color lightAccentCyan = Color(0xFF0891B2);
+  static const Color lightAccentBlue = Color(0xFF4F46E5);
+  static const Color lightAccentViolet = Color(0xFF7C3AED);
+
+  // Gradients matching the luminous signature cyan -> blue -> violet aesthetic
+  static const LinearGradient darkCtaGradient = LinearGradient(
+    colors: [
+      Color(0xFF00E5FF),
+      Color(0xFF38BDF8),
+      Color(0xFF6366F1),
+      Color(0xFFA855F7),
+    ],
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+  );
+
+  static const LinearGradient lightCtaGradient = LinearGradient(
+    colors: [
+      Color(0xFF00C6FF),
+      Color(0xFF3B82F6),
+      Color(0xFF8B5CF6),
+      Color(0xFFA855F7),
+    ],
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+  );
+
+  static const LinearGradient darkToggleGradient = LinearGradient(
+    colors: [
+      Color(0xFF00E5FF),
+      Color(0xFF38BDF8),
+      Color(0xFF6366F1),
+      Color(0xFFA855F7),
+    ],
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+  );
+
+  static const LinearGradient lightToggleGradient = LinearGradient(
+    colors: [
+      Color(0xFF00C6FF),
+      Color(0xFF3B82F6),
+      Color(0xFF8B5CF6),
+      Color(0xFFA855F7),
+    ],
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+  );
 }
 
 @immutable
@@ -216,24 +300,24 @@ class StudioColors extends ThemeExtension<StudioColors> {
     mist: AppColors.mist,
     cardBg: AppColors.glassCardDark,
     cardBorder: AppColors.glassBorderDark,
-    textMain: AppColors.paper,
-    textMuted: AppColors.muted,
+    textMain: AppColors.darkTextPrimary,
+    textMuted: AppColors.darkTextMuted,
     innerContainerBg: AppColors.glassInnerDark,
   );
 
   static const StudioColors lightBrand = StudioColors(
-    blossom: AppColors.lightPrimary,
-    merlot: AppColors.lightBorder,
-    plum: AppColors.lightInputFill,
-    midnight: AppColors.lightTextMain,
-    ivory: AppColors.lightTextMain,
+    blossom: AppColors.lightAccentBlue,
+    merlot: AppColors.lightBorderColor,
+    plum: AppColors.lightSurface2,
+    midnight: AppColors.lightTextPrimary,
+    ivory: AppColors.lightTextPrimary,
     blush: AppColors.lightTextMuted,
     mist: Color(0x666B5B7B),
-    cardBg: AppColors.glassCardLight,
-    cardBorder: AppColors.glassBorderLight,
-    textMain: AppColors.lightTextMain,
+    cardBg: AppColors.lightSurface1,
+    cardBorder: AppColors.lightBorderColor,
+    textMain: AppColors.lightTextPrimary,
     textMuted: AppColors.lightTextMuted,
-    innerContainerBg: AppColors.glassInnerLight,
+    innerContainerBg: AppColors.lightSurface2,
   );
 
   @override
@@ -290,12 +374,34 @@ class StudioColors extends ThemeExtension<StudioColors> {
 extension StudioThemeX on BuildContext {
   bool get isDark => AppColors.isDark(this);
   StudioColors get studioColors =>
-      Theme.of(this).extension<StudioColors>() ?? StudioColors.brand;
-  Color get cardBg => AppColors.cardBackground(this);
-  Color get cardBorder => AppColors.cardBorder(this);
-  Color get textMain => AppColors.textMain(this);
-  Color get textMuted => AppColors.textMuted(this);
-  Color get accentColor => AppColors.accent(this);
-  Color get innerBg => AppColors.innerContainerBackground(this);
-  Color get scaffoldBg => AppColors.scaffoldBackground(this);
+      Theme.of(this).extension<StudioColors>() ?? (isDark ? StudioColors.brand : StudioColors.lightBrand);
+  Color get cardBg => isDark
+      ? AppColors.darkSurface1.withValues(alpha: 0.78)
+      : AppColors.lightSurface1.withValues(alpha: 0.92);
+  Color get cardBorder =>
+      isDark ? AppColors.darkBorderTransparent : AppColors.lightBorderColor;
+  Color get textMain =>
+      isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+  Color get textSecondary =>
+      isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+  Color get textMuted =>
+      isDark ? AppColors.darkTextMuted : AppColors.lightTextTertiary;
+  Color get accentColor =>
+      isDark ? AppColors.darkAccentBlue : AppColors.lightAccentBlue;
+  Color get inputBg => isDark
+      ? AppColors.darkSurface2.withValues(alpha: 0.60)
+      : AppColors.lightSurface2;
+  Color get inputBorder =>
+      isDark ? Colors.white.withValues(alpha: 0.12) : AppColors.lightBorderColor;
+  Color get inputFocusBorder =>
+      isDark ? AppColors.darkAccentBlue : AppColors.lightAccentBlue;
+  Color get innerBg => isDark
+      ? AppColors.darkSurface2
+      : AppColors.lightSurface2;
+  Color get scaffoldBg =>
+      isDark ? AppColors.darkBg1 : AppColors.lightBg1;
+  LinearGradient get ctaGradient =>
+      isDark ? AppColors.darkCtaGradient : AppColors.lightCtaGradient;
+  LinearGradient get toggleGradient =>
+      isDark ? AppColors.darkToggleGradient : AppColors.lightToggleGradient;
 }

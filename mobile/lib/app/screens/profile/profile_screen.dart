@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,15 +8,12 @@ import 'package:provider/provider.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_colors.dart';
-import '../../widgets/auth_background.dart';
 import '../../utils/validators.dart';
 import '../../widgets/profile_avatar.dart';
 import '../../widgets/studio_button.dart';
 import '../../widgets/studio_card.dart';
 import '../../widgets/studio_text_field.dart';
 import '../../widgets/change_password_sheet.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../../services/api_config.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -92,7 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.navy,
+      backgroundColor: context.cardBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -149,26 +148,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _pickAndUpload(ImageSource.camera);
                   },
                 ),
-                if (user != null && user.logoUrl.isNotEmpty) ...[
-                  const Divider(color: Color(0x18FFFFFF)),
+                if (user?.logoUrl.isNotEmpty == true)
                   ListTile(
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF7A8A).withValues(alpha: 0.16),
+                        color: Colors.red.withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(Icons.delete_outline_rounded,
-                          color: Color(0xFFFF7A8A)),
+                      child: const Icon(Icons.delete_outline, color: Colors.red),
                     ),
                     title: const Text('Remove Photo',
-                        style: TextStyle(color: Color(0xFFFF7A8A))),
+                        style: TextStyle(color: Colors.red)),
                     onTap: () {
                       Navigator.of(sheetContext).pop();
                       _removeProfilePhoto();
                     },
                   ),
-                ],
               ],
             ),
           ),
@@ -179,22 +175,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _pickAndUpload(ImageSource source) async {
     try {
-      final picked = await ImagePicker().pickImage(
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
         source: source,
-        maxWidth: 1200,
+        maxWidth: 1024,
+        maxHeight: 1024,
         imageQuality: 85,
       );
-      if (picked == null || !mounted) return;
+      if (picked == null) return;
 
       setState(() => _isUploadingImage = true);
 
-      final auth = context.read<AuthProvider>();
       final bytes = await picked.readAsBytes();
-      if (!mounted) return;
+      final filename = picked.name;
 
-      final success = await auth.uploadLogo(bytes, picked.name);
       if (!mounted) return;
+      final auth = context.read<AuthProvider>();
+      final success = await auth.uploadLogo(bytes, filename);
 
+      if (!mounted) return;
       setState(() => _isUploadingImage = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -283,82 +282,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _openPrivacyPolicy() async {
-    final uri = Uri.parse('${ApiConfig.origin}/privacy-policy');
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        return;
-      }
-    } catch (_) {}
-    if (!mounted) return;
-    showDialog(
+  void _showDeleteAccountSheet() {
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(ctx).cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Privacy Policy'),
-        content: const SingleChildScrollView(
-          child: Text(
-            'LUMEN Studio ("Clients Hub") values your privacy. Your account information and business data (clients, events, deliverables, invoices) are encrypted at rest with AES-256 and transmitted securely over HTTPS.\n\nYou retain complete control over your data and can permanently delete your account and all associated records at any time directly from the Security settings.\n\nFor support or data privacy requests, contact: thakursaiprakashsingh@gmail.com',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => const _DeleteAccountSheet(),
     );
-  }
-
-  Future<void> _confirmDeleteAccount() async {
-    const deleteColor = Color(0xFFFF5252);
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(ctx).cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: deleteColor),
-            SizedBox(width: 8),
-            Text('Delete Account?'),
-          ],
-        ),
-        content: const Text(
-          'This action is permanent and cannot be undone. All your clients, bookings, deliverables, expenses, and invoices will be permanently erased.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: deleteColor),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete Permanently'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true || !mounted) return;
-
-    final auth = context.read<AuthProvider>();
-    final success = await auth.deleteAccount();
-    if (!mounted) return;
-    if (success) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Your account and data have been deleted.')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.errorMessage ?? 'Unable to delete account.')),
-      );
-    }
   }
 
   @override
@@ -367,13 +297,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = auth.user;
     final isBusy = auth.isLoading || _isUploadingImage;
 
-    return AuthBackground(
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: AppColors.scaffoldBackground(context),
+      appBar: AppBar(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: const Text('Profile'),
-          actions: [
-            TextButton(
+        elevation: 0,
+        title: Text(
+          'Studio Profile',
+          style: TextStyle(
+            color: context.textMain,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: TextButton.icon(
+              style: TextButton.styleFrom(
+                foregroundColor: context.accentColor,
+                backgroundColor: context.accentColor.withValues(alpha: 0.12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              ),
               onPressed: isBusy
                   ? null
                   : () {
@@ -384,88 +331,122 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         setState(() => _editing = true);
                       }
                     },
-              child: Text(_editing ? 'Cancel' : 'Edit'),
+              icon: Icon(_editing ? Icons.close_rounded : Icons.edit_outlined, size: 16),
+              label: Text(_editing ? 'Cancel' : 'Edit'),
             ),
-          ],
-        ),
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 680),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-              children: [
-                Center(
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      ProfileAvatar(logoUrl: user?.logoUrl, size: 112),
-                      if (_isUploadingImage)
-                        Container(
-                          width: 112,
-                          height: 112,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.ink.withValues(alpha: 0.7),
-                          ),
-                          alignment: Alignment.center,
-                          child: const SizedBox(
-                            width: 32,
-                            height: 32,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 3,
-                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.aqua),
-                            ),
+          ),
+        ],
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+            children: [
+              // Profile Header Card
+              Center(
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: context.accentColor.withValues(alpha: 0.35),
+                          width: 2.5,
+                        ),
+                      ),
+                      child: ProfileAvatar(logoUrl: user?.logoUrl, size: 104),
+                    ),
+                    if (_isUploadingImage)
+                      Container(
+                        width: 112,
+                        height: 112,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.ink.withValues(alpha: 0.7),
+                        ),
+                        alignment: Alignment.center,
+                        child: const SizedBox(
+                          width: 32,
+                          height: 32,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 3,
+                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.sky),
                           ),
                         ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Semantics(
-                          button: true,
-                          label: 'Upload studio profile image',
-                          child: Material(
-                            color: AppColors.aqua,
-                            shape: const CircleBorder(),
-                            elevation: 4,
-                            child: InkWell(
-                              customBorder: const CircleBorder(),
-                              onTap: isBusy ? null : _showImageSourcePicker,
-                              child: const Padding(
-                                padding: EdgeInsets.all(9),
-                                child: Icon(
-                                  Icons.camera_alt_rounded,
-                                  size: 18,
-                                  color: Colors.white,
-                                ),
+                      ),
+                    Positioned(
+                      right: 4,
+                      bottom: 4,
+                      child: Semantics(
+                        button: true,
+                        label: 'Upload studio profile image',
+                        child: Material(
+                          color: context.accentColor,
+                          shape: const CircleBorder(),
+                          elevation: 4,
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: isBusy ? null : _showImageSourcePicker,
+                            child: const Padding(
+                              padding: EdgeInsets.all(8),
+                              child: Icon(
+                                Icons.camera_alt_rounded,
+                                size: 17,
+                                color: Colors.white,
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  user?.displayStudioName ?? 'Your studio',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: context.textMain,
-                        fontWeight: FontWeight.w600,
-                      ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                user?.displayStudioName ?? 'Your studio',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: context.textMain,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
+                    ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                user?.displayOwner ?? '',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: context.textMuted,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  user?.displayOwner ?? '',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.muted,
-                      ),
-                ),
-                const SizedBox(height: 22),
-                if (_editing) _buildForm(isBusy) else _buildDetails(user),
-                const SizedBox(height: 16),
-                _buildSecurityCard(context),
+              ),
+              const SizedBox(height: 20),
+
+              if (_editing) ...[
+                _buildForm(isBusy),
+              ] else ...[
+                // Section 1: Studio Details
+                _buildSectionHeader(context, 'Studio Details', Icons.apartment_rounded),
+                const SizedBox(height: 8),
+                _buildStudioDetailsCard(user),
+
+                const SizedBox(height: 18),
+                // Section 2: Online & Social
+                _buildSectionHeader(context, 'Social & Portfolio', Icons.share_rounded),
+                const SizedBox(height: 8),
+                _buildSocialCard(user),
+
+                const SizedBox(height: 18),
+                // Section 3: Account Settings
+                _buildSectionHeader(context, 'Account Settings', Icons.settings_outlined),
+                const SizedBox(height: 8),
+                _buildSettingsCard(context),
+
                 const SizedBox(height: 24),
                 StudioButton(
                   label: 'Sign out',
@@ -479,169 +460,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         },
                 ),
               ],
-            ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildSecurityCard(BuildContext context) {
-    final textMain = context.textMain;
-    final textMuted = context.textMuted;
-    final accent = context.accentColor;
-
-    return StudioCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildSectionHeader(BuildContext context, String title, IconData icon, {bool isDanger = false}) {
+    final color = isDanger ? const Color(0xFFFF5252) : context.accentColor;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.shield_outlined, color: accent, size: 18),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'Security & Login',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: textMain,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: _openChangePasswordSheet,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: context.innerBg,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: context.cardBorder),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.lock_reset_rounded, color: accent, size: 22),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Change Password',
-                          style: TextStyle(
-                            color: textMain,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Verify current password to update',
-                          style: TextStyle(
-                            color: textMuted,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.chevron_right_rounded, color: textMuted),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: _openPrivacyPolicy,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: context.innerBg,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: context.cardBorder),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.privacy_tip_outlined, color: accent, size: 22),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Privacy Policy',
-                          style: TextStyle(
-                            color: textMain,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Data safety, retention & terms',
-                          style: TextStyle(
-                            color: textMuted,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.chevron_right_rounded, color: textMuted),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: _confirmDeleteAccount,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF5252).withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFFF5252).withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.delete_forever_rounded, color: Color(0xFFFF5252), size: 22),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Delete Account',
-                          style: TextStyle(
-                            color: Color(0xFFFF5252),
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Permanently delete account and all data',
-                          style: TextStyle(
-                            color: textMuted,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right_rounded, color: Color(0xFFFF5252)),
-                ],
-              ),
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: TextStyle(
+              color: isDanger ? const Color(0xFFFF5252) : context.textMain,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              letterSpacing: 0.2,
             ),
           ),
         ],
@@ -649,22 +489,142 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildDetails(User? user) {
+  Widget _buildStudioDetailsCard(User? user) {
     return StudioCard(
       child: Column(
         children: [
-          _DetailRow(label: 'Studio name', value: user?.displayStudioName ?? '—'),
-          _DetailRow(label: 'Owner', value: user?.displayOwner ?? '—'),
-          _DetailRow(label: 'Phone', value: user?.phone ?? '—'),
-          _DetailRow(label: 'Email', value: _orDash(user?.email)),
-          _DetailRow(label: 'City', value: _orDash(user?.city)),
-          _DetailRow(label: 'Address', value: _orDash(user?.address)),
-          _DetailRow(label: 'Specialties', value: _orDash(user?.specialties)),
-          _DetailRow(label: 'Instagram', value: _orDash(user?.instagram)),
-          _DetailRow(label: 'YouTube', value: _orDash(user?.youtube)),
-          _DetailRow(label: 'Website', value: _orDash(user?.website)),
-          _DetailRow(label: 'About', value: _orDash(user?.about), last: true),
+          _DetailRow(icon: Icons.apartment_outlined, label: 'Studio Name', value: user?.displayStudioName ?? '—'),
+          _DetailRow(icon: Icons.person_outline_rounded, label: 'Owner', value: user?.displayOwner ?? '—'),
+          _DetailRow(icon: Icons.phone_outlined, label: 'Phone', value: user?.phone ?? '—'),
+          _DetailRow(icon: Icons.mail_outline_rounded, label: 'Email', value: _orDash(user?.email)),
+          _DetailRow(icon: Icons.location_city_outlined, label: 'City', value: _orDash(user?.city)),
+          _DetailRow(icon: Icons.place_outlined, label: 'Address', value: _orDash(user?.address), last: true),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSocialCard(User? user) {
+    return StudioCard(
+      child: Column(
+        children: [
+          _DetailRow(icon: Icons.auto_awesome_outlined, label: 'Specialties', value: _orDash(user?.specialties)),
+          _DetailRow(icon: Icons.camera_alt_outlined, label: 'Instagram', value: _orDash(user?.instagram)),
+          _DetailRow(icon: Icons.ondemand_video_rounded, label: 'YouTube', value: _orDash(user?.youtube)),
+          _DetailRow(icon: Icons.link_rounded, label: 'Website', value: _orDash(user?.website)),
+          _DetailRow(icon: Icons.info_outline_rounded, label: 'About', value: _orDash(user?.about), last: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsCard(BuildContext context) {
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+    final accent = context.accentColor;
+
+    return StudioCard(
+      child: Container(
+        decoration: BoxDecoration(
+          color: context.innerBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: context.cardBorder),
+        ),
+        child: Column(
+          children: [
+            // Option 1: Change Password
+            InkWell(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+              onTap: _openChangePasswordSheet,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.lock_reset_rounded, color: accent, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Change Password',
+                            style: TextStyle(
+                              color: textMain,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Update current login password',
+                            style: TextStyle(
+                              color: textMuted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: textMuted),
+                  ],
+                ),
+              ),
+            ),
+            Divider(height: 1, color: context.cardBorder),
+            // Option 2: Delete Account
+            InkWell(
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+              onTap: _showDeleteAccountSheet,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: textMuted.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.delete_outline_rounded, color: textMain, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Delete Account',
+                            style: TextStyle(
+                              color: textMain,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Permanently remove account and studio data',
+                            style: TextStyle(
+                              color: textMuted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: textMuted),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -786,22 +746,28 @@ class _DetailRow extends StatelessWidget {
   const _DetailRow({
     required this.label,
     required this.value,
+    this.icon,
     this.last = false,
   });
 
   final String label;
   final String value;
+  final IconData? icon;
   final bool last;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: last ? 0 : 14),
+      padding: EdgeInsets.only(bottom: last ? 0 : 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (icon != null) ...[
+            Icon(icon, size: 16, color: context.accentColor.withValues(alpha: 0.7)),
+            const SizedBox(width: 8),
+          ],
           SizedBox(
-            width: 110,
+            width: 100,
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -819,6 +785,444 @@ class _DetailRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Two-step account deletion verification sheet (Email OTP + Password)
+class _DeleteAccountSheet extends StatefulWidget {
+  const _DeleteAccountSheet();
+
+  @override
+  State<_DeleteAccountSheet> createState() => _DeleteAccountSheetState();
+}
+
+class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
+  final _otpController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _sendingOtp = false;
+  bool _otpSent = false;
+  int _cooldown = 0;
+  Timer? _timer;
+  bool _deleting = false;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _otpController.dispose();
+    _passwordController.dispose();
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startCooldown() {
+    setState(() => _cooldown = 30);
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_cooldown <= 1) {
+        timer.cancel();
+        setState(() => _cooldown = 0);
+      } else {
+        setState(() => _cooldown--);
+      }
+    });
+  }
+
+  Future<void> _sendOtp() async {
+    setState(() {
+      _sendingOtp = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final auth = context.read<AuthProvider>();
+      final result = await auth.sendDeleteAccountOtp();
+      if (!mounted) return;
+
+      setState(() {
+        _sendingOtp = false;
+        _otpSent = true;
+      });
+      _startCooldown();
+
+      // Auto-fill debug OTP if provided by server fallback
+      final debugOtp = result['debugOtp'] as String?;
+      if (debugOtp != null && debugOtp.isNotEmpty) {
+        _otpController.text = debugOtp;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] as String? ?? 'Verification code sent to your email.'),
+          backgroundColor: AppColors.navy,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _sendingOtp = false;
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final otp = _otpController.text.trim();
+    final password = _passwordController.text;
+
+    if (otp.length != 6) {
+      setState(() => _errorMessage = 'Please enter the 6-digit verification code.');
+      return;
+    }
+    if (password.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your account password.');
+      return;
+    }
+
+    setState(() {
+      _deleting = true;
+      _errorMessage = null;
+    });
+
+    final auth = context.read<AuthProvider>();
+    final success = await auth.deleteAccount(otp: otp, password: password);
+
+    if (!mounted) return;
+    setState(() => _deleting = false);
+
+    if (success) {
+      Navigator.of(context).pop(); // Close bottom sheet
+      Navigator.of(context).pop(); // Exit profile screen
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Your account and associated data have been permanently deleted.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } else {
+      setState(() {
+        _errorMessage = auth.errorMessage ?? 'Unable to delete account.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.read<AuthProvider>();
+    final user = auth.user;
+    const dangerColor = Color(0xFFFF5252);
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: context.cardBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(
+          top: BorderSide(color: dangerColor.withValues(alpha: 0.3), width: 1.5),
+        ),
+      ),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: context.textMuted.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: dangerColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.delete_forever_rounded, color: dangerColor, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Permanently Delete Account',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: dangerColor,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'This action cannot be undone.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: context.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Warning Notice
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: dangerColor.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: dangerColor.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline_rounded, color: dangerColor, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'All your events, clients, quotes, invoices, and expenses will be permanently wiped. To protect your data, verify your identity below.',
+                      style: TextStyle(fontSize: 12, color: context.textMain, height: 1.35),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Error banner if any
+            if (_errorMessage != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline_rounded, color: Colors.red, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(fontSize: 12, color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
+            // Step 1: Mail Verification
+            Text(
+              'STEP 1: VERIFY EMAIL OWNERSHIP',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: context.accentColor,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: context.innerBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: context.cardBorder),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.mail_outline_rounded, size: 18, color: context.textMuted),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      user?.email ?? 'Registered Email',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: context.textMain,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 34,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: context.accentColor,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: (_sendingOtp || _cooldown > 0) ? null : _sendOtp,
+                      child: _sendingOtp
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : Text(
+                              _cooldown > 0
+                                  ? '${_cooldown}s'
+                                  : (_otpSent ? 'Resend' : 'Send Code'),
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_otpSent) ...[
+              const SizedBox(height: 10),
+              TextField(
+                controller: _otpController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: TextStyle(
+                  color: context.textMain,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 4,
+                ),
+                decoration: InputDecoration(
+                  counterText: '',
+                  hintText: 'Enter 6-digit code',
+                  hintStyle: TextStyle(
+                    color: context.textMuted,
+                    fontSize: 13,
+                    letterSpacing: 0,
+                  ),
+                  prefixIcon: Icon(Icons.pin_outlined, color: context.accentColor, size: 20),
+                  filled: true,
+                  fillColor: context.innerBg,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: context.cardBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: context.cardBorder),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: context.accentColor, width: 1.5),
+                  ),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 18),
+
+            // Step 2: Password Verification
+            Text(
+              'STEP 2: CONFIRM ACCOUNT PASSWORD',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: context.accentColor,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              style: TextStyle(color: context.textMain, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Enter your account password',
+                hintStyle: TextStyle(color: context.textMuted, fontSize: 13),
+                prefixIcon: Icon(Icons.lock_outline_rounded, color: context.accentColor, size: 20),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    color: context.textMuted,
+                    size: 20,
+                  ),
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                ),
+                filled: true,
+                fillColor: context.innerBg,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: context.cardBorder),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: context.cardBorder),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: context.accentColor, width: 1.5),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Confirm Delete Button
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: dangerColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              onPressed: _deleting ? null : _confirmDelete,
+              child: _deleting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text(
+                      'Permanently Delete Account',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                    ),
+            ),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: context.textMuted, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

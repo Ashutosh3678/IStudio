@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../theme/app_colors.dart';
 import '../theme/app_motion.dart';
 
 class StudioButton extends StatefulWidget {
@@ -34,20 +35,25 @@ class _StudioButtonState extends State<StudioButton> {
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null && !widget.isLoading;
+    final isDark = context.isDark;
     final animationsDisabled = AppMotion.areAnimationsDisabled(context);
     final radius = BorderRadius.circular(999);
 
     final decoration = widget.isSecondary
         ? BoxDecoration(
             borderRadius: radius,
-            color: const Color(0xFF0F172A).withValues(alpha: 0.8),
+            color: isDark
+                ? AppColors.darkSurface2.withValues(alpha: 0.8)
+                : AppColors.lightSurface2,
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.12),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.12)
+                  : AppColors.lightBorderColor,
               width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
                 blurRadius: 14,
                 offset: const Offset(0, 4),
               ),
@@ -55,33 +61,41 @@ class _StudioButtonState extends State<StudioButton> {
           )
         : BoxDecoration(
             borderRadius: radius,
-            gradient: const LinearGradient(
-              colors: [
-                Color(0xFF00E5FF),
-                Color(0xFF38BDF8),
-                Color(0xFF818CF8),
-                Color(0xFFA855F7),
-              ],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
+            gradient: context.ctaGradient,
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.45),
+              color: Colors.white.withValues(alpha: isDark ? 0.45 : 0.25),
               width: 1.1,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF00E5FF).withValues(alpha: 0.35),
-                blurRadius: 20,
-                offset: const Offset(-4, 6),
-              ),
-              BoxShadow(
-                color: const Color(0xFFA855F7).withValues(alpha: 0.4),
-                blurRadius: 22,
-                offset: const Offset(4, 6),
-              ),
-            ],
+            boxShadow: isDark
+                ? [
+                    BoxShadow(
+                      color: AppColors.darkAccentCyan.withValues(alpha: 0.35),
+                      blurRadius: 20,
+                      offset: const Offset(-4, 6),
+                    ),
+                    BoxShadow(
+                      color: AppColors.darkAccentViolet.withValues(alpha: 0.40),
+                      blurRadius: 22,
+                      offset: const Offset(4, 6),
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.10),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: AppColors.lightAccentBlue.withValues(alpha: 0.25),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
           );
+
+    final textColor = widget.isSecondary
+        ? context.textMain
+        : Colors.white;
 
     return Semantics(
       button: true,
@@ -126,7 +140,7 @@ class _StudioButtonState extends State<StudioButton> {
                             gradient: LinearGradient(
                               colors: [
                                 Colors.white.withValues(alpha: 0.0),
-                                Colors.white.withValues(alpha: 0.7),
+                                Colors.white.withValues(alpha: isDark ? 0.7 : 0.4),
                                 Colors.white.withValues(alpha: 0.0),
                               ],
                             ),
@@ -155,16 +169,19 @@ class _StudioButtonState extends State<StudioButton> {
                               children: [
                                 if (widget.icon != null) ...[
                                   Icon(widget.icon,
-                                      color: Colors.white, size: 18),
+                                      color: textColor, size: 18),
                                   const SizedBox(width: 8),
                                 ],
-                                Text(
-                                  widget.label,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 16,
-                                    letterSpacing: 0.3,
+                                Flexible(
+                                  child: Text(
+                                    widget.label,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: textColor,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
+                                      letterSpacing: 0.3,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -182,7 +199,7 @@ class _StudioButtonState extends State<StudioButton> {
                           height: 38,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.22),
+                            color: Colors.white.withValues(alpha: isDark ? 0.22 : 0.20),
                           ),
                           child: const Icon(
                             Icons.arrow_forward_rounded,

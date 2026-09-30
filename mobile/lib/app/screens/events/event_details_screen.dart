@@ -21,10 +21,12 @@ class EventDetailsScreen extends StatefulWidget {
     super.key,
     required this.eventId,
     this.autoOpenPayment = false,
+    this.autoOpenExpense = false,
   });
 
   final String eventId;
   final bool autoOpenPayment;
+  final bool autoOpenExpense;
 
   @override
   State<EventDetailsScreen> createState() => _EventDetailsScreenState();
@@ -71,6 +73,10 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
     if (widget.autoOpenPayment) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showAddPaymentSheet(context, widget.eventId);
+      });
+    } else if (widget.autoOpenExpense) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showAddExpenseSheet(context, widget.eventId);
       });
     }
   }
@@ -727,15 +733,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          Text(
-                            'Received − Expenses',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: context.textMuted,
-                              fontSize: 11,
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -1345,13 +1342,44 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
               ],
             )
           else ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Workflow Deliverables',
+                  style: TextStyle(
+                    color: context.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => _showAddWorkDialog(context, event),
+                  icon: Icon(Icons.add_task_rounded, size: 16, color: context.accentColor),
+                  label: Text(
+                    'Add Work',
+                    style: TextStyle(
+                      color: context.accentColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
             if (nextTask == null)
-              _buildAllWorkCompleteCard(context, completed, total)
+              _buildAllWorkCompleteCard(context, event, completed, total)
             else
-              _buildNextTaskCard(context, event.id, nextTask),
+              _buildNextTaskCard(context, event, nextTask),
             const SizedBox(height: 18),
             ...stages.map(
-              (stage) => _buildStageSection(context, event.id, stage),
+              (stage) => _buildStageSection(context, event, stage),
             ),
           ],
         ],
@@ -1526,8 +1554,190 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
     return Icons.camera_alt_outlined;
   }
 
-  void _toggleTask(BuildContext context, String eventId, String taskId) {
-    context.read<EventsProvider>().toggleDeliverable(eventId, taskId);
+  bool _isEventBeforeToday(StudioEvent event) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final eventDay = DateTime(event.startsAt.year, event.startsAt.month, event.startsAt.day);
+    return today.isBefore(eventDay);
+  }
+
+  void _toggleTask(BuildContext context, StudioEvent event, String taskId) {
+    if (_isEventBeforeToday(event)) {
+      final dateStr = DateFormat('d MMM yyyy').format(event.startsAt);
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.lock_clock_rounded, color: Colors.amberAccent, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Checks will be active on event day ($dateStr) or after.',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    context.read<EventsProvider>().toggleDeliverable(event.id, taskId);
+  }
+
+  void _confirmDeleteTask(BuildContext context, String eventId, DeliverableTask task) {
+    showDialog(
+      context: context,
+      builder: (dlgContext) => AlertDialog(
+        backgroundColor: dlgContext.cardBg,
+        title: Text(
+          'Remove Work',
+          style: TextStyle(
+            color: dlgContext.textMain,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to remove "${task.title}" from this event?',
+          style: TextStyle(color: dlgContext.textMuted, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dlgContext).pop(),
+            child: Text('Cancel', style: TextStyle(color: dlgContext.textMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.of(dlgContext).pop();
+              context.read<EventsProvider>().deleteDeliverable(eventId, task.id);
+            },
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddWorkDialog(BuildContext context, StudioEvent event) {
+    final titleController = TextEditingController();
+    String selectedStage = 'SHOOT DAY';
+    final stages = [
+      'PRE-SHOOT',
+      'SHOOT DAY',
+      'BACKUP & SELECTION',
+      'PHOTO EDITING',
+      'VIDEO EDITING',
+      'ALBUM',
+      'FINAL DELIVERY',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (modalContext, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Add Custom Work',
+                    style: TextStyle(
+                      color: modalContext.textMain,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, color: modalContext.textMuted),
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              StudioTextField(
+                label: 'Work / Task Title',
+                hint: 'e.g. Drone Videography, Traditional Pooja...',
+                controller: titleController,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Stage',
+                style: TextStyle(
+                  color: modalContext.textMain,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: stages.map((st) {
+                    final isSel = selectedStage == st;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(
+                          st,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+                          ),
+                        ),
+                        selected: isSel,
+                        selectedColor: modalContext.accentColor,
+                        onSelected: (val) {
+                          if (val) setModalState(() => selectedStage = st);
+                        },
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              StudioButton(
+                label: 'Add Work',
+                onPressed: () async {
+                  final text = titleController.text.trim();
+                  if (text.isEmpty) return;
+                  final newTask = DeliverableTask(
+                    id: 'task-${DateTime.now().millisecondsSinceEpoch}',
+                    title: '$selectedStage: $text',
+                    isCompleted: false,
+                  );
+                  await context.read<EventsProvider>().addDeliverable(event.id, newTask);
+                  if (sheetContext.mounted) {
+                    Navigator.of(sheetContext).pop();
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _seedWorkflow(BuildContext context, StudioEvent event) {
@@ -1661,41 +1871,63 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
 
   Widget _buildNextTaskCard(
     BuildContext context,
-    String eventId,
+    StudioEvent event,
     DeliverableTask task,
   ) {
+    final isUpcoming = _isEventBeforeToday(event);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'NEXT UP',
-          style: TextStyle(
-            color: context.accentColor,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.8,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'NEXT UP',
+              style: TextStyle(
+                color: context.accentColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+            if (isUpcoming)
+              Row(
+                children: [
+                  Icon(Icons.lock_clock_rounded, size: 13, color: context.textMuted),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Active on ${DateFormat('d MMM').format(event.startsAt)}',
+                    style: TextStyle(
+                      color: context.textMuted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+          ],
         ),
         const SizedBox(height: 8),
         Material(
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
-            onTap: () => _toggleTask(context, eventId, task.id),
+            onTap: () => _toggleTask(context, event, task.id),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 240),
               curve: Curves.easeOutCubic,
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: context.accentColor.withValues(alpha: 0.12),
+                color: context.accentColor.withValues(alpha: isUpcoming ? 0.06 : 0.12),
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
-                  color: context.accentColor.withValues(alpha: 0.36),
+                  color: context.accentColor.withValues(alpha: isUpcoming ? 0.20 : 0.36),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: context.accentColor.withValues(alpha: 0.08),
+                    color: context.accentColor.withValues(alpha: isUpcoming ? 0.03 : 0.08),
                     blurRadius: 18,
                     spreadRadius: 1,
                   ),
@@ -1711,7 +1943,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(
-                      _taskIcon(task.title),
+                      isUpcoming ? Icons.lock_outline_rounded : _taskIcon(task.title),
                       color: context.accentColor,
                       size: 21,
                     ),
@@ -1733,7 +1965,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          'Continue ${_taskSubtitle(task).toLowerCase()}',
+                          isUpcoming
+                              ? 'Unlocks on event date (${DateFormat('d MMM yyyy').format(event.startsAt)})'
+                              : 'Continue ${_taskSubtitle(task).toLowerCase()}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -1747,9 +1981,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'START ->',
+                    isUpcoming ? 'LOCKED' : 'START ->',
                     style: TextStyle(
-                      color: context.accentColor,
+                      color: isUpcoming ? context.textMuted : context.accentColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
@@ -1765,20 +1999,31 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
 
   Widget _buildAllWorkCompleteCard(
     BuildContext context,
+    StudioEvent event,
     int completed,
     int total,
   ) {
+    final isFullPayment = event.remainingAmount <= 0.01;
+    final isCompleted = event.status == EventStatus.completed;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 260),
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: context.accentColor.withValues(alpha: 0.13),
+        color: isCompleted
+            ? const Color(0xFF10B981).withValues(alpha: 0.12)
+            : context.accentColor.withValues(alpha: 0.13),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: context.accentColor.withValues(alpha: 0.42)),
+        border: Border.all(
+          color: isCompleted
+              ? const Color(0xFF10B981).withValues(alpha: 0.42)
+              : context.accentColor.withValues(alpha: 0.42),
+        ),
         boxShadow: [
           BoxShadow(
-            color: context.accentColor.withValues(alpha: 0.10),
+            color: (isCompleted ? const Color(0xFF10B981) : context.accentColor)
+                .withValues(alpha: 0.10),
             blurRadius: 22,
             spreadRadius: 1,
           ),
@@ -1786,10 +2031,14 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
       ),
       child: Column(
         children: [
-          Icon(Icons.verified_rounded, color: context.accentColor, size: 28),
+          Icon(
+            isCompleted ? Icons.verified_rounded : Icons.pending_actions_rounded,
+            color: isCompleted ? const Color(0xFF10B981) : context.accentColor,
+            size: 30,
+          ),
           const SizedBox(height: 8),
           Text(
-            'ALL WORK COMPLETED',
+            isCompleted ? 'EVENT COMPLETED' : 'ALL WORK COMPLETED',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: context.textMain,
@@ -1800,13 +2049,31 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
           ),
           const SizedBox(height: 4),
           Text(
-            '$completed / $total tasks finished',
+            isCompleted
+                ? '$completed / $total tasks finished & full payment received'
+                : '$completed / $total tasks finished. Event will be completed after full payment (₹${event.remainingAmount.toStringAsFixed(0)} balance remaining).',
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: context.textMuted,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
           ),
+          if (!isCompleted && !isFullPayment) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => _showAddPaymentSheet(context, event.id),
+              icon: Icon(Icons.payment_rounded, size: 16, color: context.accentColor),
+              label: Text(
+                'Record Remaining Payment',
+                style: TextStyle(color: context.accentColor, fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: context.accentColor.withValues(alpha: 0.4)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1814,7 +2081,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
 
   Widget _buildStageSection(
     BuildContext context,
-    String eventId,
+    StudioEvent event,
     _WorkflowStage stage,
   ) {
     final completed = stage.tasks.where((task) => task.isCompleted).length;
@@ -1855,7 +2122,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
           ...stage.tasks.map(
             (task) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: _buildTaskCard(context, eventId, task),
+              child: _buildTaskCard(context, event, task),
             ),
           ),
         ],
@@ -1865,17 +2132,20 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
 
   Widget _buildTaskCard(
     BuildContext context,
-    String eventId,
+    StudioEvent event,
     DeliverableTask task,
   ) {
     final isCompleted = task.isCompleted;
-    final statusColor = isCompleted ? context.accentColor : context.textMuted;
+    final isUpcoming = _isEventBeforeToday(event);
+    final statusColor = isCompleted
+        ? context.accentColor
+        : (isUpcoming ? context.textMuted.withValues(alpha: 0.6) : context.textMuted);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => _toggleTask(context, eventId, task.id),
+        onTap: () => _toggleTask(context, event, task.id),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
@@ -1902,7 +2172,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                   );
                 },
                 child: Container(
-                  key: ValueKey('${task.id}-$isCompleted'),
+                  key: ValueKey('${task.id}-$isCompleted-$isUpcoming'),
                   width: 28,
                   height: 28,
                   decoration: BoxDecoration(
@@ -1913,16 +2183,20 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                     border: Border.all(
                       color: isCompleted
                           ? context.accentColor
-                          : context.textMuted,
+                          : (isUpcoming
+                              ? context.textMuted.withValues(alpha: 0.4)
+                              : context.textMuted),
                       width: 1.4,
                     ),
                   ),
                   child: Icon(
-                    isCompleted ? Icons.check_rounded : Icons.circle_outlined,
+                    isCompleted
+                        ? Icons.check_rounded
+                        : (isUpcoming ? Icons.lock_clock_rounded : Icons.circle_outlined),
                     color: isCompleted
                         ? Colors.white
-                        : Colors.transparent,
-                    size: 18,
+                        : (isUpcoming ? context.textMuted.withValues(alpha: 0.6) : Colors.transparent),
+                    size: isUpcoming && !isCompleted ? 14 : 18,
                   ),
                 ),
               ),
@@ -1949,7 +2223,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _taskSubtitle(task),
+                      isUpcoming && !isCompleted
+                          ? 'Active on event date'
+                          : _taskSubtitle(task),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -1961,9 +2237,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 6),
               Text(
-                isCompleted ? 'COMPLETED' : 'PENDING',
+                isCompleted
+                    ? 'COMPLETED'
+                    : (isUpcoming ? 'LOCKED' : 'PENDING'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -1972,6 +2250,19 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.3,
                 ),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                icon: Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: context.textMuted.withValues(alpha: 0.6),
+                ),
+                tooltip: 'Remove work',
+                onPressed: () => _confirmDeleteTask(context, event.id, task),
               ),
             ],
           ),

@@ -34,6 +34,7 @@ class InvoiceService {
             .toList(),
         'upiId': invoice.upiId,
         'amountReceived': invoice.amountReceived,
+        'documentType': invoice.documentType.name,
       },
       token: token,
       idempotencyKey: invoice.id,
@@ -96,6 +97,7 @@ class InvoiceService {
           .toList(),
       'upiId': invoice.upiId,
       'amountReceived': invoice.amountReceived,
+      'documentType': invoice.documentType.name,
     }, token: token);
     return _readInvoice(payload);
   }

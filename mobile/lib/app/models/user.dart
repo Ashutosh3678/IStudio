@@ -40,6 +40,11 @@ class User {
 
   String get displayOwner => ownerName.isNotEmpty ? ownerName : username;
 
+  bool get isGoogleUser => googleId.isNotEmpty;
+
+  bool get isProfileIncomplete =>
+      isGoogleUser && (studioName.trim().isEmpty || phone.trim().isEmpty);
+
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'] as String? ?? json['_id'] as String? ?? '',

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../theme/app_colors.dart';
 import '../../utils/validators.dart';
 import '../../widgets/studio_button.dart';
 import '../../widgets/studio_text_field.dart';
@@ -118,16 +119,16 @@ class _SignupFormState extends State<SignupForm> {
     );
   }
 
-  Widget? _buildUsernameSuffix() {
+  Widget? _buildUsernameSuffix(BuildContext context) {
     if (_isCheckingUsername) {
-      return const Padding(
-        padding: EdgeInsets.all(14),
+      return Padding(
+        padding: const EdgeInsets.all(14),
         child: SizedBox(
           width: 16,
           height: 16,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF38BDF8)),
+            valueColor: AlwaysStoppedAnimation<Color>(context.accentColor),
           ),
         ),
       );
@@ -157,6 +158,8 @@ class _SignupFormState extends State<SignupForm> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDark;
+
     return AutofillGroup(
       child: Form(
         key: _formKey,
@@ -168,7 +171,7 @@ class _SignupFormState extends State<SignupForm> {
               hint: 'Choose a unique username',
               controller: _usernameController,
               prefixIcon: Icons.person_outline_rounded,
-              suffixIcon: _buildUsernameSuffix(),
+              suffixIcon: _buildUsernameSuffix(context),
               autofillHints: const [AutofillHints.username],
               validator: (val) {
                 final base = Validators.username(val);
@@ -192,7 +195,9 @@ class _SignupFormState extends State<SignupForm> {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF34D399),
+                      color: isDark
+                          ? const Color(0xFF34D399)
+                          : const Color(0xFF059669),
                     ),
                   ),
                 ],

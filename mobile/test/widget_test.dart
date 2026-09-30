@@ -18,25 +18,33 @@ void main() {
   testWidgets('shows the login screen', (WidgetTester tester) async {
     await pumpAuth(tester);
 
-    expect(find.textContaining('CLIENTS HUB'), findsWidgets);
-    expect(find.text('Welcome back'), findsOneWidget);
-    expect(find.text('Phone number'), findsOneWidget);
+    // Brand name is present (CLIENTS and H U B are separate Text widgets in the logo)
+    expect(find.textContaining('CLIENTS'), findsWidgets);
+    expect(find.textContaining('H U B'), findsWidgets);
+    // Login form fields
+    expect(find.text('Email or username'), findsOneWidget);
     expect(find.text('Password'), findsOneWidget);
+    // Sign-up fields must NOT appear yet
     expect(find.text('Username'), findsNothing);
+    expect(find.text('Email address'), findsNothing);
   });
 
   testWidgets('reveals signup fields for new users', (WidgetTester tester) async {
     await pumpAuth(tester);
 
+    // Switch to signup
     await tester.tap(find.text('Sign up'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Join the studio'), findsOneWidget);
+    // Signup-specific fields
     expect(find.text('Username'), findsOneWidget);
-    expect(find.text('Phone number'), findsOneWidget);
+    expect(find.text('Email address'), findsOneWidget);
     expect(find.text('Create password'), findsOneWidget);
     expect(find.text('Confirm password'), findsOneWidget);
-    expect(find.text('Create account'), findsOneWidget);
+    // No phone field
+    expect(find.text('Phone number'), findsNothing);
+    // Submit button label exists somewhere in the tree
+    expect(find.textContaining('Verify Email'), findsWidgets);
   });
 
   testWidgets('validates empty login fields', (WidgetTester tester) async {
@@ -47,7 +55,7 @@ void main() {
     await tester.tap(signInButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('Enter your phone number'), findsOneWidget);
+    expect(find.text('Please enter your email or username.'), findsOneWidget);
     expect(find.text('Enter your password'), findsOneWidget);
   });
 }

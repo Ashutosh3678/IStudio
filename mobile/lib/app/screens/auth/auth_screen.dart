@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/auth_background.dart';
@@ -143,6 +144,52 @@ class _AuthScreenState extends State<AuthScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: context.isDark
+                                  ? const Color(0xFF1E293B).withValues(alpha: 0.65)
+                                  : Colors.white.withValues(alpha: 0.88),
+                              border: Border.all(
+                                color: context.isDark
+                                    ? Colors.white.withValues(alpha: 0.12)
+                                    : const Color(0xFFE2E8F0),
+                                width: 1.2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: context.isDark
+                                      ? const Color(0xFF818CF8).withValues(alpha: 0.25)
+                                      : const Color(0xFF6366F1).withValues(alpha: 0.18),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: IconButton(
+                              tooltip: context.isDark
+                                  ? 'Switch to Light Theme'
+                                  : 'Switch to Dark Theme',
+                              padding: EdgeInsets.zero,
+                              onPressed: () {
+                                context.read<ThemeProvider>().toggleTheme();
+                              },
+                              icon: Icon(
+                                context.isDark
+                                    ? Icons.light_mode_outlined
+                                    : Icons.wb_sunny_outlined,
+                                color: context.isDark
+                                    ? const Color(0xFF93C5FD)
+                                    : const Color(0xFF6366F1),
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
                         FadeSlideIn(
                           animation: _logo,
                           child: StudioLogo(compact: compact),
@@ -217,44 +264,60 @@ class _AuthCard extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
+          padding: const EdgeInsets.fromLTRB(22, 26, 22, 26),
           decoration: BoxDecoration(
-            color: const Color(0xFF0C1322).withValues(alpha: 0.72),
+            color: isDark
+                ? const Color(0xFF0D1527).withValues(alpha: 0.85)
+                : Colors.white.withValues(alpha: 0.92),
             borderRadius: BorderRadius.circular(32),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.12),
-              width: 1.2,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.10)
+                  : Colors.white.withValues(alpha: 0.85),
+              width: 1.4,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.45),
-                blurRadius: 30,
-                offset: const Offset(0, 14),
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.50)
+                    : const Color(0x140F172A),
+                blurRadius: isDark ? 36 : 28,
+                spreadRadius: isDark ? 2 : 2,
+                offset: const Offset(0, 12),
               ),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.end,
+                spacing: 6,
                 children: [
                   Text(
-                    isLogin ? 'Welcome ' : 'Create ',
+                    isLogin ? 'Welcome' : 'Create',
                     style: GoogleFonts.playfairDisplay(
-                      color: Colors.white,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                       fontSize: 32,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      colors: [
-                        Color(0xFF93C5FD),
-                        Color(0xFFA78BFA),
-                        Color(0xFFC084FC),
-                      ],
+                    shaderCallback: (bounds) => LinearGradient(
+                      colors: isDark
+                          ? const [
+                              Color(0xFF38BDF8),
+                              Color(0xFF818CF8),
+                              Color(0xFFA855F7),
+                            ]
+                          : const [
+                              Color(0xFF00B4D8),
+                              Color(0xFF3B82F6),
+                              Color(0xFF7C3AED),
+                              Color(0xFFA855F7),
+                            ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ).createShader(bounds),
                     child: Text(
                       isLogin ? 'back' : 'account',
@@ -273,7 +336,7 @@ class _AuthCard extends StatelessWidget {
                     ? 'Sign in to your Clients Hub account\nand continue your creative journey.'
                     : 'Join Clients Hub and start managing\nyour studio creative journey.',
                 style: GoogleFonts.plusJakartaSans(
-                  color: const Color(0xFF94A3B8),
+                  color: context.textSecondary,
                   fontSize: 13.5,
                   height: 1.45,
                 ),

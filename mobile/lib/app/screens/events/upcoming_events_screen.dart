@@ -222,7 +222,7 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen>
                                     ),
                                     onPressed: () => CreateEventSheet.show(context),
                                     icon: const Icon(Icons.add, size: 18),
-                                    label: const Text('+ New Shoot'),
+                                    label: const Text('New Shoot'),
                                   ),
                                 ],
                               ),

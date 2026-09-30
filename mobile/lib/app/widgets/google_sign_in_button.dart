@@ -111,12 +111,12 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
     final enabled = widget.onPressed != null && !widget.isLoading;
 
     final bgColor = isDark
-        ? const Color(0xFF1E2230)
+        ? AppColors.darkSurface2
         : Colors.white;
 
     final borderColor = isDark
-        ? const Color(0x33A5B4FC)
-        : const Color(0xFFE2E8F0);
+        ? Colors.white.withValues(alpha: 0.12)
+        : AppColors.lightBorderColor;
 
     return AnimatedScale(
       scale: _isPressed ? 0.98 : 1.0,
@@ -169,13 +169,16 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
                 else ...[
                   const GoogleLogo(size: 20),
                   const SizedBox(width: 12),
-                  Text(
-                    widget.label,
-                    style: GoogleFonts.plusJakartaSans(
-                      color: textMain,
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.2,
+                  Flexible(
+                    child: Text(
+                      widget.label,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: textMain,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                      ),
                     ),
                   ),
                 ],

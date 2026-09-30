@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'auth_background.dart';
 import 'studio_logo.dart';
 import 'uiverse_loader.dart';
 
@@ -40,22 +39,21 @@ class _StudioSplashState extends State<StudioSplash>
         : CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
 
     return Scaffold(
-      body: AuthBackground(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              FadeTransition(
-                opacity: reveal,
-                child: ScaleTransition(
-                  scale: Tween<double>(begin: 0.96, end: 1).animate(reveal),
-                  child: const StudioLogo(),
-                ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FadeTransition(
+              opacity: reveal,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.96, end: 1).animate(reveal),
+                child: const StudioLogo(),
               ),
-              const SizedBox(height: 28),
-              const UiverseLoader(),
-            ],
-          ),
+            ),
+            const SizedBox(height: 28),
+            const UiverseLoader(),
+          ],
         ),
       ),
     );

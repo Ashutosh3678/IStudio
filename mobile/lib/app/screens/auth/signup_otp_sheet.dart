@@ -65,31 +65,17 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
   Timer? _cooldownTimer;
   bool _isLoading = false;
   String? _errorMessage;
+  String? _debugOtp;
 
   @override
   void initState() {
     super.initState();
+    _debugOtp = widget.initialDebugOtp;
     _startCooldown(widget.initialCooldown);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _otpFocusNodes[0].requestFocus();
-      if (widget.initialDebugOtp != null &&
-          widget.initialDebugOtp!.isNotEmpty &&
-          mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.sky,
-            duration: const Duration(seconds: 10),
-            content: Text('Your verification code: ${widget.initialDebugOtp}'),
-            action: SnackBarAction(
-              label: 'Auto-fill',
-              textColor: Colors.white,
-              onPressed: () {
-                final otp = widget.initialDebugOtp!;
-                _pinFieldKey.currentState?.setDigitsWithCascade(otp);
-              },
-            ),
-          ),
-        );
+      if (_debugOtp != null && _debugOtp!.isNotEmpty && mounted) {
+        _pinFieldKey.currentState?.setDigitsWithCascade(_debugOtp!);
       }
     });
   }
@@ -135,21 +121,9 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
       final debugOtp = res['debugOtp'] as String?;
       _startCooldown(cd);
 
-      if (debugOtp != null && debugOtp.isNotEmpty && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.sky,
-            duration: const Duration(seconds: 10),
-            content: Text('Your verification code: $debugOtp'),
-            action: SnackBarAction(
-              label: 'Auto-fill',
-              textColor: Colors.white,
-              onPressed: () {
-                _pinFieldKey.currentState?.setDigitsWithCascade(debugOtp);
-              },
-            ),
-          ),
-        );
+      if (debugOtp != null && debugOtp.isNotEmpty) {
+        setState(() => _debugOtp = debugOtp);
+        _pinFieldKey.currentState?.setDigitsWithCascade(debugOtp);
       }
     } on ApiException catch (e) {
       setState(() => _errorMessage = e.message);
@@ -296,6 +270,56 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
                         color: Colors.redAccent,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Debug OTP Banner (fallback when SMTP is not configured)
+          if (_debugOtp != null && _debugOtp!.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.sky.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.sky.withValues(alpha: 0.35),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.key_rounded, color: AppColors.sky, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Verification Code: $_debugOtp',
+                      style: const TextStyle(
+                        color: AppColors.sky,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: () {
+                      _pinFieldKey.currentState?.setDigitsWithCascade(_debugOtp!);
+                    },
+                    child: const Text(
+                      'Auto-fill',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),

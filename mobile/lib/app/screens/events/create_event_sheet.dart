@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -61,6 +62,10 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
 
   double _totalAmount = 0;
   double _advanceReceived = 0;
+  PaymentMethod _advanceMethod = PaymentMethod.upi;
+  final _advanceRefController = TextEditingController();
+  List<int>? _advanceProofBytes;
+  String? _advanceProofFilename;
 
   static final _currency = NumberFormat.currency(
     locale: 'en_IN',
@@ -128,6 +133,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
     _notesController.dispose();
     _totalAmountController.dispose();
     _advanceController.dispose();
+    _advanceRefController.dispose();
     _customEventTypeController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -267,7 +273,10 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
             title: 'Advance Received',
             amount: _advanceReceived,
             paidAt: DateTime.now(),
-            method: PaymentMethod.upi,
+            method: _advanceMethod,
+            reference: _advanceRefController.text.trim().isNotEmpty
+                ? _advanceRefController.text.trim()
+                : null,
           ),
         );
       }
@@ -366,6 +375,24 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
       );
 
       await provider.addEvent(newEvent);
+      if (_advanceReceived > 0 &&
+          _advanceProofBytes != null &&
+          _advanceProofFilename != null) {
+        final created = provider.events.firstWhere(
+          (e) => e.title == newEvent.title,
+          orElse: () => newEvent,
+        );
+        if (created.payments.isNotEmpty) {
+          try {
+            await provider.uploadPaymentProof(
+              created.id,
+              created.payments.first.id,
+              _advanceProofBytes!,
+              _advanceProofFilename!,
+            );
+          } catch (_) {}
+        }
+      }
       if (!mounted) return;
       Navigator.of(context).pop();
 
@@ -801,6 +828,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                       ),
                     ],
                   ),
+                  _buildAdvancePaymentOptions(context),
                   const SizedBox(height: 16),
 
                   // Automated Remaining Calculation Card
@@ -826,23 +854,13 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Remaining Balance',
+                                'Balance',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: textMuted,
-                                  fontSize: 12,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${_currency.format(_totalAmount)} \u2212 ${_currency.format(_advanceReceived)}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: textMuted,
-                                  fontSize: 11,
                                 ),
                               ),
                             ],
@@ -1255,6 +1273,226 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
           fontSize: 10.5,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdvancePaymentOptions(BuildContext context) {
+    if (_advanceReceived <= 0) return const SizedBox.shrink();
+
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+    final accent = context.accentColor;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.innerBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.payment_rounded, size: 16, color: accent),
+              const SizedBox(width: 6),
+              Text(
+                'Advance Payment Method',
+                style: TextStyle(
+                  color: textMain,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: PaymentMethod.values.map((method) {
+                final isSelected = _advanceMethod == method;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    avatar: Icon(
+                      method.icon,
+                      size: 13,
+                      color: isSelected
+                          ? (context.isDark ? AppColors.ink : Colors.white)
+                          : textMuted,
+                    ),
+                    label: Text(
+                      method.label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected
+                            ? (context.isDark ? AppColors.ink : Colors.white)
+                            : textMain,
+                      ),
+                    ),
+                    selected: isSelected,
+                    selectedColor: accent,
+                    backgroundColor: context.cardBg,
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(() => _advanceMethod = method);
+                      }
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          StudioTextField(
+            label: 'Reference / Txn ID (Optional)',
+            hint: 'e.g. UPI/2026/10294 or Cash Receipt No.',
+            controller: _advanceRefController,
+          ),
+          const SizedBox(height: 12),
+          // Proof attachment - compact
+          if (_advanceProofBytes != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: context.cardBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: accent.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.memory(
+                      Uint8List.fromList(_advanceProofBytes!),
+                      width: 38,
+                      height: 38,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _advanceProofFilename ?? 'Advance Proof',
+                          style: TextStyle(
+                            color: textMain,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Proof attached',
+                          style: TextStyle(
+                            color: Color(0xFF10B981),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 18, color: Colors.redAccent),
+                    onPressed: () {
+                      setState(() {
+                        _advanceProofBytes = null;
+                        _advanceProofFilename = null;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            OutlinedButton.icon(
+              onPressed: _pickAdvanceProof,
+              icon: Icon(Icons.attachment_rounded, size: 16, color: accent),
+              label: Text(
+                'Attach Advance Payment Proof (Optional)',
+                style: TextStyle(fontSize: 12, color: accent, fontWeight: FontWeight.w600),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: accent.withValues(alpha: 0.35)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickAdvanceProof() async {
+    final picker = ImagePicker();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: context.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Attach Payment Proof',
+                style: TextStyle(
+                  color: sheetContext.textMain,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: Icon(Icons.photo_library_outlined, color: sheetContext.accentColor),
+                title: Text('Gallery', style: TextStyle(color: sheetContext.textMain)),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                  if (picked != null) {
+                    final bytes = await picked.readAsBytes();
+                    setState(() {
+                      _advanceProofBytes = bytes;
+                      _advanceProofFilename = picked.name;
+                    });
+                  }
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.camera_alt_outlined, color: sheetContext.accentColor),
+                title: Text('Camera', style: TextStyle(color: sheetContext.textMain)),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+                  if (picked != null) {
+                    final bytes = await picked.readAsBytes();
+                    setState(() {
+                      _advanceProofBytes = bytes;
+                      _advanceProofFilename = picked.name;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

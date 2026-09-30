@@ -5,6 +5,7 @@ import '../../theme/app_colors.dart';
 import '../../widgets/monthly_financial_summary_sheet.dart';
 import '../../widgets/studio_app_bar.dart';
 import 'create_invoice_form.dart';
+import 'estimate_screen.dart';
 import 'invoice_history_tab.dart';
 
 class InvoiceScreen extends StatefulWidget {
@@ -31,6 +32,17 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                     ? 'Make a bill'
                     : 'All bills',
                 actions: [
+                  IconButton(
+                    tooltip: 'Create estimated cost',
+                    icon: const Icon(Icons.request_quote_outlined),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const EstimateScreen(),
+                        ),
+                      );
+                    },
+                  ),
                   IconButton(
                     tooltip: 'Summary',
                     icon: Icon(

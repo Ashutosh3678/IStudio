@@ -60,16 +60,22 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
       );
       final path = await InvoicePdfService.saveToDevice(
         bytes: bytes,
-        filename: InvoicePdfService.fileName(_invoice),
+        filename: InvoicePdfService.fileName(_invoice, studio: studio),
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Receipt saved to $path')),
+        SnackBar(
+          content: Text('${InvoicePdfService.documentTitle(_invoice)} saved to $path'),
+        ),
       );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not download receipt.')),
+        SnackBar(
+          content: Text(
+            'Could not download ${InvoicePdfService.documentTitle(_invoice).toLowerCase()}.',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -84,7 +90,11 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not share receipt.')),
+        SnackBar(
+          content: Text(
+            'Could not share ${InvoicePdfService.documentTitle(_invoice).toLowerCase()}.',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -99,7 +109,11 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
       await provider.rememberUpi(saved.upiId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${saved.number} saved.')),
+        SnackBar(
+          content: Text(
+            '${InvoicePdfService.documentTitle(saved)} ${saved.number} saved.',
+          ),
+        ),
       );
       Navigator.of(context).pop(saved);
     } on ApiException catch (error) {
@@ -110,7 +124,11 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save receipt.')),
+        SnackBar(
+          content: Text(
+            'Could not save ${InvoicePdfService.documentTitle(_invoice).toLowerCase()}.',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -127,7 +145,9 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
       backgroundColor: context.scaffoldBg,
       appBar: AppBar(
         title: Text(
-          widget.isDraft ? 'Preview receipt' : _invoice.number,
+          widget.isDraft
+              ? 'Preview ${InvoicePdfService.documentTitle(_invoice)}'
+              : '${InvoicePdfService.documentTitle(_invoice)} / ${_invoice.number}',
           style: GoogleFonts.plusJakartaSans(
             fontWeight: FontWeight.w700,
             fontSize: 19,
@@ -161,7 +181,7 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
               allowPrinting: false,
               allowSharing: false,
               useActions: false,
-              pdfFileName: InvoicePdfService.fileName(_invoice),
+              pdfFileName: InvoicePdfService.fileName(_invoice, studio: studio),
             ),
           ),
           SafeArea(
@@ -174,7 +194,7 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _busy ? null : _download,
                       icon: const Icon(Icons.download_rounded, size: 18),
-                      label: const FittedBox(child: Text('Download')),
+                      label: const FittedBox(child: Text('Download PDF')),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: textMain,
                         side: BorderSide(color: context.cardBorder),
@@ -190,7 +210,7 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _busy ? null : _share,
                       icon: const Icon(Icons.ios_share_rounded, size: 18),
-                      label: const FittedBox(child: Text('Share')),
+                      label: const FittedBox(child: Text('Share PDF')),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: textMain,
                         side: BorderSide(color: context.cardBorder),

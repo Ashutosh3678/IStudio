@@ -23,9 +23,9 @@ class AppTheme {
   static ThemeData get dark {
     const colorScheme = ColorScheme(
       brightness: Brightness.dark,
-      primary: AppColors.sky,
+      primary: AppColors.darkAccentBlue,
       onPrimary: Colors.white,
-      secondary: AppColors.sky,
+      secondary: AppColors.darkAccentViolet,
       onSecondary: Colors.white,
       tertiary: AppColors.pastelMint,
       onTertiary: Color(0xFF0C0E14),
@@ -44,7 +44,7 @@ class AppTheme {
       inversePrimary: AppColors.skyDeep,
     );
 
-    final font = GoogleFonts.plusJakartaSansTextTheme();
+    final font = GoogleFonts.outfitTextTheme();
     final body = font;
     final display = font;
     final textTheme = font.apply(
@@ -96,10 +96,10 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.glassInnerDark,
-        selectedColor: AppColors.sky.withValues(alpha: 0.22),
+        selectedColor: AppColors.darkAccentIndigo.withValues(alpha: 0.22),
         disabledColor: AppColors.slate.withValues(alpha: 0.2),
         labelStyle: body.bodySmall?.copyWith(color: AppColors.paper),
-        secondaryLabelStyle: body.bodySmall?.copyWith(color: AppColors.sky),
+        secondaryLabelStyle: body.bodySmall?.copyWith(color: AppColors.darkAccentBlue),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         shape: const StadiumBorder(
           side: BorderSide(color: AppColors.glassBorderDark, width: 1.1),
@@ -123,7 +123,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.sky,
+          backgroundColor: AppColors.darkAccentIndigo,
           foregroundColor: Colors.white,
           disabledBackgroundColor: AppColors.slate.withValues(alpha: 0.4),
           disabledForegroundColor: AppColors.mist,
@@ -138,7 +138,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.sky,
+          foregroundColor: AppColors.darkAccentBlue,
           shape: const StadiumBorder(),
           textStyle: body.labelLarge?.copyWith(fontWeight: FontWeight.w600),
         ),
@@ -174,7 +174,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
-          borderSide: const BorderSide(color: AppColors.sky, width: 1.6),
+          borderSide: const BorderSide(color: AppColors.darkAccentBlue, width: 1.6),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
@@ -193,20 +193,20 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppColors.glassCardDark,
-        indicatorColor: AppColors.sky.withValues(alpha: 0.22),
+        indicatorColor: AppColors.darkAccentIndigo.withValues(alpha: 0.22),
         elevation: 0,
         height: 72,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return body.labelMedium?.copyWith(
-            color: selected ? AppColors.sky : AppColors.muted,
+            color: selected ? AppColors.darkAccentBlue : AppColors.muted,
             fontWeight: FontWeight.w600,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return IconThemeData(
-            color: selected ? AppColors.sky : AppColors.muted,
+            color: selected ? AppColors.darkAccentBlue : AppColors.muted,
           );
         }),
       ),
@@ -225,9 +225,9 @@ class AppTheme {
   static ThemeData get light {
     const colorScheme = ColorScheme(
       brightness: Brightness.light,
-      primary: AppColors.sky,
+      primary: AppColors.lightAccentBlue,
       onPrimary: Colors.white,
-      secondary: AppColors.sky,
+      secondary: AppColors.lightAccentViolet,
       onSecondary: Colors.white,
       tertiary: AppColors.pastelMint,
       onTertiary: Color(0xFF0F172A),
@@ -246,7 +246,7 @@ class AppTheme {
       inversePrimary: AppColors.skyDeep,
     );
 
-    final font = GoogleFonts.plusJakartaSansTextTheme();
+    final font = GoogleFonts.outfitTextTheme();
     final body = font;
     final display = font;
     final textTheme = font.apply(
@@ -319,7 +319,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.lightPrimary,
+          backgroundColor: AppColors.lightAccentBlue,
           foregroundColor: Colors.white,
           disabledBackgroundColor: AppColors.lightBorder,
           disabledForegroundColor: AppColors.lightTextMuted,
@@ -334,7 +334,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.lightPrimary,
+          foregroundColor: AppColors.lightAccentBlue,
           shape: const StadiumBorder(),
           textStyle: body.labelLarge?.copyWith(fontWeight: FontWeight.w600),
         ),
@@ -366,7 +366,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
-          borderSide: const BorderSide(color: AppColors.lightPrimary, width: 1.6),
+          borderSide: const BorderSide(color: AppColors.lightAccentBlue, width: 1.6),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
@@ -385,20 +385,20 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppColors.lightCard,
-        indicatorColor: AppColors.lightPrimary.withValues(alpha: 0.16),
+        indicatorColor: AppColors.lightAccentBlue.withValues(alpha: 0.16),
         elevation: 1,
         height: 72,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return body.labelMedium?.copyWith(
-            color: selected ? AppColors.lightPrimary : AppColors.lightTextMuted,
+            color: selected ? AppColors.lightAccentBlue : AppColors.lightTextMuted,
             fontWeight: FontWeight.w600,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return IconThemeData(
-            color: selected ? AppColors.lightPrimary : AppColors.lightTextMuted,
+            color: selected ? AppColors.lightAccentBlue : AppColors.lightTextMuted,
           );
         }),
       ),

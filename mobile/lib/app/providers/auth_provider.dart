@@ -361,7 +361,17 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> deleteAccount() async {
+  Future<Map<String, dynamic>> sendDeleteAccountOtp() async {
+    if (_token == null) {
+      throw const ApiException('Please sign in to continue.');
+    }
+    return _authService.sendDeleteAccountOtp(token: _token!);
+  }
+
+  Future<bool> deleteAccount({
+    required String otp,
+    required String password,
+  }) async {
     if (_token == null) {
       _errorMessage = 'Please sign in to delete your account.';
       notifyListeners();
@@ -371,7 +381,11 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      await _authService.deleteAccount(token: _token!);
+      await _authService.deleteAccount(
+        token: _token!,
+        otp: otp,
+        password: password,
+      );
       try {
         await _googleAuthService.signOut();
       } catch (_) {}
