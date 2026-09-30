@@ -1,9 +1,12 @@
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/auth_background.dart';
 import '../../widgets/auth_mode_toggle.dart';
@@ -11,7 +14,9 @@ import '../../widgets/fade_slide_in.dart';
 import '../../widgets/google_sign_in_button.dart';
 import '../../widgets/studio_logo.dart';
 import 'login_form.dart';
+import 'set_password_sheet.dart';
 import 'signup_form.dart';
+import 'signup_otp_sheet.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -56,9 +61,9 @@ class _AuthScreenState extends State<AuthScreen>
     super.dispose();
   }
 
-  Future<void> _handleLogin(String phone, String password) async {
+  Future<void> _handleLogin(String identifier, String password) async {
     final auth = context.read<AuthProvider>();
-    final success = await auth.login(phone: phone, password: password);
+    final success = await auth.login(identifier: identifier, password: password);
     if (!success && mounted) {
       _showError(auth.errorMessage);
     }
@@ -66,24 +71,43 @@ class _AuthScreenState extends State<AuthScreen>
 
   Future<void> _handleSignup({
     required String username,
-    required String phone,
+    required String email,
     required String password,
+    String? phone,
   }) async {
     final auth = context.read<AuthProvider>();
-    final success = await auth.signup(
-      username: username,
-      phone: phone,
-      password: password,
-    );
-    if (!success && mounted) {
-      _showError(auth.errorMessage);
+    try {
+      final res = await auth.sendSignupEmailOtp(
+        username: username,
+        email: email,
+      );
+      if (!mounted) return;
+      final cd = (res['cooldownSeconds'] as num?)?.toInt() ?? 60;
+      final debugOtp = res['debugOtp'] as String?;
+      await SignupOtpSheet.show(
+        context,
+        username: username,
+        email: email,
+        password: password,
+        phone: phone,
+        initialCooldown: cd,
+        initialDebugOtp: debugOtp,
+      );
+    } on ApiException catch (e) {
+      _showError(e.message);
+    } catch (_) {
+      _showError('Unable to send verification code. Please try again.');
     }
   }
 
   Future<void> _handleGoogleSignIn() async {
     final auth = context.read<AuthProvider>();
     final success = await auth.signInWithGoogle();
-    if (!success && mounted && auth.errorMessage != null) {
+    if (success && mounted) {
+      if (auth.user?.needsPasswordSetup == true) {
+        await SetPasswordSheet.show(context);
+      }
+    } else if (!success && mounted && auth.errorMessage != null) {
       _showError(auth.errorMessage);
     }
   }
@@ -175,11 +199,12 @@ class _AuthCard extends StatelessWidget {
 
   final bool isLogin;
   final bool isLoading;
-  final Future<void> Function(String phone, String password) onLogin;
+  final Future<void> Function(String identifier, String password) onLogin;
   final Future<void> Function({
     required String username,
-    required String phone,
+    required String email,
     required String password,
+    String? phone,
   })
   onSignup;
   final VoidCallback onGoogleSignIn;
@@ -187,45 +212,73 @@ class _AuthCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = context.isDark;
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutCubic,
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
-      decoration: BoxDecoration(
-        color: context.cardBg,
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: context.cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: isDark
-                ? Colors.black.withValues(alpha: 0.35)
-                : const Color(0x0D0F172A),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            isLogin ? 'Welcome back' : 'Join the studio',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: context.textMain,
-              fontWeight: FontWeight.w600,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(32),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0C1322).withValues(alpha: 0.72),
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.12),
+              width: 1.2,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.45),
+                blurRadius: 30,
+                offset: const Offset(0, 14),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            isLogin
-                ? 'Sign in with your phone number and password.'
-                : 'Create your account to book sessions and view galleries.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: context.textMuted),
-          ),
-          const SizedBox(height: 18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    isLogin ? 'Welcome ' : 'Create ',
+                    style: GoogleFonts.playfairDisplay(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [
+                        Color(0xFF93C5FD),
+                        Color(0xFFA78BFA),
+                        Color(0xFFC084FC),
+                      ],
+                    ).createShader(bounds),
+                    child: Text(
+                      isLogin ? 'back' : 'account',
+                      style: GoogleFonts.alexBrush(
+                        color: Colors.white,
+                        fontSize: isLogin ? 44 : 38,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isLogin
+                    ? 'Sign in to your Clients Hub account\nand continue your creative journey.'
+                    : 'Join Clients Hub and start managing\nyour studio creative journey.',
+                style: GoogleFonts.plusJakartaSans(
+                  color: const Color(0xFF94A3B8),
+                  fontSize: 13.5,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 20),
           Consumer<AuthProvider>(
             builder: (context, auth, _) {
               final authError = auth.errorMessage;
@@ -336,6 +389,8 @@ class _AuthCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }

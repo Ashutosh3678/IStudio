@@ -15,6 +15,7 @@ class User {
     this.specialties = '',
     this.logoUrl = '',
     this.googleId = '',
+    this.needsPasswordSetup = false,
   });
 
   final String id;
@@ -32,6 +33,7 @@ class User {
   final String specialties;
   final String logoUrl;
   final String googleId;
+  final bool needsPasswordSetup;
 
   String get displayStudioName =>
       studioName.isNotEmpty ? studioName : 'Your studio';
@@ -55,6 +57,7 @@ class User {
       specialties: json['specialties'] as String? ?? '',
       logoUrl: json['logoUrl'] as String? ?? '',
       googleId: json['googleId'] as String? ?? '',
+      needsPasswordSetup: json['needsPasswordSetup'] as bool? ?? false,
     );
   }
 
@@ -75,6 +78,7 @@ class User {
       'specialties': specialties,
       'logoUrl': logoUrl,
       'googleId': googleId,
+      'needsPasswordSetup': needsPasswordSetup,
     };
   }
 
@@ -92,6 +96,7 @@ class User {
     String? specialties,
     String? logoUrl,
     String? googleId,
+    bool? needsPasswordSetup,
   }) {
     return User(
       id: id,
@@ -109,6 +114,7 @@ class User {
       specialties: specialties ?? this.specialties,
       logoUrl: logoUrl ?? this.logoUrl,
       googleId: googleId ?? this.googleId,
+      needsPasswordSetup: needsPasswordSetup ?? this.needsPasswordSetup,
     );
   }
 }

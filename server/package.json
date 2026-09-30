@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node test/logger.test.js && node test/authorization.test.js && node test/googleAuth.test.js && node test/dataSecurity.test.js"
+    "test": "node test/logger.test.js && node test/authorization.test.js && node test/googleAuth.test.js && node test/dataSecurity.test.js && node test/emailAuthAndPlainPhone.test.js"
   },
   "engines": {
     "node": ">=18"
@@ -26,6 +26,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.0",
     "multer": "^2.3.0",
+    "nodemailer": "^10.0.13",
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {

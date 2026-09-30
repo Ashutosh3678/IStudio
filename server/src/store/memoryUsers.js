@@ -38,8 +38,8 @@ function saveUsersToDisk(usersList) {
     }
     const encryptedUsers = usersList.map((user) => ({
       ...user,
-      phone: user.phone ? dataSecurity.encryptDeterministic(user.phone) : '',
-      email: user.email ? dataSecurity.encrypt(user.email) : '',
+      phone: user.phone || '',
+      email: user.email || '',
       address: user.address ? dataSecurity.encrypt(user.address) : '',
     }));
     fs.writeFileSync(dataFile, JSON.stringify(encryptedUsers, null, 2), 'utf8');

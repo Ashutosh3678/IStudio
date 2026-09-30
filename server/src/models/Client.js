@@ -18,7 +18,7 @@ const clientSchema = new mongoose.Schema({
 clientSchema.index({ userId: 1, name: 1 });
 
 clientSchema.plugin(dataSecurity.encryptedFieldsPlugin, {
-  deterministicFields: ['phone'],
+  deterministicFields: [],
   fields: ['email', 'address', 'notes'],
 });
 

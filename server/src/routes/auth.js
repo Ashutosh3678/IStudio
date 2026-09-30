@@ -2,12 +2,16 @@ const express = require('express');
 const { body } = require('express-validator');
 
 const {
+  checkUsername,
   login,
   googleAuth,
+  setPassword,
   me,
   signup,
   signupSendOtp,
   signupVerify,
+  signupSendEmailOtp,
+  signupVerifyEmail,
   updateProfile,
   uploadLogo,
   normalizePhone,
@@ -35,6 +39,12 @@ const phoneRule = body('phone')
   .isNumeric()
   .withMessage('Enter a valid 10-digit phone number');
 
+const emailRule = body('email')
+  .trim()
+  .isEmail()
+  .withMessage('Enter a valid email address')
+  .normalizeEmail();
+
 const usernameRule = body('username')
   .trim()
   .isLength({ min: 3, max: 24 })
@@ -52,6 +62,17 @@ const otpRule = body('otp')
   .withMessage('Enter the 6-digit verification code')
   .isNumeric()
   .withMessage('OTP must be numbers only');
+
+const loginIdentifierRule = body().custom((val, { req }) => {
+  const id = req.body.identifier || req.body.username || req.body.email || req.body.phone;
+  if (!id || !String(id).trim()) {
+    throw new Error('Enter your email or username');
+  }
+  return true;
+});
+
+router.get('/check-username', checkUsername);
+router.post('/check-username', checkUsername);
 
 router.post(
   '/signup',
@@ -72,9 +93,21 @@ router.post(
 );
 
 router.post(
+  '/signup/send-email-otp',
+  [usernameRule, emailRule],
+  signupSendEmailOtp,
+);
+
+router.post(
+  '/signup/verify-email',
+  [usernameRule, emailRule, passwordRule, otpRule],
+  signupVerifyEmail,
+);
+
+router.post(
   '/login',
   [
-    phoneRule,
+    loginIdentifierRule,
     body('password').notEmpty().withMessage('Enter your password'),
   ],
   login,
@@ -83,6 +116,17 @@ router.post(
 router.post(
   '/google',
   googleAuth,
+);
+
+router.post(
+  '/set-password',
+  requireAuth,
+  [
+    body('newPassword')
+      .isLength({ min: 8 })
+      .withMessage('Password must be at least 8 characters'),
+  ],
+  setPassword,
 );
 
 router.post(

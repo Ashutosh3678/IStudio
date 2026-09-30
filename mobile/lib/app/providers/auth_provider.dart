@@ -96,14 +96,49 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> login({required String phone, required String password}) async {
+  Future<bool> checkUsername(String username) async {
+    try {
+      final res = await _authService.checkUsername(username);
+      return res['available'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> login({required String identifier, required String password}) async {
     return _runAuth(() async {
       final result = await _authService.login(
-        phone: Validators.normalizePhone(phone),
+        identifier: identifier.trim(),
         password: password,
       );
       await _persistSession(result);
     });
+  }
+
+  Future<bool> setPassword(String newPassword) async {
+    if (_token == null || _token!.isEmpty) return false;
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final updatedUser = await _authService.setPassword(
+        token: _token!,
+        newPassword: newPassword,
+      );
+      _user = updatedUser.copyWith(needsPasswordSetup: false);
+      await _vault.writeUser(_user!);
+      return true;
+    } on ApiException catch (error) {
+      _errorMessage = error.message;
+      return false;
+    } catch (_) {
+      _errorMessage = 'Unable to set password. Please try again.';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<bool> signInWithGoogle() async {
@@ -148,6 +183,53 @@ class AuthProvider extends ChangeNotifier {
         username: username.trim(),
         phone: Validators.normalizePhone(phone),
         password: password,
+      );
+      await _persistSession(result);
+    });
+  }
+
+  Future<Map<String, dynamic>> sendSignupEmailOtp({
+    required String username,
+    required String email,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final res = await _authService.sendSignupEmailOtp(
+        username: username.trim(),
+        email: email.trim().toLowerCase(),
+      );
+      return res;
+    } on ApiException catch (error) {
+      _errorMessage = error.message;
+      rethrow;
+    } catch (_) {
+      _errorMessage =
+          'Unable to send email verification code. Please try again.';
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> verifySignupEmailAndLogin({
+    required String username,
+    required String email,
+    required String password,
+    required String otp,
+    String? phone,
+  }) async {
+    return _runAuth(() async {
+      final result = await _authService.verifySignupEmailAndLogin(
+        username: username.trim(),
+        email: email.trim().toLowerCase(),
+        password: password,
+        otp: otp.trim(),
+        phone: phone != null && phone.trim().isNotEmpty
+            ? Validators.normalizePhone(phone)
+            : null,
       );
       await _persistSession(result);
     });

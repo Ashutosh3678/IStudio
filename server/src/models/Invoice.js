@@ -94,7 +94,7 @@ invoiceSchema.index({ userId: 1, number: 1 }, { unique: true });
 invoiceSchema.index({ userId: 1, issuedOn: -1 });
 
 invoiceSchema.plugin(dataSecurity.encryptedFieldsPlugin, {
-  deterministicFields: ['phone'],
+  deterministicFields: [],
   fields: ['address', 'upiId'],
 });
 

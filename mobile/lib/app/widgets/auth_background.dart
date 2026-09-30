@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
-
-/// Ambient liquid canvas with subtle pastel refraction orbs
+/// Cinematic camera studio background with dark atmosphere and blue/purple ambient glows
 class AuthBackground extends StatelessWidget {
   const AuthBackground({super.key, required this.child});
 
@@ -10,21 +8,52 @@ class AuthBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.isDark;
-
     return Stack(
       children: [
-        // Base canvas
+        // Base Canvas
+        const Positioned.fill(
+          child: ColoredBox(color: Color(0xFF060913)),
+        ),
+
+        // Background Image (Camera Lens & Studio Setting)
         Positioned.fill(
-          child: ColoredBox(
-            color: isDark ? AppColors.ink : AppColors.lightScaffold,
+          child: Opacity(
+            opacity: 0.45,
+            child: Image.asset(
+              'assets/images/auth_bg.jpg',
+              fit: BoxFit.cover,
+              alignment: Alignment.topRight,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
           ),
         ),
 
-        // Ambient Pastel Periwinkle Orb (Top-Right)
+        // Ambient Cyan Glow (Bottom-Left)
         Positioned(
-          top: -80,
-          right: -60,
+          bottom: -80,
+          left: -60,
+          width: 360,
+          height: 360,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(0xFF00E5FF).withValues(alpha: 0.22),
+                    const Color(0xFF06B6D4).withValues(alpha: 0.12),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // Ambient Purple/Indigo Glow (Top-Right)
+        Positioned(
+          top: -40,
+          right: -40,
           width: 340,
           height: 340,
           child: IgnorePointer(
@@ -33,7 +62,8 @@ class AuthBackground extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.sky.withValues(alpha: isDark ? 0.15 : 0.10),
+                    const Color(0xFF6366F1).withValues(alpha: 0.25),
+                    const Color(0xFF8B5CF6).withValues(alpha: 0.12),
                     Colors.transparent,
                   ],
                 ),
@@ -42,52 +72,29 @@ class AuthBackground extends StatelessWidget {
           ),
         ),
 
-        // Ambient Pastel Periwinkle Subtle Glow (Mid-Left)
-        Positioned(
-          top: 240,
-          left: -100,
-          width: 320,
-          height: 320,
+        // Subtle Vignette Overlay
+        Positioned.fill(
           child: IgnorePointer(
             child: DecoratedBox(
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                   colors: [
-                    AppColors.sky.withValues(alpha: isDark ? 0.10 : 0.06),
+                    const Color(0xFF060913).withValues(alpha: 0.55),
                     Colors.transparent,
+                    const Color(0xFF060913).withValues(alpha: 0.75),
                   ],
+                  stops: const [0.0, 0.45, 1.0],
                 ),
               ),
             ),
           ),
         ),
 
-        // Ambient Pastel Mint Whisper (Bottom-Right behind dock for rich refraction)
-        Positioned(
-          bottom: 20,
-          right: -40,
-          width: 300,
-          height: 300,
-          child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.pastelMint.withValues(alpha: isDark ? 0.09 : 0.06),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-
-        // Main screen hierarchy
+        // Main content
         Positioned.fill(child: child),
       ],
     );
   }
 }
-

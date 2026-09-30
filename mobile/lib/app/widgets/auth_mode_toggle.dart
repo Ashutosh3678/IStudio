@@ -1,8 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-import '../theme/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AuthModeToggle extends StatelessWidget {
   const AuthModeToggle({
@@ -16,23 +15,29 @@ class AuthModeToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.isDark;
-
     return Semantics(
       label: isLogin ? 'Sign in selected' : 'Sign up selected',
       child: ClipRRect(
         borderRadius: BorderRadius.circular(999),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
           child: Container(
-            padding: const EdgeInsets.all(5),
+            height: 52,
+            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.glassInnerDark : AppColors.glassInnerLight,
+              color: const Color(0xFF0B1220).withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
-                color: isDark ? AppColors.glassBorderDark : AppColors.glassBorderLight,
-                width: 1.2,
+                color: Colors.white.withValues(alpha: 0.08),
+                width: 1.1,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -40,8 +45,8 @@ class AuthModeToggle extends StatelessWidget {
                 return Stack(
                   children: [
                     AnimatedAlign(
-                      duration: const Duration(milliseconds: 280),
-                      curve: Curves.easeOutBack,
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeOutCubic,
                       alignment: isLogin
                           ? Alignment.centerLeft
                           : Alignment.centerRight,
@@ -50,15 +55,23 @@ class AuthModeToggle extends StatelessWidget {
                         height: 44,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(999),
-                          gradient: AppColors.skyGradient,
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF38BDF8),
+                              Color(0xFF6366F1),
+                              Color(0xFF8B5CF6),
+                            ],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.5),
+                            color: Colors.white.withValues(alpha: 0.35),
                             width: 1,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.sky.withValues(alpha: isDark ? 0.35 : 0.22),
-                              blurRadius: 14,
+                              color: const Color(0xFF6366F1).withValues(alpha: 0.45),
+                              blurRadius: 18,
                               offset: const Offset(0, 4),
                             ),
                           ],
@@ -115,13 +128,11 @@ class _Tab extends StatelessWidget {
           child: Center(
             child: AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                color: selected
-                    ? Colors.white
-                    : context.textMuted,
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                fontSize: 14,
-                letterSpacing: 0.3,
+              style: GoogleFonts.plusJakartaSans(
+                color: selected ? Colors.white : const Color(0xFF94A3B8),
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 14.5,
+                letterSpacing: 0.2,
               ),
               child: Text(label),
             ),

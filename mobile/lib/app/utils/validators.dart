@@ -3,6 +3,7 @@ class Validators {
 
   static final _phoneDigits = RegExp(r'^\d{10}$');
   static final _username = RegExp(r'^[A-Za-z0-9_]{3,24}$');
+  static final _email = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
 
   static String normalizePhone(String value) {
     var digits = value.replaceAll(RegExp(r'\D'), '');
@@ -13,6 +14,15 @@ class Validators {
       digits = digits.substring(1);
     }
     return digits;
+  }
+
+  static String? email(String? value) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) return 'Enter your email address';
+    if (!_email.hasMatch(trimmed)) {
+      return 'Enter a valid email address';
+    }
+    return null;
   }
 
   static String? username(String? value) {

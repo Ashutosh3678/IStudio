@@ -7,10 +7,12 @@ async function findByPhone(phone, { withPassword = false } = {}) {
     return memoryUsers.findByPhone(phone, withPassword);
   }
 
+  // Phone is stored as plain text. We also fall back to the legacy
+  // deterministic-encrypted form so that any old records still match.
   const rawPhone = String(phone).trim();
   const encryptedPhone = dataSecurity.encryptDeterministic(rawPhone);
   const query = User.findOne({
-    $or: [{ phone: encryptedPhone }, { phone: rawPhone }],
+    $or: [{ phone: rawPhone }, { phone: encryptedPhone }],
   });
   if (withPassword) query.select('+password');
   return query;
@@ -48,27 +50,27 @@ async function findByEmail(email) {
   if (memoryUsers.enabled) {
     return memoryUsers.findByEmail(email);
   }
-  const rawEmail = String(email).trim();
-  const encryptedEmail = dataSecurity.encrypt(rawEmail);
+  const rawEmail = String(email).trim().toLowerCase();
+  // Email is stored as plain text (case-insensitive lookup)
   return User.findOne({
-    $or: [
-      { email: { $regex: new RegExp(`^${escapeRegex(rawEmail)}$`, 'i') } },
-      { email: encryptedEmail },
-    ],
+    email: { $regex: new RegExp(`^${escapeRegex(rawEmail)}$`, 'i') },
   });
 }
 
 async function createUser(data) {
   const { username, phone = '', password = '', googleId = null, email = '', ownerName = '', logoUrl = '', address = '' } = data;
+  const cleanPhone = String(phone || '').trim();
+  const cleanEmail = String(email || '').trim().toLowerCase();
+
   if (memoryUsers.enabled) {
-    return memoryUsers.create({ username, phone, password, googleId, email, ownerName: ownerName || username, logoUrl, address });
+    return memoryUsers.create({ username, phone: cleanPhone, password, googleId, email: cleanEmail, ownerName: ownerName || username, logoUrl, address });
   }
   return User.create({
     username,
-    phone: phone ? dataSecurity.encryptDeterministic(phone) : undefined,
+    phone: cleanPhone || '',
     password: password || undefined,
     googleId: googleId || undefined,
-    email: email ? dataSecurity.encrypt(email) : '',
+    email: cleanEmail || '',
     ownerName: ownerName || username,
     logoUrl: logoUrl || '',
     address: address ? dataSecurity.encrypt(address) : '',
@@ -77,11 +79,11 @@ async function createUser(data) {
 
 async function updateUser(id, fields) {
   const secureFields = { ...fields };
-  if (secureFields.phone) {
-    secureFields.phone = dataSecurity.encryptDeterministic(secureFields.phone);
+  if (secureFields.phone !== undefined) {
+    secureFields.phone = String(secureFields.phone || '').trim();
   }
-  if (secureFields.email) {
-    secureFields.email = dataSecurity.encrypt(secureFields.email);
+  if (secureFields.email !== undefined) {
+    secureFields.email = String(secureFields.email || '').trim().toLowerCase();
   }
   if (secureFields.address) {
     secureFields.address = dataSecurity.encrypt(secureFields.address);

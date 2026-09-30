@@ -6,7 +6,7 @@ import 'package:lumen_studio/app/screens/auth/signup_otp_sheet.dart';
 import 'package:provider/provider.dart';
 
 void main() {
-  group('Phase 2: Signup Phone OTP Verification Tests', () {
+  group('Phase 2: Signup Email OTP Verification Tests', () {
     testWidgets('SignupForm renders all registration fields', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -17,8 +17,9 @@ void main() {
                 isLoading: false,
                 onSubmit: ({
                   required String username,
-                  required String phone,
+                  required String email,
                   required String password,
+                  String? phone,
                 }) async {},
               ),
             ),
@@ -27,13 +28,13 @@ void main() {
       );
 
       expect(find.text('Username'), findsOneWidget);
-      expect(find.text('Phone number'), findsOneWidget);
+      expect(find.text('Email address'), findsOneWidget);
       expect(find.text('Create password'), findsOneWidget);
       expect(find.text('Confirm password'), findsOneWidget);
-      expect(find.text('Create account'), findsOneWidget);
+      expect(find.text('Verify Email & Create Account'), findsOneWidget);
     });
 
-    testWidgets('SignupOtpSheet renders phone number and verification controls',
+    testWidgets('SignupOtpSheet renders email address and verification controls',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -42,7 +43,7 @@ void main() {
               create: (_) => AuthProvider(),
               child: const SignupOtpSheet(
                 username: 'alice_studio',
-                phone: '9876543210',
+                email: 'alice@example.com',
                 password: 'SecretPassword123',
               ),
             ),
@@ -50,9 +51,9 @@ void main() {
         ),
       );
 
-      expect(find.text('Verify Your Number'), findsOneWidget);
-      expect(find.text('Code sent to +91 9876543210'), findsOneWidget);
-      expect(find.text('Confirm & Register Studio'), findsOneWidget);
+      expect(find.text('Verify Your Email'), findsOneWidget);
+      expect(find.text('Code sent to alice@example.com'), findsOneWidget);
+      expect(find.text('Confirm & Activate Account'), findsOneWidget);
     });
   });
 }

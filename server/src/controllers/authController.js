@@ -95,26 +95,110 @@ async function signup(req, res) {
   }
 }
 
+async function checkUsername(req, res) {
+  try {
+    const username = String(req.query.username || req.body.username || '').trim();
+    if (!username) {
+      return res.status(400).json({
+        success: false,
+        available: false,
+        message: 'Username is required.',
+      });
+    }
+    if (username.length < 3 || username.length > 24) {
+      return res.status(400).json({
+        success: false,
+        available: false,
+        message: 'Username must be between 3 and 24 characters.',
+      });
+    }
+    if (!/^[A-Za-z0-9_]+$/.test(username)) {
+      return res.status(400).json({
+        success: false,
+        available: false,
+        message: 'Username can only contain letters, numbers, and underscores.',
+      });
+    }
+
+    const existing = await userRepository.findByUsername(username);
+    if (existing) {
+      return res.json({
+        success: true,
+        available: false,
+        message: 'That username is already taken.',
+      });
+    }
+
+    return res.json({
+      success: true,
+      available: true,
+      message: 'Username is available!',
+    });
+  } catch (error) {
+    logCaught(req, 'checkUsername error', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to check username availability.',
+    });
+  }
+}
+
 async function login(req, res) {
   if (sendValidationError(req, res)) return;
 
   try {
-    const phone = normalizePhone(req.body.phone);
+    const rawId = req.body.identifier || req.body.username || req.body.email || req.body.phone;
+    const identifier = String(rawId || '').trim();
     const password = String(req.body.password || '');
 
-    const user = await userRepository.findByPhone(phone, { withPassword: true });
-    if (!user) {
-      return res.status(401).json({
+    if (!identifier) {
+      return res.status(400).json({
         success: false,
-        message: 'Phone number or password is incorrect.',
+        message: 'Enter your email or username.',
       });
     }
 
-    const matches = await bcrypt.compare(password, user.password);
+    let user = null;
+
+    // 1. If identifier contains '@', try finding by email
+    if (identifier.includes('@')) {
+      user = await userRepository.findByEmail(identifier);
+    }
+
+    // 2. Try finding by username
+    if (!user) {
+      user = await userRepository.findByUsername(identifier);
+    }
+
+    // 3. Fallback for phone number input
+    if (!user) {
+      const cleaned = normalizePhone(identifier);
+      if (cleaned.length === 10) {
+        user = await userRepository.findByPhone(cleaned);
+      }
+    }
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Email, username, or password is incorrect.',
+      });
+    }
+
+    // Fetch user with password selected
+    const userWithPassword = await userRepository.findById(user._id || user.id, { withPassword: true });
+    if (!userWithPassword || !userWithPassword.password) {
+      return res.status(401).json({
+        success: false,
+        message: 'This account was created with Google Sign-In. Please sign in with Google or set a password.',
+      });
+    }
+
+    const matches = await bcrypt.compare(password, userWithPassword.password);
     if (!matches) {
       return res.status(401).json({
         success: false,
-        message: 'Phone number or password is incorrect.',
+        message: 'Email, username, or password is incorrect.',
       });
     }
 
@@ -532,6 +616,106 @@ async function signupVerify(req, res) {
   }
 }
 
+async function signupSendEmailOtp(req, res) {
+  if (sendValidationError(req, res)) return;
+
+  try {
+    const username = String(req.body.username || '').trim();
+    const email = String(req.body.email || '').trim().toLowerCase();
+
+    const existingUsername = await userRepository.findByUsername(username);
+    if (existingUsername) {
+      return res.status(409).json({
+        success: false,
+        message: 'That username is already taken. Please choose another.',
+      });
+    }
+
+    const existingEmail = await userRepository.findByEmail(email);
+    if (existingEmail) {
+      return res.status(409).json({
+        success: false,
+        message: 'An account with this email address already exists.',
+      });
+    }
+
+    const result = await otpService.generateAndSendEmailOtp(email, username);
+    return res.json(result);
+  } catch (error) {
+    logCaught(req, 'signupSendEmailOtp error', error);
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || 'Unable to send signup verification code.',
+    });
+  }
+}
+
+async function signupVerifyEmail(req, res) {
+  if (sendValidationError(req, res)) return;
+
+  try {
+    const username = String(req.body.username || '').trim();
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const password = String(req.body.password || '');
+    const otp = String(req.body.otp || '').trim();
+    const phone = req.body.phone ? normalizePhone(req.body.phone) : '';
+
+    const existingUsername = await userRepository.findByUsername(username);
+    if (existingUsername) {
+      return res.status(409).json({
+        success: false,
+        message: 'That username is already taken.',
+      });
+    }
+
+    const existingEmail = await userRepository.findByEmail(email);
+    if (existingEmail) {
+      return res.status(409).json({
+        success: false,
+        message: 'An account with this email address already exists.',
+      });
+    }
+
+    if (phone) {
+      const existingPhone = await userRepository.findByPhone(phone);
+      if (existingPhone) {
+        return res.status(409).json({
+          success: false,
+          message: 'An account with this phone number already exists.',
+        });
+      }
+    }
+
+    await otpService.verifyEmailOtp(email, otp);
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const user = await userRepository.createUser({
+      username,
+      email,
+      phone, // Plain text! No AES encryption applied to phone
+      password: hashedPassword,
+    });
+
+    const publicJson = user.toPublicJSON();
+    publicJson.needsPasswordSetup = false;
+
+    return res.status(201).json({
+      success: true,
+      token: signToken(user),
+      user: publicJson,
+      needsPasswordSetup: false,
+    });
+  } catch (error) {
+    logCaught(req, 'signupVerifyEmail error', error);
+    const status = error.statusCode || 400;
+    return res.status(status).json({
+      success: false,
+      message: error.message || 'Unable to verify code and complete signup.',
+    });
+  }
+}
+
 async function verifyCurrentPassword(req, res) {
   if (sendValidationError(req, res)) return;
 
@@ -687,16 +871,62 @@ async function googleAuth(req, res) {
       });
     }
 
+    const userWithPassword = await userRepository.findById(user._id || user.id, { withPassword: true });
+    const needsPasswordSetup = !userWithPassword || !userWithPassword.password;
+
+    const publicJson = user.toPublicJSON();
+    publicJson.needsPasswordSetup = needsPasswordSetup;
+
     return res.json({
       success: true,
       token: signToken(user),
-      user: user.toPublicJSON(),
+      user: publicJson,
+      needsPasswordSetup,
     });
   } catch (error) {
     logCaught(req, 'Google auth error', error);
     return res.status(500).json({
       success: false,
       message: 'Unable to authenticate with Google right now.',
+    });
+  }
+}
+
+async function setPassword(req, res) {
+  if (sendValidationError(req, res)) return;
+
+  try {
+    const newPassword = String(req.body.newPassword || '');
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters.',
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    const updated = await userRepository.updateUser(req.userId, { password: hashedPassword });
+    if (!updated) {
+      return res.status(404).json({
+        success: false,
+        message: 'Account not found.',
+      });
+    }
+
+    const publicJson = updated.toPublicJSON();
+    publicJson.needsPasswordSetup = false;
+
+    return res.json({
+      success: true,
+      message: 'Password set successfully.',
+      user: publicJson,
+      needsPasswordSetup: false,
+    });
+  } catch (error) {
+    logCaught(req, 'setPassword error', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to set password right now.',
     });
   }
 }
@@ -726,11 +956,15 @@ async function deleteAccount(req, res) {
 }
 
 module.exports = {
+  checkUsername,
   signup,
   signupSendOtp,
   signupVerify,
+  signupSendEmailOtp,
+  signupVerifyEmail,
   login,
   googleAuth,
+  setPassword,
   me,
   updateProfile,
   uploadLogo,

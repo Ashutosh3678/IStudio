@@ -264,9 +264,106 @@ async function verifyOtpForPhone(phone, inputOtp) {
   return true;
 }
 
+const emailService = require('./emailService');
+
+/**
+ * Generate and send OTP to email address
+ */
+async function generateAndSendEmailOtp(email, username = '') {
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  const key = `email:${cleanEmail}`;
+  const now = Date.now();
+  const existing = otpStore.get(key);
+
+  if (existing && now - existing.lastSentAt < RESEND_COOLDOWN_MS) {
+    const remainingSeconds = Math.ceil(
+      (RESEND_COOLDOWN_MS - (now - existing.lastSentAt)) / 1000,
+    );
+    const err = new Error(
+      `Please wait ${remainingSeconds}s before requesting another verification code.`,
+    );
+    err.statusCode = 429;
+    throw err;
+  }
+
+  const rawOtp = generateNumericOtp();
+  const hashedOtp = await bcrypt.hash(rawOtp, 8);
+
+  otpStore.set(key, {
+    hashedOtp,
+    expiresAt: now + OTP_TTL_MS * 2, // 10 minutes for email
+    lastSentAt: now,
+    attempts: 0,
+  });
+
+  const emailResult = await emailService.sendVerificationEmail({
+    to: cleanEmail,
+    otp: rawOtp,
+    username,
+  });
+
+  return {
+    success: true,
+    message: emailResult.sent
+      ? `Verification code sent to ${cleanEmail}.`
+      : `Verification code generated for ${cleanEmail}.`,
+    cooldownSeconds: 60,
+    debugOtp: rawOtp,
+  };
+}
+
+/**
+ * Verify OTP sent to email
+ */
+async function verifyEmailOtp(email, inputOtp) {
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  const key = `email:${cleanEmail}`;
+  const now = Date.now();
+  const record = otpStore.get(key);
+
+  if (!record) {
+    const err = new Error('No active verification code found for this email. Please request a new code.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (now > record.expiresAt) {
+    otpStore.delete(key);
+    const err = new Error('This verification code has expired. Please request a new code.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (record.attempts >= MAX_ATTEMPTS) {
+    otpStore.delete(key);
+    const err = new Error('Too many incorrect attempts. Please request a new code.');
+    err.statusCode = 429;
+    throw err;
+  }
+
+  const isValid = await bcrypt.compare(String(inputOtp).trim(), record.hashedOtp);
+  if (!isValid) {
+    record.attempts += 1;
+    const remaining = MAX_ATTEMPTS - record.attempts;
+    const err = new Error(
+      remaining > 0
+        ? `Incorrect verification code. ${remaining} attempt(s) remaining.`
+        : 'Incorrect verification code. Please request a new code.',
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  otpStore.delete(key);
+  return true;
+}
+
 module.exports = {
   generateAndSendOtp,
   verifyOtpAndIssueResetToken,
   verifyResetToken,
   verifyOtpForPhone,
+  generateAndSendEmailOtp,
+  verifyEmailOtp,
 };
+

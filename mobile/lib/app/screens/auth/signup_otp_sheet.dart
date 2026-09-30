@@ -12,23 +12,26 @@ class SignupOtpSheet extends StatefulWidget {
   const SignupOtpSheet({
     super.key,
     required this.username,
-    required this.phone,
+    required this.email,
     required this.password,
+    this.phone,
     this.initialCooldown = 60,
     this.initialDebugOtp,
   });
 
   final String username;
-  final String phone;
+  final String email;
   final String password;
+  final String? phone;
   final int initialCooldown;
   final String? initialDebugOtp;
 
   static Future<bool?> show(
     BuildContext context, {
     required String username,
-    required String phone,
+    required String email,
     required String password,
+    String? phone,
     int initialCooldown = 60,
     String? initialDebugOtp,
   }) {
@@ -38,8 +41,9 @@ class SignupOtpSheet extends StatefulWidget {
       backgroundColor: Colors.transparent,
       builder: (context) => SignupOtpSheet(
         username: username,
-        phone: phone,
+        email: email,
         password: password,
+        phone: phone,
         initialCooldown: initialCooldown,
         initialDebugOtp: initialDebugOtp,
       ),
@@ -123,9 +127,9 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
 
     final auth = context.read<AuthProvider>();
     try {
-      final res = await auth.sendSignupOtp(
+      final res = await auth.sendSignupEmailOtp(
         username: widget.username,
-        phone: widget.phone,
+        email: widget.email,
       );
       final cd = (res['cooldownSeconds'] as num?)?.toInt() ?? 60;
       final debugOtp = res['debugOtp'] as String?;
@@ -171,11 +175,12 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
     });
 
     final auth = context.read<AuthProvider>();
-    final success = await auth.verifySignupAndLogin(
+    final success = await auth.verifySignupEmailAndLogin(
       username: widget.username,
-      phone: widget.phone,
+      email: widget.email,
       password: widget.password,
       otp: otp,
+      phone: widget.phone,
     );
 
     if (mounted) {
@@ -236,7 +241,7 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
                   color: AppColors.sky.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.verified_outlined,
+                child: const Icon(Icons.mark_email_read_outlined,
                     color: AppColors.sky, size: 22),
               ),
               const SizedBox(width: 14),
@@ -245,7 +250,7 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Verify Your Number',
+                      'Verify Your Email',
                       style: TextStyle(
                         color: isDark ? Colors.white : AppColors.lightTextMain,
                         fontSize: 18,
@@ -254,11 +259,13 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Code sent to +91 ${widget.phone}',
+                      'Code sent to ${widget.email}',
                       style: TextStyle(
                         color: isDark ? AppColors.muted : AppColors.lightTextMuted,
                         fontSize: 12.5,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -338,7 +345,7 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
           const SizedBox(height: 20),
 
           StudioButton(
-            label: 'Confirm & Register Studio',
+            label: 'Confirm & Activate Account',
             isLoading: _isLoading,
             onPressed: _isLoading ? null : _handleVerify,
           ),

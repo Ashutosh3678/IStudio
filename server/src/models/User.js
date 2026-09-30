@@ -19,30 +19,26 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      required: function () {
-        return !this.googleId;
-      },
-      unique: true,
+      required: false,
+      default: '',
       sparse: true,
       validate: {
         validator: function (v) {
           if (!v) return true;
-          return /^\d{10}$/.test(v) || String(v).startsWith('enc:');
+          return /^\d{10}$/.test(v);
         },
         message: 'Phone number must be a valid 10-digit number',
       },
     },
     password: {
       type: String,
-      required: function () {
-        return !this.googleId;
-      },
+      required: false,
       minlength: 8,
       select: false,
     },
     studioName: { type: String, default: '', trim: true },
     ownerName: { type: String, default: '', trim: true },
-    email: { type: String, default: '', trim: true },
+    email: { type: String, default: '', trim: true, lowercase: true, index: true },
     city: { type: String, default: '', trim: true },
     address: { type: String, default: '', trim: true },
     about: { type: String, default: '', trim: true },
@@ -58,11 +54,13 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.plugin(dataSecurity.encryptedFieldsPlugin, {
-  deterministicFields: ['phone'],
-  fields: ['email', 'address'],
+  deterministicFields: [],
+  fields: ['address'],
 });
 
 userSchema.methods.toPublicJSON = function toPublicJSON() {
+  // Phone and email are stored as plain text. dataSecurity.decrypt is
+  // backwards-compatible: plain values pass through unchanged.
   const plainPhone = dataSecurity.decrypt(this.phone || '');
   const plainEmail = dataSecurity.decrypt(this.email || '');
   return {

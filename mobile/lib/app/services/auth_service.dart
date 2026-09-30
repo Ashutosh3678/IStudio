@@ -13,6 +13,11 @@ class AuthService {
 
   final ApiService _api;
 
+  Future<Map<String, dynamic>> checkUsername(String username) async {
+    final payload = await _api.get('/auth/check-username?username=${Uri.encodeComponent(username.trim())}');
+    return payload;
+  }
+
   Future<AuthResult> signup({
     required String username,
     required String phone,
@@ -23,6 +28,37 @@ class AuthService {
       'phone': phone,
       'password': password,
     });
+    return _parseAuth(payload);
+  }
+
+  Future<Map<String, dynamic>> sendSignupEmailOtp({
+    required String username,
+    required String email,
+  }) async {
+    final payload = await _api.post('/auth/signup/send-email-otp', {
+      'username': username.trim(),
+      'email': email.trim().toLowerCase(),
+    });
+    return payload;
+  }
+
+  Future<AuthResult> verifySignupEmailAndLogin({
+    required String username,
+    required String email,
+    required String password,
+    required String otp,
+    String? phone,
+  }) async {
+    final body = <String, dynamic>{
+      'username': username.trim(),
+      'email': email.trim().toLowerCase(),
+      'password': password,
+      'otp': otp.trim(),
+    };
+    if (phone != null && phone.trim().isNotEmpty) {
+      body['phone'] = phone.trim();
+    }
+    final payload = await _api.post('/auth/signup/verify-email', body);
     return _parseAuth(payload);
   }
 
@@ -53,14 +89,26 @@ class AuthService {
   }
 
   Future<AuthResult> login({
-    required String phone,
+    required String identifier,
     required String password,
   }) async {
     final payload = await _api.post('/auth/login', {
-      'phone': phone,
+      'identifier': identifier.trim(),
       'password': password,
     });
     return _parseAuth(payload);
+  }
+
+  Future<User> setPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    final payload = await _api.post(
+      '/auth/set-password',
+      {'newPassword': newPassword},
+      token: token,
+    );
+    return _parseUser(payload);
   }
 
   Future<AuthResult> loginWithGoogle({

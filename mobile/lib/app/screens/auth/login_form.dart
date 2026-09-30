@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-import '../../theme/app_colors.dart';
 import '../../utils/validators.dart';
 import '../../widgets/studio_button.dart';
 import '../../widgets/studio_text_field.dart';
@@ -15,7 +15,7 @@ class LoginForm extends StatefulWidget {
   });
 
   final bool isLoading;
-  final Future<void> Function(String phone, String password) onSubmit;
+  final Future<void> Function(String identifier, String password) onSubmit;
 
   @override
   State<LoginForm> createState() => _LoginFormState();
@@ -23,12 +23,12 @@ class LoginForm extends StatefulWidget {
 
 class _LoginFormState extends State<LoginForm> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -39,7 +39,10 @@ class _LoginFormState extends State<LoginForm> {
       HapticFeedback.heavyImpact();
       return;
     }
-    await widget.onSubmit(_phoneController.text, _passwordController.text);
+    await widget.onSubmit(
+      _identifierController.text.trim(),
+      _passwordController.text,
+    );
   }
 
   @override
@@ -51,19 +54,23 @@ class _LoginFormState extends State<LoginForm> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             StudioTextField(
-              label: 'Phone number',
-              hint: '10-digit mobile number',
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              prefixIcon: Icons.phone_outlined,
-              autofillHints: const [AutofillHints.telephoneNumber],
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(10),
-              ],
-              validator: Validators.phone,
+              label: 'Email or username',
+              hint: 'Enter your email or username',
+              controller: _identifierController,
+              keyboardType: TextInputType.emailAddress,
+              prefixIcon: Icons.mail_outline_rounded,
+              autofillHints: const [AutofillHints.username, AutofillHints.email],
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter your email or username.';
+                }
+                if (value.trim().length < 3) {
+                  return 'Must be at least 3 characters.';
+                }
+                return null;
+              },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             StudioTextField(
               label: 'Password',
               hint: 'Your studio password',
@@ -93,22 +100,23 @@ class _LoginFormState extends State<LoginForm> {
                 },
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
-                  foregroundColor: AppColors.sky,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  foregroundColor: const Color(0xFF60A5FA),
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                 ),
-                child: const Text(
+                child: Text(
                   'Forgot password?',
-                  style: TextStyle(
+                  style: GoogleFonts.plusJakartaSans(
+                    color: const Color(0xFF60A5FA),
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             StudioButton(
               label: 'Sign in',
+              showArrow: true,
               isLoading: widget.isLoading,
               onPressed: widget.isLoading ? null : _submit,
             ),
