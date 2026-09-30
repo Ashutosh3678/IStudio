@@ -804,7 +804,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Column(
       children: [
         SizedBox(
-          height: 92,
+          height: 112,
           child: PageView.builder(
             controller: _bannerPageController,
             physics: const BouncingScrollPhysics(),

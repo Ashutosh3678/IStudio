@@ -161,7 +161,7 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
             icon: const Icon(Icons.download_rounded),
           ),
           IconButton(
-            tooltip: 'Share receipt',
+            tooltip: 'Share ${InvoicePdfService.documentTitle(_invoice).toLowerCase()}',
             onPressed: _busy ? null : _share,
             icon: const Icon(Icons.ios_share_rounded),
           ),

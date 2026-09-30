@@ -11,21 +11,19 @@ class EstimateScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const StudioAppBar(
-              title: 'Estimated Cost',
-              subtitle: 'Quotation before confirmation',
+      body: Column(
+        children: [
+          const StudioAppBar(
+            title: 'Estimated Cost',
+            subtitle: 'Quotation before confirmation',
+          ),
+          Expanded(
+            child: CreateInvoiceForm(
+              documentType: InvoiceDocumentType.estimate,
+              onSaved: (_) {},
             ),
-            Expanded(
-              child: CreateInvoiceForm(
-                documentType: InvoiceDocumentType.estimate,
-                onSaved: (_) {},
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

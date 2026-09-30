@@ -25,6 +25,7 @@ function overviewFrom(invoices) {
   let total = 0;
   let received = 0;
   for (const invoice of invoices) {
+    if ((invoice.documentType || 'receipt') === 'estimate') continue;
     const json = invoice.toPublicJSON();
     total += json.total;
     received += json.amountReceived;
@@ -120,6 +121,7 @@ function readInvoiceFields(body) {
     deliverables,
     upiId: String(body.upiId || '').trim(),
     amountReceived: Number(body.amountReceived) || 0,
+    documentType: body.documentType === 'estimate' ? 'estimate' : 'receipt',
   };
 }
 
@@ -239,6 +241,11 @@ async function updateInvoice(req, res) {
     }
     if (body.amountReceived !== undefined) {
       fields.amountReceived = Number(body.amountReceived) || 0;
+    }
+    if (body.documentType !== undefined) {
+      fields.documentType = body.documentType === 'estimate'
+        ? 'estimate'
+        : 'receipt';
     }
 
     const nextDeliverables = fields.deliverables || current.deliverables;

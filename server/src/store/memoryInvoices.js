@@ -60,6 +60,7 @@ const memoryInvoices = {
       deliverables,
       upiId: fields.upiId || '',
       amountReceived: totals.received,
+      documentType: fields.documentType || 'receipt',
     };
     invoices.unshift(invoice);
     return toDoc(invoice);
@@ -86,6 +87,7 @@ const memoryInvoices = {
       'upiId',
       'amountReceived',
       'number',
+      'documentType',
     ];
     for (const key of allowed) {
       if (fields[key] !== undefined) invoice[key] = fields[key];

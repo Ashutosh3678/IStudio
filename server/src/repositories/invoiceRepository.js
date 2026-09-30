@@ -64,6 +64,7 @@ async function createInvoice(fields) {
     deliverables,
     upiId: fields.upiId || '',
     amountReceived: totals.received,
+    documentType: fields.documentType || 'receipt',
   };
 
   if (usesMemory()) {
@@ -101,6 +102,7 @@ async function updateInvoice(id, userId, fields) {
     'dueDate',
     'upiId',
     'amountReceived',
+    'documentType',
   ];
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const invoice = await findByIdForUser(id, userId);

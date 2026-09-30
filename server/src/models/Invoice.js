@@ -53,6 +53,7 @@ function toPublicInvoice(doc) {
     deliverables,
     upiId: dataSecurity.decrypt(doc.upiId || ''),
     amountReceived: totals.received,
+    documentType: doc.documentType || 'receipt',
     total: totals.total,
     pendingAmount: totals.pending,
     status: invoiceStatus(dueDate, totals),
@@ -86,6 +87,12 @@ const invoiceSchema = new mongoose.Schema(
     deliverables: { type: [deliverableSchema], default: [] },
     upiId: { type: String, default: '', trim: true },
     amountReceived: { type: Number, default: 0, min: 0 },
+    documentType: {
+      type: String,
+      enum: ['receipt', 'estimate'],
+      default: 'receipt',
+      index: true,
+    },
   },
   { timestamps: true },
 );

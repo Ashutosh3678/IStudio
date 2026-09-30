@@ -238,6 +238,10 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
           130 + MediaQuery.paddingOf(context).bottom,
         ),
         children: [
+          if (widget.documentType == InvoiceDocumentType.estimate) ...[
+            _buildEstimateNotice(context),
+            const SizedBox(height: 18),
+          ],
           _sectionTitle(context, 'Client Details'),
           const SizedBox(height: 12),
           if (events.isNotEmpty) ...[
@@ -538,6 +542,46 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildEstimateNotice(BuildContext context) {
+    final accent = context.accentColor;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withValues(alpha: 0.38)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.request_quote_rounded, color: accent, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ESTIMATED COST / QUOTATION',
+                  style: TextStyle(
+                    color: context.textMain,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.35,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'A proposed price for client review. It is not a receipt or proof of payment.',
+                  style: TextStyle(color: context.textMuted, fontSize: 12, height: 1.25),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

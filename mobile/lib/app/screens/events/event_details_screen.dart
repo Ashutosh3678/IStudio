@@ -2342,12 +2342,29 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Record Payment',
-                          style: GoogleFonts.plusJakartaSans(
-                            color: context.textMain,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Record Payment',
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: context.textMain,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if (event != null)
+                                Text(
+                                  '${event.title} · ${event.clientName}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: context.textMuted,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                         IconButton(
@@ -3053,6 +3070,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
     final amountController = TextEditingController();
     final customCategoryController = TextEditingController();
     String category = 'Crew';
+    final event = context.read<EventsProvider>().findById(eventId);
 
     showModalBottomSheet(
       context: context,
@@ -3084,6 +3102,18 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                         fontWeight: FontWeight.w700,
                       ),
                     ),
+                    if (event != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '${event.title} · ${event.clientName}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: context.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     StudioTextField(
                       label: 'Expense Description',
