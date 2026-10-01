@@ -26,6 +26,7 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _studioName;
   late final TextEditingController _ownerName;
+  late final TextEditingController _username;
   late final TextEditingController _phone;
   late final TextEditingController _email;
   late final TextEditingController _city;
@@ -42,7 +43,8 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
     super.initState();
     final user = context.read<AuthProvider>().user;
     _studioName = TextEditingController(text: user?.studioName ?? '');
-    _ownerName = TextEditingController(text: user?.displayOwner ?? '');
+    _ownerName = TextEditingController(text: user?.ownerName ?? '');
+    _username = TextEditingController(text: user?.username ?? '');
     _phone = TextEditingController(text: user?.phone ?? '');
     _email = TextEditingController(text: user?.email ?? '');
     _city = TextEditingController(text: user?.city ?? '');
@@ -59,6 +61,7 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
     for (final c in [
       _studioName,
       _ownerName,
+      _username,
       _phone,
       _email,
       _city,
@@ -156,7 +159,6 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
       'studioName': _studioName.text.trim(),
       'ownerName': _ownerName.text.trim(),
       'phone': _phone.text.trim(),
-      'email': _email.text.trim(),
       'city': _city.text.trim(),
       'address': _address.text.trim(),
       'specialties': _specialties.text.trim(),
@@ -289,11 +291,31 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
                         ),
                         const SizedBox(height: 14),
                         StudioTextField(
-                          label: 'Owner / photographer name *',
-                          hint: 'e.g. Rahul Sharma',
+                          label: 'Owner name *',
+                          hint: 'Enter your full personal name (e.g. Rahul Sharma)',
                           controller: _ownerName,
-                          prefixIcon: Icons.badge_outlined,
-                          validator: (v) => _required(v, 'Enter the owner name'),
+                          prefixIcon: Icons.person_outline_rounded,
+                          helperText: 'Required: Your real personal name as the studio owner',
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'Owner name is required';
+                            }
+                            if (v.trim().length < 2) {
+                              return 'Enter at least 2 characters';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        StudioTextField(
+                          label: 'Username (Locked)',
+                          hint: 'username',
+                          controller: _username,
+                          readOnly: true,
+                          enabled: false,
+                          prefixIcon: Icons.alternate_email_rounded,
+                          suffixIcon: const Icon(Icons.lock_outline_rounded, size: 18),
+                          helperText: 'Your unique handle set during sign up',
                         ),
                         const SizedBox(height: 14),
                         StudioTextField(
@@ -335,12 +357,14 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
                         ),
                         const SizedBox(height: 14),
                         StudioTextField(
-                          label: 'Email *',
+                          label: 'Email (Locked)',
                           hint: 'studio@email.com',
                           controller: _email,
-                          keyboardType: TextInputType.emailAddress,
+                          readOnly: true,
+                          enabled: false,
                           prefixIcon: Icons.mail_outline_rounded,
-                          validator: Validators.email,
+                          suffixIcon: const Icon(Icons.lock_outline_rounded, size: 18),
+                          helperText: 'Registered account email (cannot be edited here)',
                         ),
                         const SizedBox(height: 14),
                         StudioTextField(

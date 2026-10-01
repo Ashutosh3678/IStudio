@@ -595,6 +595,64 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<Map<String, dynamic>> sendEmailChangeOtp(String newEmail) async {
+    if (_token == null) {
+      throw const ApiException('Please sign in to change your email.');
+    }
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final res = await _authService.sendEmailChangeOtp(
+        token: _token!,
+        newEmail: newEmail.trim().toLowerCase(),
+      );
+      return res;
+    } on ApiException catch (error) {
+      _errorMessage = error.message;
+      rethrow;
+    } catch (_) {
+      _errorMessage = 'Unable to send verification code. Please try again.';
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> verifyEmailChange({
+    required String newEmail,
+    required String otp,
+  }) async {
+    if (_token == null) {
+      _errorMessage = 'Please sign in to change your email.';
+      notifyListeners();
+      return false;
+    }
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final updatedUser = await _authService.verifyEmailChange(
+        token: _token!,
+        newEmail: newEmail.trim().toLowerCase(),
+        otp: otp.trim(),
+      );
+      _user = updatedUser;
+      await _vault.writeUser(updatedUser);
+      return true;
+    } on ApiException catch (error) {
+      _errorMessage = error.message;
+      return false;
+    } catch (_) {
+      _errorMessage = 'Unable to verify email code. Please try again.';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> _runAuth(Future<void> Function() action) async {
     _isLoading = true;
     _errorMessage = null;

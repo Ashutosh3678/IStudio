@@ -260,6 +260,33 @@ class AuthService {
     );
   }
 
+  Future<Map<String, dynamic>> sendEmailChangeOtp({
+    required String token,
+    required String newEmail,
+  }) async {
+    return _api.post(
+      '/auth/send-email-change-otp',
+      {'newEmail': newEmail.trim().toLowerCase()},
+      token: token,
+    );
+  }
+
+  Future<User> verifyEmailChange({
+    required String token,
+    required String newEmail,
+    required String otp,
+  }) async {
+    final payload = await _api.post(
+      '/auth/verify-email-change',
+      {
+        'newEmail': newEmail.trim().toLowerCase(),
+        'otp': otp.trim(),
+      },
+      token: token,
+    );
+    return _parseUser(payload);
+  }
+
   User _parseUser(Map<String, dynamic> payload) {
     final userJson = payload['user'] as Map<String, dynamic>?;
     if (userJson == null) {

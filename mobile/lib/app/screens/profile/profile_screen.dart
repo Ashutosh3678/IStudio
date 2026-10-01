@@ -34,6 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _studioName;
   late final TextEditingController _ownerName;
+  late final TextEditingController _username;
   late final TextEditingController _phone;
   late final TextEditingController _email;
   late final TextEditingController _city;
@@ -44,12 +45,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late final TextEditingController _website;
   late final TextEditingController _specialties;
 
+  Timer? _usernameDebounce;
+  bool _isCheckingUsername = false;
+  bool? _isUsernameAvailable;
+  String? _usernameErrorText;
+
   @override
   void initState() {
     super.initState();
     final user = context.read<AuthProvider>().user;
     _studioName = TextEditingController(text: user?.studioName ?? '');
-    _ownerName = TextEditingController(text: user?.displayOwner ?? '');
+    _ownerName = TextEditingController(text: user?.ownerName ?? '');
+    _username = TextEditingController(text: user?.username ?? '');
     _phone = TextEditingController(text: user?.phone ?? '');
     _email = TextEditingController(text: user?.email ?? '');
     _city = TextEditingController(text: user?.city ?? '');
@@ -65,6 +72,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     _studioName.dispose();
     _ownerName.dispose();
+    _username.dispose();
     _phone.dispose();
     _email.dispose();
     _city.dispose();
@@ -74,13 +82,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _youtube.dispose();
     _website.dispose();
     _specialties.dispose();
+    _usernameDebounce?.cancel();
     super.dispose();
   }
 
   void _fillFrom(User? user) {
     if (user == null) return;
     _studioName.text = user.studioName;
-    _ownerName.text = user.displayOwner;
+    _ownerName.text = user.ownerName;
+    _username.text = user.username;
     _phone.text = user.phone;
     _email.text = user.email;
     _city.text = user.city;
@@ -90,6 +100,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _youtube.text = user.youtube;
     _website.text = user.website;
     _specialties.text = user.specialties;
+    _isUsernameAvailable = null;
+    _usernameErrorText = null;
+  }
+
+  void _onUsernameChanged(String value) {
+    _usernameDebounce?.cancel();
+    final trimmed = value.trim();
+    final currentUser = context.read<AuthProvider>().user;
+
+    if (trimmed.isEmpty) {
+      setState(() {
+        _isCheckingUsername = false;
+        _isUsernameAvailable = false;
+        _usernameErrorText = 'Username cannot be empty';
+      });
+      return;
+    }
+
+    if (trimmed.toLowerCase() == (currentUser?.username ?? '').toLowerCase()) {
+      setState(() {
+        _isCheckingUsername = false;
+        _isUsernameAvailable = true;
+        _usernameErrorText = null;
+      });
+      return;
+    }
+
+    if (!RegExp(r'^[A-Za-z0-9_]{3,24}$').hasMatch(trimmed)) {
+      setState(() {
+        _isCheckingUsername = false;
+        _isUsernameAvailable = false;
+        _usernameErrorText = '3-24 chars (letters, numbers, underscore)';
+      });
+      return;
+    }
+
+    setState(() {
+      _isCheckingUsername = true;
+      _isUsernameAvailable = null;
+      _usernameErrorText = null;
+    });
+
+    _usernameDebounce = Timer(const Duration(milliseconds: 500), () async {
+      try {
+        final available = await context.read<AuthProvider>().checkUsername(trimmed);
+        if (!mounted) return;
+        setState(() {
+          _isCheckingUsername = false;
+          _isUsernameAvailable = available;
+          _usernameErrorText = available ? null : 'Username is already taken';
+        });
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _isCheckingUsername = false;
+          _isUsernameAvailable = null;
+          _usernameErrorText = null;
+        });
+      }
+    });
   }
 
   Future<void> _showImageSourcePicker() async {
@@ -292,6 +362,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _save() async {
+    if (_isCheckingUsername) {
+      AppSnackBar.error(context, 'Checking username availability, please wait...');
+      return;
+    }
+    if (_isUsernameAvailable == false) {
+      AppSnackBar.error(context, _usernameErrorText ?? 'Please choose an available username.');
+      return;
+    }
     if (!(_formKey.currentState?.validate() ?? false)) {
       AppSnackBar.error(context, 'Please fix the highlighted fields.');
       return;
@@ -300,8 +378,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final success = await auth.updateProfile({
       'studioName': _studioName.text.trim(),
       'ownerName': _ownerName.text.trim(),
+      'username': _username.text.trim(),
       'phone': _phone.text.trim(),
-      'email': _email.text.trim(),
       'city': _city.text.trim(),
       'address': _address.text.trim(),
       'about': _about.text.trim(),
@@ -317,6 +395,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } else {
       AppSnackBar.error(context, auth.errorMessage ?? 'Could not save profile.');
     }
+  }
+
+  void _showChangeEmailSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => const _ChangeEmailSheet(),
+    );
   }
 
   Future<void> _openChangePasswordSheet() async {
@@ -470,15 +557,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       letterSpacing: -0.3,
                     ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                user?.displayOwner ?? '',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: context.textMuted,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.person_outline_rounded, size: 15, color: context.textMuted),
+                  const SizedBox(width: 4),
+                  Text(
+                    user?.ownerName.isNotEmpty == true
+                        ? user!.ownerName
+                        : (user?.displayOwner ?? ''),
+                    style: TextStyle(
+                      color: context.textMain,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (user != null && user.username.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Container(
+                        width: 4,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: context.textMuted.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '@${user.username}',
+                      style: TextStyle(
+                        color: context.accentColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: 20),
 
@@ -563,7 +680,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         children: [
           _DetailRow(icon: Icons.apartment_outlined, label: 'Studio Name', value: user?.displayStudioName ?? '—'),
-          _DetailRow(icon: Icons.person_outline_rounded, label: 'Owner', value: user?.displayOwner ?? '—'),
+          _DetailRow(icon: Icons.person_outline_rounded, label: 'Owner', value: user?.ownerName.isNotEmpty == true ? user!.ownerName : (user?.displayOwner ?? '—')),
+          _DetailRow(icon: Icons.alternate_email_rounded, label: 'Username', value: user?.username.isNotEmpty == true ? '@${user!.username}' : '—'),
           _DetailRow(icon: Icons.phone_outlined, label: 'Phone', value: user?.phone ?? '—'),
           _DetailRow(icon: Icons.mail_outline_rounded, label: 'Email', value: _orDash(user?.email)),
           _DetailRow(icon: Icons.location_city_outlined, label: 'City', value: _orDash(user?.city)),
@@ -811,7 +929,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             Divider(height: 1, color: context.cardBorder),
-            // Option 2: Delete Account
+            // Option 2: Change Email
+            InkWell(
+              onTap: _showChangeEmailSheet,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.mark_email_read_outlined, color: accent, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Change Email',
+                            style: TextStyle(
+                              color: textMain,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Verify and update your email address',
+                            style: TextStyle(
+                              color: textMuted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: textMuted),
+                  ],
+                ),
+              ),
+            ),
+            Divider(height: 1, color: context.cardBorder),
+            // Option 3: Delete Account
             InkWell(
               borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
               onTap: _showDeleteAccountSheet,
@@ -971,10 +1134,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
             hint: 'Your name',
             controller: _ownerName,
             prefixIcon: Icons.person_outline_rounded,
+            helperText: 'Your personal name (display name)',
             validator: (value) =>
                 (value == null || value.trim().isEmpty)
                     ? 'Enter the owner name'
                     : null,
+          ),
+          const SizedBox(height: 14),
+          StudioTextField(
+            label: 'Username',
+            hint: 'unique_handle',
+            controller: _username,
+            prefixIcon: Icons.alternate_email_rounded,
+            onChanged: _onUsernameChanged,
+            suffixIcon: _isCheckingUsername
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: Center(
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  )
+                : _isUsernameAvailable == true
+                    ? const Icon(Icons.check_circle_rounded, color: Color(0xFF22C55E), size: 20)
+                    : _isUsernameAvailable == false
+                        ? const Icon(Icons.cancel_rounded, color: Color(0xFFEF4444), size: 20)
+                        : null,
+            helperText: _usernameErrorText ?? 'Unique handle for your studio profile',
+            validator: (value) {
+              final trimmed = (value ?? '').trim();
+              if (trimmed.isEmpty) return 'Enter a username';
+              if (!RegExp(r'^[A-Za-z0-9_]{3,24}$').hasMatch(trimmed)) {
+                return '3-24 characters (letters, numbers, underscore only)';
+              }
+              if (_isUsernameAvailable == false) {
+                return _usernameErrorText ?? 'Username is already taken';
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 14),
           StudioTextField(
@@ -991,12 +1192,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 14),
           StudioTextField(
-            label: 'Email',
+            label: 'Email (Read-only)',
             hint: 'studio@email.com',
             controller: _email,
-            keyboardType: TextInputType.emailAddress,
+            readOnly: true,
+            enabled: false,
             prefixIcon: Icons.mail_outline_rounded,
-            validator: Validators.email,
+            suffixIcon: const Icon(Icons.lock_outline_rounded, size: 18),
+            helperText: 'To change your email, use Change Email in Account Settings.',
           ),
           const SizedBox(height: 14),
           StudioTextField(
@@ -1572,3 +1775,452 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
     );
   }
 }
+
+class _ChangeEmailSheet extends StatefulWidget {
+  const _ChangeEmailSheet();
+
+  @override
+  State<_ChangeEmailSheet> createState() => _ChangeEmailSheetState();
+}
+
+class _ChangeEmailSheetState extends State<_ChangeEmailSheet> {
+  final _emailController = TextEditingController();
+  final _otpController = TextEditingController();
+  bool _sendingOtp = false;
+  bool _otpSent = false;
+  bool _verifying = false;
+  int _cooldown = 0;
+  Timer? _timer;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _otpController.dispose();
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startCooldown() {
+    setState(() => _cooldown = 30);
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_cooldown <= 1) {
+        timer.cancel();
+        setState(() => _cooldown = 0);
+      } else {
+        setState(() => _cooldown--);
+      }
+    });
+  }
+
+  Future<void> _sendOtp() async {
+    final email = _emailController.text.trim().toLowerCase();
+    final emailErr = Validators.email(email);
+    if (emailErr != null) {
+      setState(() => _errorMessage = emailErr);
+      AppSnackBar.error(context, emailErr);
+      return;
+    }
+
+    final currentUser = context.read<AuthProvider>().user;
+    if (currentUser?.email != null && currentUser!.email.toLowerCase() == email) {
+      const msg = 'This is already your registered email.';
+      setState(() => _errorMessage = msg);
+      AppSnackBar.error(context, msg);
+      return;
+    }
+
+    setState(() {
+      _sendingOtp = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final auth = context.read<AuthProvider>();
+      final result = await auth.sendEmailChangeOtp(email);
+      if (!mounted) return;
+
+      setState(() {
+        _sendingOtp = false;
+        _otpSent = true;
+      });
+      _startCooldown();
+
+      final debugOtp = result['debugOtp'] as String?;
+      if (debugOtp != null && debugOtp.isNotEmpty) {
+        _otpController.text = debugOtp;
+      }
+
+      AppSnackBar.success(
+        context,
+        result['message'] as String? ?? 'Verification code sent to $email.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final message = e.toString().replaceFirst('Exception: ', '');
+      setState(() {
+        _sendingOtp = false;
+        _errorMessage = message;
+      });
+      AppSnackBar.error(context, message);
+    }
+  }
+
+  Future<void> _verifyAndChange() async {
+    final email = _emailController.text.trim().toLowerCase();
+    final otp = _otpController.text.trim();
+
+    if (otp.length != 6) {
+      const msg = 'Please enter the 6-digit verification code.';
+      setState(() => _errorMessage = msg);
+      AppSnackBar.error(context, msg);
+      return;
+    }
+
+    setState(() {
+      _verifying = true;
+      _errorMessage = null;
+    });
+
+    final auth = context.read<AuthProvider>();
+    final success = await auth.verifyEmailChange(newEmail: email, otp: otp);
+
+    if (!mounted) return;
+    setState(() => _verifying = false);
+
+    if (success) {
+      Navigator.of(context).pop();
+      AppSnackBar.success(context, 'Email updated to $email successfully!');
+    } else {
+      final message = auth.errorMessage ?? 'Unable to verify email code.';
+      setState(() => _errorMessage = message);
+      AppSnackBar.error(context, message);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = context.accentColor;
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: context.cardBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(
+          top: BorderSide(color: accent.withValues(alpha: 0.3), width: 1.5),
+        ),
+      ),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: textMuted.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.mark_email_read_outlined, color: accent, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Change Email Address',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: textMain,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'A verification code will be sent to confirm.',
+                        style: TextStyle(fontSize: 12, color: textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Current Email Indicator
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              decoration: BoxDecoration(
+                color: context.innerBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: context.cardBorder),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.email_outlined, size: 16, color: textMuted),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Current: ',
+                    style: TextStyle(fontSize: 12, color: textMuted),
+                  ),
+                  Expanded(
+                    child: Text(
+                      context.read<AuthProvider>().user?.email.isNotEmpty == true
+                          ? context.read<AuthProvider>().user!.email
+                          : 'None',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: textMain,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            if (_errorMessage != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444), size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Step 1: New Email Input
+            Text(
+              'New Email Address',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: textMain,
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _emailController,
+              enabled: !_otpSent,
+              keyboardType: TextInputType.emailAddress,
+              style: TextStyle(color: textMain, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Enter new email address',
+                hintStyle: TextStyle(color: textMuted, fontSize: 13),
+                prefixIcon: Icon(Icons.mail_outline_rounded, size: 18, color: textMuted),
+                suffixIcon: _otpSent
+                    ? IconButton(
+                        tooltip: 'Edit email',
+                        icon: Icon(Icons.edit_outlined, size: 18, color: accent),
+                        onPressed: () {
+                          setState(() {
+                            _otpSent = false;
+                            _otpController.clear();
+                          });
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: context.innerBg,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: context.cardBorder),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: context.cardBorder),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: accent, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            if (!_otpSent) ...[
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accent,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: _sendingOtp ? null : _sendOtp,
+                child: _sendingOtp
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                      )
+                    : const Text(
+                        'Send Verification Code',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                      ),
+              ),
+            ] else ...[
+              // Step 2: OTP Verification
+              Text(
+                '6-Digit Verification Code',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: textMain,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _otpController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: TextStyle(
+                  color: textMain,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 8,
+                ),
+                textAlign: TextAlign.center,
+                decoration: InputDecoration(
+                  counterText: '',
+                  hintText: '000000',
+                  hintStyle: TextStyle(
+                    color: textMuted.withValues(alpha: 0.5),
+                    fontSize: 18,
+                    letterSpacing: 8,
+                  ),
+                  filled: true,
+                  fillColor: context.innerBg,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: context.cardBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: context.cardBorder),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: accent, width: 1.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Resend Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (_cooldown > 0)
+                    Text(
+                      'Resend in ${_cooldown}s',
+                      style: TextStyle(fontSize: 12, color: textMuted),
+                    )
+                  else
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: _sendingOtp ? null : _sendOtp,
+                      child: Text(
+                        'Resend code',
+                        style: TextStyle(fontSize: 12, color: accent, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 18),
+
+              // Confirm Button
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accent,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: _verifying ? null : _verifyAndChange,
+                child: _verifying
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                      )
+                    : const Text(
+                        'Verify & Update Email',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                      ),
+              ),
+            ],
+
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: textMuted, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

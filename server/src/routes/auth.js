@@ -24,6 +24,8 @@ const {
   changePassword,
   deleteAccountSendOtp,
   deleteAccount,
+  sendEmailChangeOtp,
+  verifyEmailChange,
 } = require('../controllers/authController');
 const { requireAuth } = require('../middleware/auth');
 const {
@@ -222,6 +224,8 @@ router.post(
 );
 router.post('/delete-account/send-otp', requireAuth, deleteAccountSendOtp);
 router.post('/delete-account/confirm', requireAuth, deleteAccount);
+router.post('/send-email-change-otp', requireAuth, sendEmailChangeOtp);
+router.post('/verify-email-change', requireAuth, verifyEmailChange);
 router.delete('/account', requireAuth, deleteAccount);
 router.delete('/me', requireAuth, deleteAccount);
 

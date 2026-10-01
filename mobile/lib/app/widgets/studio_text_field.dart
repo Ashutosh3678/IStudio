@@ -20,6 +20,10 @@ class StudioTextField extends StatefulWidget {
     this.autofillHints,
     this.inputFormatters,
     this.onFieldSubmitted,
+    this.onChanged,
+    this.enabled,
+    this.readOnly = false,
+    this.helperText,
   });
 
   final String label;
@@ -35,6 +39,10 @@ class StudioTextField extends StatefulWidget {
   final Iterable<String>? autofillHints;
   final List<TextInputFormatter>? inputFormatters;
   final ValueChanged<String>? onFieldSubmitted;
+  final ValueChanged<String>? onChanged;
+  final bool? enabled;
+  final bool readOnly;
+  final String? helperText;
 
   @override
   State<StudioTextField> createState() => _StudioTextFieldState();
@@ -90,6 +98,9 @@ class _StudioTextFieldState extends State<StudioTextField> {
           autofillHints: widget.autofillHints,
           inputFormatters: widget.inputFormatters,
           onFieldSubmitted: widget.onFieldSubmitted,
+          onChanged: widget.onChanged,
+          enabled: widget.enabled,
+          readOnly: widget.readOnly,
           style: GoogleFonts.plusJakartaSans(
             color: textMain,
             fontSize: 15,
@@ -102,6 +113,12 @@ class _StudioTextFieldState extends State<StudioTextField> {
               color: textMuted,
               fontSize: 14.5,
               fontWeight: FontWeight.w400,
+            ),
+            helperText: widget.helperText,
+            helperMaxLines: 2,
+            helperStyle: GoogleFonts.plusJakartaSans(
+              color: textMuted,
+              fontSize: 12,
             ),
             filled: true,
             fillColor: inputBg,

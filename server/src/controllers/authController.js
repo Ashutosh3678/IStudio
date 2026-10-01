@@ -242,7 +242,6 @@ async function me(req, res) {
 const PROFILE_FIELDS = [
   'studioName',
   'ownerName',
-  'email',
   'city',
   'address',
   'about',
@@ -320,6 +319,28 @@ async function updateProfile(req, res) {
         fields[key] = String(req.body[key] || '').trim();
       }
     }
+
+    // Username change — check availability
+    if (req.body.username !== undefined) {
+      const newUsername = String(req.body.username || '').trim();
+      if (newUsername) {
+        if (!/^[A-Za-z0-9_]{3,24}$/.test(newUsername)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Username must be 3-24 characters (letters, numbers, underscores only)',
+          });
+        }
+        const existingUser = await userRepository.findByUsername(newUsername);
+        if (existingUser && existingUser._id.toString() !== req.userId) {
+          return res.status(409).json({
+            success: false,
+            message: 'That username is already taken.',
+          });
+        }
+        fields.username = newUsername;
+      }
+    }
+
     if (req.body.phone) {
       const phone = normalizePhone(req.body.phone);
       if (phone.length !== 10) {
@@ -360,6 +381,59 @@ async function updateProfile(req, res) {
       success: false,
       message: 'Unable to update your profile right now.',
     });
+  }
+}
+
+/**
+ * Send OTP to a new email address for email change verification.
+ */
+async function sendEmailChangeOtp(req, res) {
+  try {
+    const newEmail = String(req.body.email || '').trim().toLowerCase();
+    if (!newEmail || !/^\S+@\S+\.\S+$/.test(newEmail)) {
+      return res.status(400).json({ success: false, message: 'Enter a valid email address.' });
+    }
+    const existing = await userRepository.findByEmail(newEmail);
+    if (existing && existing._id.toString() !== req.userId) {
+      return res.status(409).json({ success: false, message: 'That email address is already in use.' });
+    }
+    const currentUser = await userRepository.findById(req.userId);
+    const result = await otpService.generateAndSendEmailOtp(newEmail, currentUser?.username || '');
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    logCaught(req, 'sendEmailChangeOtp error', error);
+    const status = error.statusCode || 500;
+    return res.status(status).json({ success: false, message: error.message || 'Unable to send verification code.' });
+  }
+}
+
+/**
+ * Verify OTP and update the user's email address.
+ */
+async function verifyEmailChange(req, res) {
+  try {
+    const newEmail = String(req.body.email || '').trim().toLowerCase();
+    const otp = String(req.body.otp || '').trim();
+    if (!newEmail || !/^\S+@\S+\.\S+$/.test(newEmail)) {
+      return res.status(400).json({ success: false, message: 'Enter a valid email address.' });
+    }
+    if (!otp || otp.length !== 6) {
+      return res.status(400).json({ success: false, message: 'Enter the 6-digit verification code.' });
+    }
+    const existing = await userRepository.findByEmail(newEmail);
+    if (existing && existing._id.toString() !== req.userId) {
+      return res.status(409).json({ success: false, message: 'That email address is already in use.' });
+    }
+    await otpService.verifyEmailOtp(newEmail, otp);
+    const user = await userRepository.updateUser(req.userId, { email: newEmail });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Profile not found.' });
+    }
+    return res.json({ success: true, user: user.toPublicJSON() });
+  } catch (error) {
+    logCaught(req, 'verifyEmailChange error', error);
+    const status = error.statusCode || 400;
+    return res.status(status).json({ success: false, message: error.message || 'Unable to verify email.' });
   }
 }
 
@@ -1107,6 +1181,118 @@ async function deleteAccount(req, res) {
   }
 }
 
+async function sendEmailChangeOtp(req, res) {
+  try {
+    const user = await userRepository.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Account not found.',
+      });
+    }
+
+    const newEmail = String(req.body.newEmail || '').trim().toLowerCase();
+    if (!newEmail || !/^\S+@\S+\.\S+$/.test(newEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Enter a valid email address.',
+      });
+    }
+
+    if (user.email && user.email.toLowerCase() === newEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'New email cannot be the same as your current email.',
+      });
+    }
+
+    // Check if new email is already taken by another user
+    const existing = await userRepository.findByEmail(newEmail);
+    if (existing && existing._id.toString() !== req.userId) {
+      return res.status(409).json({
+        success: false,
+        message: 'That email is already registered with another account.',
+      });
+    }
+
+    const result = await otpService.generateAndSendEmailOtp(newEmail);
+    return res.json({
+      success: true,
+      message: `Verification code sent to ${newEmail}.`,
+      email: newEmail,
+      debugOtp: result.debugOtp,
+    });
+  } catch (error) {
+    logCaught(req, 'sendEmailChangeOtp error', error);
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || 'Unable to send verification code at this time.',
+    });
+  }
+}
+
+async function verifyEmailChange(req, res) {
+  try {
+    const user = await userRepository.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Account not found.',
+      });
+    }
+
+    const newEmail = String(req.body.newEmail || '').trim().toLowerCase();
+    const otp = String(req.body.otp || '').trim();
+
+    if (!newEmail || !/^\S+@\S+\.\S+$/.test(newEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Enter a valid email address.',
+      });
+    }
+
+    if (!otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide the verification code.',
+      });
+    }
+
+    // Double check email uniqueness
+    const existing = await userRepository.findByEmail(newEmail);
+    if (existing && existing._id.toString() !== req.userId) {
+      return res.status(409).json({
+        success: false,
+        message: 'That email is already registered with another account.',
+      });
+    }
+
+    try {
+      await otpService.verifyEmailOtp(newEmail, otp);
+    } catch (otpErr) {
+      return res.status(400).json({
+        success: false,
+        message: otpErr.message || 'Invalid or expired verification code.',
+      });
+    }
+
+    const updatedUser = await userRepository.updateUser(req.userId, { email: newEmail });
+    return res.json({
+      success: true,
+      message: 'Email updated successfully.',
+      user: updatedUser.toPublicJSON ? updatedUser.toPublicJSON() : updatedUser,
+    });
+  } catch (error) {
+    logCaught(req, 'verifyEmailChange error', error);
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || 'Unable to update email at this time.',
+    });
+  }
+}
+
 module.exports = {
   checkUsername,
   signup,
@@ -1130,4 +1316,7 @@ module.exports = {
   changePassword,
   deleteAccountSendOtp,
   deleteAccount,
+  sendEmailChangeOtp,
+  verifyEmailChange,
 };
+
