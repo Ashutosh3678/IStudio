@@ -14,6 +14,7 @@ class User {
     this.website = '',
     this.specialties = '',
     this.logoUrl = '',
+    this.paymentQrUrl = '',
     this.googleId = '',
     this.needsPasswordSetup = false,
   });
@@ -32,6 +33,7 @@ class User {
   final String website;
   final String specialties;
   final String logoUrl;
+  final String paymentQrUrl;
   final String googleId;
   final bool needsPasswordSetup;
 
@@ -42,8 +44,17 @@ class User {
 
   bool get isGoogleUser => googleId.isNotEmpty;
 
-  bool get isProfileIncomplete =>
-      isGoogleUser && (studioName.trim().isEmpty || phone.trim().isEmpty);
+  /// Socials (instagram, youtube, website) and the logo are optional.
+  bool get isProfileIncomplete => [
+        studioName,
+        ownerName,
+        phone,
+        email,
+        city,
+        address,
+        specialties,
+        about,
+      ].any((value) => value.trim().isEmpty);
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
@@ -61,6 +72,7 @@ class User {
       website: json['website'] as String? ?? '',
       specialties: json['specialties'] as String? ?? '',
       logoUrl: json['logoUrl'] as String? ?? '',
+      paymentQrUrl: json['paymentQrUrl'] as String? ?? '',
       googleId: json['googleId'] as String? ?? '',
       needsPasswordSetup: json['needsPasswordSetup'] as bool? ?? false,
     );
@@ -82,6 +94,7 @@ class User {
       'website': website,
       'specialties': specialties,
       'logoUrl': logoUrl,
+      'paymentQrUrl': paymentQrUrl,
       'googleId': googleId,
       'needsPasswordSetup': needsPasswordSetup,
     };
@@ -100,6 +113,7 @@ class User {
     String? website,
     String? specialties,
     String? logoUrl,
+    String? paymentQrUrl,
     String? googleId,
     bool? needsPasswordSetup,
   }) {
@@ -118,6 +132,7 @@ class User {
       website: website ?? this.website,
       specialties: specialties ?? this.specialties,
       logoUrl: logoUrl ?? this.logoUrl,
+      paymentQrUrl: paymentQrUrl ?? this.paymentQrUrl,
       googleId: googleId ?? this.googleId,
       needsPasswordSetup: needsPasswordSetup ?? this.needsPasswordSetup,
     );

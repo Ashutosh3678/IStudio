@@ -1,13 +1,11 @@
+import '../../env/env.dart';
+
 class ApiConfig {
   const ApiConfig._();
 
-  /// Backend URL injected at build time via --dart-define-from-file=.env
-  /// Run with: flutter run --dart-define-from-file=.env
-  /// Never hardcode this value — keep it in mobile/.env (git-ignored).
-  static const String _backendUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://istudio-1-txuo.onrender.com',
-  );
+  /// Backend URL from mobile/.env (git-ignored). After editing .env, run:
+  /// dart run build_runner build --delete-conflicting-outputs
+  static const String _backendUrl = Env.apiBaseUrl;
 
   static String _strip(String value) {
     var url = value.trim();
@@ -23,12 +21,7 @@ class ApiConfig {
     return url;
   }
 
-  static String get origin {
-    final url = _backendUrl.isNotEmpty
-        ? _backendUrl
-        : 'https://istudio-1-txuo.onrender.com';
-    return _strip(url);
-  }
+  static String get origin => _strip(_backendUrl);
 
   static String get baseUrl => '$origin/api';
 

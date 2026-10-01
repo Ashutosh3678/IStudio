@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/notifications_provider.dart';
-import '../providers/theme_provider.dart';
 import '../theme/app_colors.dart';
 import 'notifications_sheet.dart';
 
@@ -92,35 +91,6 @@ class StudioAppBar extends StatelessWidget implements PreferredSizeWidget {
                       ),
                     ),
                 ],
-              ),
-            ),
-            // Theme toggle with smooth pill bg
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.innerContainerBackground(context).withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: IconButton(
-                tooltip: context.isDark
-                    ? 'Switch to Light mode'
-                    : 'Switch to Dark mode',
-                icon: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  transitionBuilder: (child, animation) => RotationTransition(
-                    turns: Tween(begin: 0.75, end: 1.0).animate(animation),
-                    child: FadeTransition(opacity: animation, child: child),
-                  ),
-                  child: Icon(
-                    context.isDark
-                        ? Icons.light_mode_outlined
-                        : Icons.dark_mode_outlined,
-                    key: ValueKey(context.isDark),
-                    color: AppColors.textMuted(context),
-                    size: 20,
-                  ),
-                ),
-                onPressed: () =>
-                    context.read<ThemeProvider?>()?.toggleTheme(),
               ),
             ),
             if (showNotificationBell)

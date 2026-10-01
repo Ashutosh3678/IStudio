@@ -14,6 +14,7 @@ const {
   signupVerifyEmail,
   updateProfile,
   uploadLogo,
+  uploadPaymentQr,
   normalizePhone,
   forgotPasswordSendOtp,
   forgotPasswordVerifyOtp,
@@ -195,6 +196,7 @@ router.get('/me', requireAuth, me);
 router.patch('/profile', requireAuth, updateProfile);
 router.post('/logo', requireAuth, handleLogoUpload, uploadLogo);
 router.post('/profile-image', requireAuth, handleLogoUpload, uploadLogo);
+router.post('/payment-qr', requireAuth, handleLogoUpload, uploadPaymentQr);
 router.post(
   '/verify-password',
   requireAuth,

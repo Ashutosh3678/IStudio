@@ -20,6 +20,7 @@ const invoiceRoutes = require('./routes/invoices');
 const clientRoutes = require('./routes/clients');
 const eventRoutes = require('./routes/events');
 const eventChildRoutes = require('./routes/eventChildren');
+const legalRoutes = require('./routes/legal');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -71,6 +72,8 @@ app.get('/', (_req, res) => {
     message: 'Lumen Studio API is running.',
     routes: {
       health: 'GET /api/health',
+      privacyPolicy: 'GET /privacy-policy',
+      termsAndConditions: 'GET /terms-and-conditions',
       signup: 'POST /api/auth/signup',
       login: 'POST /api/auth/login',
       me: 'GET /api/auth/me',
@@ -93,44 +96,7 @@ app.get('/', (_req, res) => {
   });
 });
 
-app.get('/privacy-policy', (_req, res) => {
-  res.type('html').send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Privacy Policy - LUMEN Studio</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #222; background: #fafafa; }
-    h1, h2 { color: #111; }
-    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
-    .footer { margin-top: 30px; font-size: 0.9em; color: #64748b; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Privacy Policy for LUMEN Studio (Clients Hub)</h1>
-    <p><strong>Effective Date:</strong> September 2026</p>
-    <p>LUMEN Studio ("Clients Hub", "we", "us", or "our") respects your privacy. This Privacy Policy describes how we collect, store, and process your personal and business data when you use our mobile application and backend services.</p>
-    <h2>1. Information We Collect</h2>
-    <ul>
-      <li><strong>Account Information:</strong> Studio name, username, phone number, email address, password hash, and optional profile branding logo.</li>
-      <li><strong>Business Records:</strong> Client contact details, booking schedules, deliverables, payment totals, expenses, and invoices.</li>
-      <li><strong>Uploaded Media:</strong> Studio logos and payment receipt proofs uploaded to secure storage.</li>
-    </ul>
-    <h2>2. How We Use and Protect Your Data</h2>
-    <p>Your data is used solely to provide photography studio management, client relationship management, and invoice generation. Sensitive information is encrypted at rest using AES-256 and transmitted exclusively over HTTPS.</p>
-    <h2>3. Data Retention & Account Deletion</h2>
-    <p>You retain full ownership of your data. You may delete your account and all associated client, booking, and invoice records at any time directly within the mobile application under <strong>Profile &gt; Security &gt; Delete Account</strong>, or by emailing our support team.</p>
-    <h2>4. Third-Party Services</h2>
-    <p>We use trusted infrastructure providers including MongoDB Atlas for database storage, Cloudinary for media uploads, and Google OAuth for authentication.</p>
-    <h2>5. Contact Us</h2>
-    <p>If you have any questions about this Privacy Policy or your data, please contact us at: <a href="mailto:thakursaiprakashsingh@gmail.com">thakursaiprakashsingh@gmail.com</a>.</p>
-    <div class="footer">&copy; 2026 LUMEN Studio. All rights reserved.</div>
-  </div>
-</body>
-</html>`);
-});
+app.use(legalRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ success: true, service: 'lumen-studio-api' });

@@ -9,6 +9,7 @@ import '../../providers/invoices_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/invoice_pdf_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/app_snackbar.dart';
 import '../../widgets/studio_card.dart';
 import '../../widgets/shimmer_loading.dart';
 import 'invoice_preview_screen.dart';
@@ -50,9 +51,7 @@ class _InvoiceHistoryTabState extends State<InvoiceHistoryTab> {
       case InvoiceSheetAction.paid:
         await provider.markAsPaid(latest.id);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${latest.number} marked as paid.')),
-        );
+        AppSnackBar.success(context, '${latest.number} marked as paid.');
       case InvoiceSheetAction.partial:
         final amount = await PartialPaymentSheet.show(
           context,
@@ -61,9 +60,7 @@ class _InvoiceHistoryTabState extends State<InvoiceHistoryTab> {
         if (amount == null || !mounted) return;
         await provider.markPartiallyPaid(latest.id, amount);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Payment added to ${latest.number}.')),
-        );
+        AppSnackBar.success(context, 'Payment added to ${latest.number}.');
       case InvoiceSheetAction.extendDue:
         final picked = await showDatePicker(
           context: context,
@@ -88,12 +85,9 @@ class _InvoiceHistoryTabState extends State<InvoiceHistoryTab> {
         if (picked == null || !mounted) return;
         await provider.extendDueDate(latest.id, picked);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Due date moved to ${DateFormat('d MMM yyyy').format(picked)}.',
-            ),
-          ),
+        AppSnackBar.success(
+          context,
+          'Due date moved to ${DateFormat('d MMM yyyy').format(picked)}.',
         );
       case InvoiceSheetAction.share:
         try {
@@ -104,9 +98,7 @@ class _InvoiceHistoryTabState extends State<InvoiceHistoryTab> {
           );
         } catch (_) {
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not share the invoice.')),
-          );
+          AppSnackBar.error(context, 'Could not share the invoice.');
         }
       case InvoiceSheetAction.delete:
         final confirmed = await showDialog<bool>(
@@ -138,20 +130,14 @@ class _InvoiceHistoryTabState extends State<InvoiceHistoryTab> {
         if (confirmed != true || !mounted) return;
         await provider.deleteInvoice(latest.id);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${latest.number} deleted.')),
-        );
+        AppSnackBar.success(context, '${latest.number} deleted.');
       }
     } on ApiException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      AppSnackBar.error(context, error.message);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not update the invoice.')),
-      );
+      AppSnackBar.error(context, 'Could not update the invoice.');
     }
   }
 

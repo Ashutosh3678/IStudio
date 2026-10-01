@@ -115,15 +115,6 @@ class _CalendarScreenState extends State<CalendarScreen>
                 subtitle: 'Booked sessions',
                 actions: [
                   IconButton(
-                    tooltip: 'Monthly earnings',
-                    icon: Icon(Icons.analytics_outlined,
-                        color: accent, size: 22),
-                    onPressed: () => MonthlyFinancialSummarySheet.show(
-                      context,
-                      initialMonth: _month,
-                    ),
-                  ),
-                  IconButton(
                     tooltip: 'Jump to Date',
                     icon: Icon(Icons.calendar_month_outlined,
                         color: accent, size: 22),

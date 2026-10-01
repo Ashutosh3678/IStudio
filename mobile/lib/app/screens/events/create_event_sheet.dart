@@ -9,7 +9,9 @@ import 'package:provider/provider.dart';
 import '../../models/client.dart';
 import '../../models/studio_event.dart';
 import '../../providers/events_provider.dart';
+import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/app_snackbar.dart';
 import '../../widgets/studio_button.dart';
 import '../../widgets/studio_text_field.dart';
 
@@ -239,8 +241,9 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
     if (!isValid) {
       HapticFeedback.heavyImpact();
       setState(() {
-        _formValidationError = 'Please fix the highlighted required fields above (e.g. event name or client).';
+        _formValidationError = 'Please fix the highlighted required fields above.';
       });
+      AppSnackBar.error(context, 'Please fill in the required fields.');
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           0.0,
@@ -375,6 +378,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
       );
 
       await provider.addEvent(newEvent);
+      var proofFailed = false;
       if (_advanceReceived > 0 &&
           _advanceProofBytes != null &&
           _advanceProofFilename != null) {
@@ -390,15 +394,35 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
               _advanceProofBytes!,
               _advanceProofFilename!,
             );
-          } catch (_) {}
+          } catch (_) {
+            proofFailed = true;
+          }
         }
       }
       if (!mounted) return;
+      final rootContext = Navigator.of(context, rootNavigator: true).context;
       Navigator.of(context).pop();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Event "${newEvent.title}" added to schedule.')),
-      );
+      if (!rootContext.mounted) return;
+      if (proofFailed) {
+        AppSnackBar.error(
+          rootContext,
+          'Event "${newEvent.title}" added, but advance proof upload failed.',
+          duration: const Duration(seconds: 4),
+        );
+      } else {
+        AppSnackBar.success(
+          rootContext,
+          'Event "${newEvent.title}" added to schedule.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppSnackBar.error(
+          context,
+          e is ApiException ? e.message : 'Could not create event. Please try again.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -504,7 +528,6 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                   const SizedBox(height: 12),
                   StudioTextField(
                     label: 'Event Name',
-                    hint: 'e.g. Wedding — Client Name',
                     controller: _nameController,
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
@@ -611,7 +634,6 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                     const SizedBox(height: 10),
                     StudioTextField(
                       label: 'Specify Event Type *',
-                      hint: 'e.g. Housewarming, Anniversary, Corporate Gala',
                       controller: _customEventTypeController,
                       validator: (val) {
                         if (_eventType == 'Others' &&
@@ -719,7 +741,6 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                     const SizedBox(height: 12),
                     StudioTextField(
                       label: 'Client Name *',
-                      hint: 'e.g. Client Name',
                       controller: _clientController,
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
@@ -731,7 +752,6 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                     const SizedBox(height: 12),
                     StudioTextField(
                       label: 'Client Phone Number *',
-                      hint: 'e.g. 9876543210',
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
                       validator: (val) {
@@ -784,13 +804,11 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                   const SizedBox(height: 14),
                   StudioTextField(
                     label: 'Location / Venue',
-                    hint: 'e.g. Grand Ballroom, City Hotel',
                     controller: _locationController,
                   ),
                   const SizedBox(height: 14),
                   StudioTextField(
                     label: 'Notes / Special Requests',
-                    hint: 'e.g. Golden hour preference, 2 traditional outfits',
                     controller: _notesController,
                   ),
                   const SizedBox(height: 24),
@@ -803,7 +821,6 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                       Expanded(
                         child: StudioTextField(
                           label: 'Total Package (₹)',
-                          hint: 'e.g. 100000',
                           controller: _totalAmountController,
                           keyboardType: TextInputType.number,
                           validator: (val) {
@@ -821,7 +838,6 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                       Expanded(
                         child: StudioTextField(
                           label: 'Advance Received (₹)',
-                          hint: 'e.g. 30000',
                           controller: _advanceController,
                           keyboardType: TextInputType.number,
                         ),
@@ -1354,7 +1370,6 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
           const SizedBox(height: 12),
           StudioTextField(
             label: 'Reference / Txn ID (Optional)',
-            hint: 'e.g. UPI/2026/10294 or Cash Receipt No.',
             controller: _advanceRefController,
           ),
           const SizedBox(height: 12),

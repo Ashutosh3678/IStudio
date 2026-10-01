@@ -12,7 +12,9 @@ class InvoiceService {
     if (raw is! List) return const [];
     return raw
         .whereType<Map>()
-        .map((item) => Invoice.fromJson(Map<String, dynamic>.from(item)))
+        .map((item) => Map<String, dynamic>.from(item))
+        .where((json) => !Invoice.isLegacyEstimate(json))
+        .map(Invoice.fromJson)
         .toList();
   }
 
@@ -34,7 +36,6 @@ class InvoiceService {
             .toList(),
         'upiId': invoice.upiId,
         'amountReceived': invoice.amountReceived,
-        'documentType': invoice.documentType.name,
       },
       token: token,
       idempotencyKey: invoice.id,
@@ -97,7 +98,6 @@ class InvoiceService {
           .toList(),
       'upiId': invoice.upiId,
       'amountReceived': invoice.amountReceived,
-      'documentType': invoice.documentType.name,
     }, token: token);
     return _readInvoice(payload);
   }

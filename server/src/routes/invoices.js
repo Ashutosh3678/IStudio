@@ -42,10 +42,6 @@ const createRules = [
     .optional()
     .isFloat({ min: 0 })
     .withMessage('Amount received cannot be negative'),
-  body('documentType')
-    .optional()
-    .isIn(['receipt', 'estimate'])
-    .withMessage('Document type must be receipt or estimate'),
   body('deliverables')
     .isArray({ min: 1 })
     .withMessage('Add at least one deliverable'),
@@ -75,10 +71,6 @@ const updateRules = [
     .optional()
     .isFloat({ min: 0 })
     .withMessage('Amount received cannot be negative'),
-  body('documentType')
-    .optional()
-    .isIn(['receipt', 'estimate'])
-    .withMessage('Document type must be receipt or estimate'),
   body('deliverables').optional().isArray({ min: 1 }),
   body('deliverables.*.name').optional().trim().isLength({ min: 1, max: 160 }),
   body('deliverables.*.cost').optional().isFloat({ gt: 0 }),

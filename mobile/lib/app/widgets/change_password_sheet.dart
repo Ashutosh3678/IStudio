@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/app_snackbar.dart';
 import '../utils/validators.dart';
 import 'studio_button.dart';
 import 'studio_text_field.dart';
@@ -66,10 +67,11 @@ class _ChangePasswordSheetState extends State<ChangePasswordSheet> {
         _step = 2;
         _errorMessage = null;
       });
+      AppSnackBar.success(context, 'Current password verified.');
     } else {
-      setState(() {
-        _errorMessage = auth.errorMessage ?? 'Current password is incorrect.';
-      });
+      final message = auth.errorMessage ?? 'Current password is incorrect.';
+      setState(() => _errorMessage = message);
+      AppSnackBar.error(context, message);
     }
   }
 
@@ -80,9 +82,9 @@ class _ChangePasswordSheetState extends State<ChangePasswordSheet> {
     final newPass = _newPasswordController.text;
 
     if (currentPass == newPass) {
-      setState(() {
-        _errorMessage = 'New password cannot be the same as your current password.';
-      });
+      const message = 'New password cannot be the same as your current password.';
+      setState(() => _errorMessage = message);
+      AppSnackBar.error(context, message);
       return;
     }
 
@@ -104,9 +106,10 @@ class _ChangePasswordSheetState extends State<ChangePasswordSheet> {
     if (success) {
       Navigator.of(context).pop(true);
     } else {
-      setState(() {
-        _errorMessage = auth.errorMessage ?? 'Unable to update password. Please try again.';
-      });
+      final message =
+          auth.errorMessage ?? 'Unable to update password. Please try again.';
+      setState(() => _errorMessage = message);
+      AppSnackBar.error(context, message);
     }
   }
 

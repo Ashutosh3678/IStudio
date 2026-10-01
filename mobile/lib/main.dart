@@ -10,6 +10,7 @@ import 'app/providers/invoices_provider.dart';
 import 'app/providers/notifications_provider.dart';
 import 'app/providers/theme_provider.dart';
 import 'app/screens/auth/auth_screen.dart';
+import 'app/screens/onboarding/studio_onboarding_screen.dart';
 import 'app/screens/shell/app_shell.dart';
 import 'app/services/crash_reporter.dart';
 import 'app/theme/app_colors.dart';
@@ -175,9 +176,11 @@ class _AuthGate extends StatelessWidget {
           children: [...previousChildren, ?currentChild],
         );
       },
-      child: auth.isLoggedIn
-          ? const AppShell(key: ValueKey('home'))
-          : const AuthScreen(key: ValueKey('auth')),
+      child: !auth.isLoggedIn
+          ? const AuthScreen(key: ValueKey('auth'))
+          : auth.user!.isProfileIncomplete
+              ? const StudioOnboardingScreen(key: ValueKey('onboarding'))
+              : const AppShell(key: ValueKey('home')),
     );
   }
 }

@@ -92,6 +92,11 @@ class BusinessService {
     return PaymentRecord.fromJson(_map(payload['payment']));
   }
 
+  Future<PaymentRecord> removePaymentProof(String token, String paymentId) async {
+    final payload = await _api.delete('/payments/$paymentId/proof', token: token);
+    return PaymentRecord.fromJson(_map(payload['payment']));
+  }
+
   Future<ExpenseRecord> addExpense(
     String token,
     String eventId,
@@ -143,8 +148,11 @@ class BusinessService {
     await _api.delete('/deliverables/$id', token: token);
   }
 
+  static final _mongoId = RegExp(r'^[a-fA-F0-9]{24}$');
+
   Map<String, dynamic> _eventPayload(StudioEvent event) => {
-    'clientId': event.clientId,
+    if (event.clientId != null && _mongoId.hasMatch(event.clientId!))
+      'clientId': event.clientId,
     'title': event.title,
     'eventType': event.eventType,
     'startsAt': event.startsAt.toIso8601String(),

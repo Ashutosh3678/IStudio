@@ -353,6 +353,33 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> uploadPaymentQr(List<int> bytes, String filename) async {
+    if (_token == null) {
+      _errorMessage = 'Please sign in before uploading a payment QR.';
+      notifyListeners();
+      return false;
+    }
+    _errorMessage = null;
+    try {
+      final updatedUser = await _authService.uploadPaymentQr(
+        token: _token!,
+        bytes: bytes,
+        filename: filename,
+      );
+      _user = updatedUser;
+      await _vault.writeUser(updatedUser);
+      return true;
+    } on ApiException catch (error) {
+      _errorMessage = error.message;
+      return false;
+    } catch (_) {
+      _errorMessage = 'Unable to upload your payment QR.';
+      return false;
+    } finally {
+      notifyListeners();
+    }
+  }
+
   Future<void> logout() async {
     try {
       await _googleAuthService.signOut();

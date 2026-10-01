@@ -29,6 +29,7 @@ import '../events/upcoming_events_screen.dart';
 import '../profile/profile_screen.dart';
 import '../shell/app_shell.dart';
 import '../../routes/smooth_page_route.dart';
+import '../../utils/app_snackbar.dart';
 import '../../utils/launcher_utils.dart';
 import '../../widgets/shimmer_loading.dart';
 
@@ -58,8 +59,11 @@ class _HomeScreenState extends State<HomeScreen>
   bool _dismissedHeroAlert = false;
   Timer? _bannerAutoScrollTimer;
 
-  static final _currency =
-      NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+  static final _currency = NumberFormat.currency(
+    locale: 'en_IN',
+    symbol: '₹',
+    decimalDigits: 0,
+  );
 
   @override
   void initState() {
@@ -71,28 +75,49 @@ class _HomeScreenState extends State<HomeScreen>
       duration: const Duration(milliseconds: 560),
     )..forward();
     // Cache all staggered intervals once — reused across every rebuild
-    _sAnim0 = CurvedAnimation(parent: _staggerController, curve: const Interval(0.00, 0.25, curve: Curves.easeOutCubic));
-    _sAnim1 = CurvedAnimation(parent: _staggerController, curve: const Interval(0.06, 0.32, curve: Curves.easeOutCubic));
-    _sAnim2 = CurvedAnimation(parent: _staggerController, curve: const Interval(0.12, 0.40, curve: Curves.easeOutCubic));
-    _sAnim3 = CurvedAnimation(parent: _staggerController, curve: const Interval(0.20, 0.50, curve: Curves.easeOutCubic));
-    _sAnim4 = CurvedAnimation(parent: _staggerController, curve: const Interval(0.28, 0.58, curve: Curves.easeOutCubic));
-    _sAnim5 = CurvedAnimation(parent: _staggerController, curve: const Interval(0.35, 0.65, curve: Curves.easeOutCubic));
-    _sAnim6 = CurvedAnimation(parent: _staggerController, curve: const Interval(0.44, 0.72, curve: Curves.easeOutCubic));
-    _sAnim7 = CurvedAnimation(parent: _staggerController, curve: const Interval(0.52, 0.82, curve: Curves.easeOutCubic));
+    _sAnim0 = CurvedAnimation(
+      parent: _staggerController,
+      curve: const Interval(0.00, 0.25, curve: Curves.easeOutCubic),
+    );
+    _sAnim1 = CurvedAnimation(
+      parent: _staggerController,
+      curve: const Interval(0.06, 0.32, curve: Curves.easeOutCubic),
+    );
+    _sAnim2 = CurvedAnimation(
+      parent: _staggerController,
+      curve: const Interval(0.12, 0.40, curve: Curves.easeOutCubic),
+    );
+    _sAnim3 = CurvedAnimation(
+      parent: _staggerController,
+      curve: const Interval(0.20, 0.50, curve: Curves.easeOutCubic),
+    );
+    _sAnim4 = CurvedAnimation(
+      parent: _staggerController,
+      curve: const Interval(0.28, 0.58, curve: Curves.easeOutCubic),
+    );
+    _sAnim5 = CurvedAnimation(
+      parent: _staggerController,
+      curve: const Interval(0.35, 0.65, curve: Curves.easeOutCubic),
+    );
+    _sAnim6 = CurvedAnimation(
+      parent: _staggerController,
+      curve: const Interval(0.44, 0.72, curve: Curves.easeOutCubic),
+    );
+    _sAnim7 = CurvedAnimation(
+      parent: _staggerController,
+      curve: const Interval(0.52, 0.82, curve: Curves.easeOutCubic),
+    );
 
     // Auto-scroll banners every 4 seconds
-    _bannerAutoScrollTimer = Timer.periodic(
-      const Duration(seconds: 4),
-      (_) {
-        if (!mounted || !_bannerPageController.hasClients) return;
-        final nextPage = (_currentBannerIndex + 1) % 3;
-        _bannerPageController.animateToPage(
-          nextPage,
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOutCubic,
-        );
-      },
-    );
+    _bannerAutoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || !_bannerPageController.hasClients) return;
+      final nextPage = (_currentBannerIndex + 1) % 3;
+      _bannerPageController.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   @override
@@ -103,7 +128,6 @@ class _HomeScreenState extends State<HomeScreen>
     _bannerAutoScrollTimer?.cancel();
     super.dispose();
   }
-
 
   // Remove _staggered() helper — animations are now cached fields above
 
@@ -119,8 +143,9 @@ class _HomeScreenState extends State<HomeScreen>
     final unreadAlerts = notifsProvider?.unreadCount ?? 0;
 
     final shootsWithin7Days = upcoming.where((e) => e.isWithin7Days).toList();
-    final nearestHeroEvent =
-        shootsWithin7Days.isNotEmpty ? shootsWithin7Days.first : null;
+    final nearestHeroEvent = shootsWithin7Days.isNotEmpty
+        ? shootsWithin7Days.first
+        : null;
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -158,7 +183,10 @@ class _HomeScreenState extends State<HomeScreen>
                       // Compact event-backed financial summary
                       _AnimatedSection(
                         animation: _sAnim1,
-                        child: _buildFinancialCards(context, eventsProvider.events),
+                        child: _buildFinancialCards(
+                          context,
+                          eventsProvider.events,
+                        ),
                       ),
                       const SizedBox(height: 14),
 
@@ -185,9 +213,11 @@ class _HomeScreenState extends State<HomeScreen>
                         child: eventsProvider.isLoading
                             ? _buildUpcomingShimmer()
                             : upcoming.isEmpty
-                                ? _buildEmptyUpcomingState(context)
-                                : _buildUpcomingCarousel(
-                                    context, upcoming.take(6).toList()),
+                            ? _buildEmptyUpcomingState(context)
+                            : _buildUpcomingCarousel(
+                                context,
+                                upcoming.take(6).toList(),
+                              ),
                       ),
                       const SizedBox(height: 14),
 
@@ -198,90 +228,95 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                       const SizedBox(height: 16),
 
-                    // 7-Day Countdown Alert Hero Banner
-                    if (nearestHeroEvent != null &&
-                        !_dismissedHeroAlert) ...[
-                      _AnimatedSection(
-                        animation: _sAnim5,
-                        child: EventCountdownBanner(
-                          event: nearestHeroEvent,
-                          onDismiss: () =>
-                              setState(() => _dismissedHeroAlert = true),
+                      // 7-Day Countdown Alert Hero Banner
+                      if (nearestHeroEvent != null && !_dismissedHeroAlert) ...[
+                        _AnimatedSection(
+                          animation: _sAnim5,
+                          child: EventCountdownBanner(
+                            event: nearestHeroEvent,
+                            onDismiss: () =>
+                                setState(() => _dismissedHeroAlert = true),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 22),
-                    ],
+                        const SizedBox(height: 22),
+                      ],
 
-                    // Information Inquiries Box (active within 3 days / 72h TTL)
-                    if (recentInfoClients.isNotEmpty) ...[
+                      // Information Inquiries Box (active within 3 days / 72h TTL)
+                      if (recentInfoClients.isNotEmpty) ...[
+                        _AnimatedSection(
+                          animation: _sAnim5,
+                          child: _buildInformationInquiriesBox(
+                            context,
+                            recentInfoClients,
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                      ],
+
+                      const SizedBox(height: 30),
+
+                      // Done Section Header
                       _AnimatedSection(
-                        animation: _sAnim5,
-                        child: _buildInformationInquiriesBox(
+                        animation: _sAnim6,
+                        child: _buildSectionHeader(
                           context,
-                          recentInfoClients,
+                          title: 'Past Shoots',
+                          actionLabel: 'See all',
+                          onAction: () {
+                            Navigator.of(context).push(
+                              SmoothPageRoute(
+                                builder: (_) => const PastEventsScreen(),
+                              ),
+                            );
+                          },
                         ),
                       ),
-                      const SizedBox(height: 22),
-                    ],
+                      const SizedBox(height: 14),
 
-                    const SizedBox(height: 30),
-
-                    // Done Section Header
-                    _AnimatedSection(
-                      animation: _sAnim6,
-                      child: _buildSectionHeader(
-                        context,
-                        title: 'Done',
-                        actionLabel: 'See all',
-                        onAction: () {
-                          Navigator.of(context).push(
-                            SmoothPageRoute(
-                              builder: (_) => const PastEventsScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    _AnimatedSection(
-                      animation: _sAnim7,
-                      child: past.isEmpty
-                          ? StudioCard(
-                              borderRadius: 999,
-                              padding: const EdgeInsets.all(22),
-                              child: Center(
-                                child: Text(
-                                  'No shoots yet',
-                                  style: TextStyle(
-                                    color: context.textMuted
-                                        .withValues(alpha: 0.8),
-                                    fontSize: 14,
+                      _AnimatedSection(
+                        animation: _sAnim7,
+                        child: past.isEmpty
+                            ? StudioCard(
+                                borderRadius: 999,
+                                padding: const EdgeInsets.all(22),
+                                child: Center(
+                                  child: Text(
+                                    'No shoots yet',
+                                    style: TextStyle(
+                                      color: context.textMuted.withValues(
+                                        alpha: 0.8,
+                                      ),
+                                      fontSize: 14,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            )
-                          : Column(
-                              children: past
-                                  .map((event) => Padding(
+                              )
+                            : Column(
+                                children: past
+                                    .map(
+                                      (event) => Padding(
                                         padding: const EdgeInsets.only(
-                                            bottom: 12),
+                                          bottom: 12,
+                                        ),
                                         child: _buildPastEventCard(
-                                            context, event),
-                                      ))
-                                  .toList(),
-                            ),
-                    ),
-                  ],
+                                          context,
+                                          event,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   // ================= Loading shimmer for upcoming carousel =================
   Widget _buildUpcomingShimmer() {
@@ -292,10 +327,7 @@ class _HomeScreenState extends State<HomeScreen>
         padding: const EdgeInsets.symmetric(horizontal: 2),
         itemCount: 3,
         separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (_, _) => const ShimmerCard(
-          rows: 4,
-          height: 210,
-        ),
+        itemBuilder: (_, _) => const ShimmerCard(rows: 4, height: 210),
       ),
     );
   }
@@ -323,25 +355,18 @@ class _HomeScreenState extends State<HomeScreen>
                 ? const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      Color(0x59232E44),
-                      Color(0x3B151B27),
-                    ],
+                    colors: [Color(0x59232E44), Color(0x3B151B27)],
                   )
                 : const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xF2FFFFFF),
-                      Color(0xD9EEF2FF),
-                    ],
+                    colors: [Color(0xF2FFFFFF), Color(0xD9EEF2FF)],
                   ),
-            borderRadius:
-                const BorderRadius.vertical(bottom: Radius.circular(26)),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(26),
+            ),
             border: Border.all(
-              color: isDark
-                  ? const Color(0x38A5B4FC)
-                  : const Color(0x33818CF8),
+              color: isDark ? const Color(0x38A5B4FC) : const Color(0x33818CF8),
               width: 1.0,
             ),
             boxShadow: [
@@ -364,9 +389,9 @@ class _HomeScreenState extends State<HomeScreen>
             children: [
               // Profile Avatar with subtle pastel ring
               GestureDetector(
-                onTap: () => Navigator.of(context).push(
-                  SmoothPageRoute(builder: (_) => const ProfileScreen()),
-                ),
+                onTap: () => Navigator.of(
+                  context,
+                ).push(SmoothPageRoute(builder: (_) => const ProfileScreen())),
                 child: Container(
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
@@ -393,12 +418,17 @@ class _HomeScreenState extends State<HomeScreen>
                             ? const [
                                 Color(0xFFFFFFFF),
                                 Color(0xFFBAE6FD),
-                                Color(0xFF38BDF8),
+                                Color(0xFF818CF8),
+                                Color(0xFFC084FC),
                               ]
                             : const [
                                 Color(0xFF0F172A),
-                                Color(0xFF0284C7),
+                                Color(0xFF1E40AF),
+                                Color(0xFF6D28D9),
                               ],
+                        stops: isDark
+                            ? const [0.0, 0.35, 0.75, 1.0]
+                            : const [0.0, 0.55, 1.0],
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
                       ).createShader(bounds),
@@ -406,26 +436,46 @@ class _HomeScreenState extends State<HomeScreen>
                         user?.displayStudioName ?? 'Studio',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.3,
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          fontStyle: FontStyle.italic,
+                          letterSpacing: 0.2,
+                          height: 1.15,
                           color: Colors.white,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$greeting · $dateStr',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: isDark
-                            ? AppColors.muted
-                            : AppColors.lightTextMuted,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          width: 14,
+                          height: 2,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(2),
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF38BDF8), Color(0xFFA855F7)],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            '$greeting · $dateStr',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: isDark
+                                  ? AppColors.muted
+                                  : AppColors.lightTextMuted,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -449,9 +499,7 @@ class _HomeScreenState extends State<HomeScreen>
                   iconSize: 20,
                   color: isDark ? AppColors.sky : AppColors.skyDeep,
                   icon: Icon(
-                    isDark
-                        ? Icons.light_mode_rounded
-                        : Icons.dark_mode_rounded,
+                    isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
                   ),
                   onPressed: () =>
                       context.read<ThemeProvider?>()?.toggleTheme(),
@@ -501,7 +549,10 @@ class _HomeScreenState extends State<HomeScreen>
               right: 2,
               top: 2,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 5,
+                  vertical: 1.5,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.pastelRose,
                   borderRadius: BorderRadius.circular(999),
@@ -543,21 +594,21 @@ class _HomeScreenState extends State<HomeScreen>
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.sky.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  'Quick 4',
-                  style: TextStyle(
-                    color: AppColors.sky,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
+              // Container(
+              //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              //   decoration: BoxDecoration(
+              //     color: AppColors.sky.withValues(alpha: 0.12),
+              //     borderRadius: BorderRadius.circular(6),
+              //   ),
+              //   // child: const Text(
+              //   //   'Quick 4',
+              //   //   style: TextStyle(
+              //   //     color: AppColors.sky,
+              //   //     fontSize: 10,
+              //   //     fontWeight: FontWeight.w700,
+              //   //   ),
+              //   // ),
+              // ),
             ],
           ),
           const SizedBox(height: 14),
@@ -573,7 +624,7 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               _QuickActionItem(
                 icon: Icons.receipt_long_rounded,
-                label: 'Make Bill',
+                label: 'Receipt',
                 color: const Color(0xFF93C5FD), // Pastel Soft Sky
                 isDark: isDark,
                 onTap: () => AppShellScope.of(context)?.switchTab(2),
@@ -606,17 +657,23 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ================= 3. Compact Financial Cards =================
-  Widget _buildFinancialCards(
-    BuildContext context,
-    List<StudioEvent> events,
-  ) {
-    final received = events.fold<double>(0, (sum, event) => sum + event.amountReceived);
-    final outstanding = events.fold<double>(0, (sum, event) => sum + event.remainingAmount);
-    final expenses = events.fold<double>(0, (sum, event) => sum + event.totalExpenses);
+  Widget _buildFinancialCards(BuildContext context, List<StudioEvent> events) {
+    final received = events.fold<double>(
+      0,
+      (sum, event) => sum + event.amountReceived,
+    );
+    final due = events.fold<double>(
+      0,
+      (sum, event) => sum + event.remainingAmount,
+    );
+    final expenses = events.fold<double>(
+      0,
+      (sum, event) => sum + event.totalExpenses,
+    );
 
     final cards = [
       ('Received', received, AppColors.pastelMint, Icons.south_west_rounded),
-      ('Outstanding', outstanding, AppColors.sky, Icons.schedule_rounded),
+      ('Due', due, AppColors.sky, Icons.schedule_rounded),
       ('Expenses', expenses, AppColors.pastelRose, Icons.receipt_long_rounded),
     ];
 
@@ -651,7 +708,10 @@ class _HomeScreenState extends State<HomeScreen>
                         'Total ${card.$1}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: context.textMuted, fontSize: 10),
+                        style: TextStyle(
+                          color: context.textMuted,
+                          fontSize: 10,
+                        ),
                       ),
                     ],
                   ),
@@ -672,8 +732,9 @@ class _HomeScreenState extends State<HomeScreen>
       ..sort((a, b) => b.startsAt.compareTo(a.startsAt));
 
     if (events.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Create an event before recording payments or expenses.')),
+      AppSnackBar.error(
+        context,
+        'Create an event before recording payments or expenses.',
       );
       return;
     }
@@ -728,27 +789,41 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                       tileColor: context.innerBg,
                       leading: CircleAvatar(
-                        backgroundColor: context.accentColor.withValues(alpha: 0.14),
+                        backgroundColor: context.accentColor.withValues(
+                          alpha: 0.14,
+                        ),
                         child: Text(
                           event.clientName.isEmpty
                               ? 'E'
                               : event.clientName.characters.first.toUpperCase(),
-                          style: TextStyle(color: context.accentColor, fontWeight: FontWeight.w800),
+                          style: TextStyle(
+                            color: context.accentColor,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                       title: Text(
                         event.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: context.textMain, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          color: context.textMain,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       subtitle: Text(
                         '${event.clientName} · ${DateFormat('d MMM yyyy').format(event.startsAt)}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: context.textMuted, fontSize: 12),
+                        style: TextStyle(
+                          color: context.textMuted,
+                          fontSize: 12,
+                        ),
                       ),
-                      trailing: Icon(Icons.chevron_right_rounded, color: context.textMuted),
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: context.textMuted,
+                      ),
                       onTap: () => Navigator.pop(sheetContext, event),
                     );
                   },
@@ -833,7 +908,10 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                         ],
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
                       child: Row(
                         children: [
                           Expanded(
@@ -845,7 +923,7 @@ class _HomeScreenState extends State<HomeScreen>
                                   banner.title,
                                   style: GoogleFonts.outfit(
                                     color: Colors.white,
-                                  fontSize: 15,
+                                    fontSize: 15,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: -0.3,
                                   ),
@@ -977,13 +1055,13 @@ class _HomeScreenState extends State<HomeScreen>
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 3),
+                    horizontal: 10,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: accent.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: accent.withValues(alpha: 0.30),
-                    ),
+                    border: Border.all(color: accent.withValues(alpha: 0.30)),
                   ),
                   child: Text(
                     '$badgeCount',
@@ -1003,8 +1081,7 @@ class _HomeScreenState extends State<HomeScreen>
           onTap: onAction,
           borderRadius: BorderRadius.circular(999),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1017,8 +1094,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
                 const SizedBox(width: 3),
-                Icon(Icons.arrow_forward_ios_rounded,
-                    color: accent, size: 10),
+                Icon(Icons.arrow_forward_ios_rounded, color: accent, size: 10),
               ],
             ),
           ),
@@ -1029,7 +1105,9 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ================= 5. Upcoming Carousel =================
   Widget _buildUpcomingCarousel(
-      BuildContext context, List<StudioEvent> events) {
+    BuildContext context,
+    List<StudioEvent> events,
+  ) {
     final accent = context.accentColor;
     final border = context.cardBorder;
 
@@ -1066,9 +1144,7 @@ class _HomeScreenState extends State<HomeScreen>
               width: isCurrent ? 24 : 6,
               height: 6,
               decoration: BoxDecoration(
-                color: isCurrent
-                    ? accent
-                    : border.withValues(alpha: 0.4),
+                color: isCurrent ? accent : border.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(999),
               ),
             );
@@ -1117,14 +1193,12 @@ class _HomeScreenState extends State<HomeScreen>
                     ],
                   ),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                      color: accent.withValues(alpha: 0.35)),
+                  border: Border.all(color: accent.withValues(alpha: 0.35)),
                 ),
                 child: Center(
                   child: Text(
                     event.clientName.isNotEmpty
-                        ? event.clientName.characters.first
-                            .toUpperCase()
+                        ? event.clientName.characters.first.toUpperCase()
                         : 'S',
                     style: GoogleFonts.outfit(
                       color: accent,
@@ -1176,8 +1250,7 @@ class _HomeScreenState extends State<HomeScreen>
 
           // Middle Row: Date, Day & Venue Capsule
           Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 14, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             decoration: BoxDecoration(
               color: context.innerBg,
               borderRadius: BorderRadius.circular(999),
@@ -1187,8 +1260,7 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             child: Row(
               children: [
-                Icon(Icons.calendar_month_outlined,
-                    color: accent, size: 14),
+                Icon(Icons.calendar_month_outlined, color: accent, size: 14),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text.rich(
@@ -1203,12 +1275,8 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                         ),
                         TextSpan(
-                          text:
-                              ' · $dayStr · ${event.location}',
-                          style: TextStyle(
-                            color: textMuted,
-                            fontSize: 11.5,
-                          ),
+                          text: ' · $dayStr · ${event.location}',
+                          style: TextStyle(color: textMuted, fontSize: 11.5),
                         ),
                       ],
                     ),
@@ -1228,15 +1296,15 @@ class _HomeScreenState extends State<HomeScreen>
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(999),
                     child: TweenAnimationBuilder<double>(
-                      tween: Tween<double>(
-                          begin: 0, end: event.progressRatio),
+                      tween: Tween<double>(begin: 0, end: event.progressRatio),
                       duration: const Duration(milliseconds: 400),
                       curve: Curves.easeOutCubic,
                       builder: (context, val, _) => LinearProgressIndicator(
                         value: val,
                         minHeight: 5,
-                        backgroundColor:
-                            context.cardBorder.withValues(alpha: 0.35),
+                        backgroundColor: context.cardBorder.withValues(
+                          alpha: 0.35,
+                        ),
                         valueColor: AlwaysStoppedAnimation<Color>(accent),
                       ),
                     ),
@@ -1286,8 +1354,11 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                   const SizedBox(width: 3),
-                  Icon(Icons.arrow_forward_ios_rounded,
-                      color: accent, size: 10),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: accent,
+                    size: 10,
+                  ),
                 ],
               ),
             ],
@@ -1335,7 +1406,7 @@ class _HomeScreenState extends State<HomeScreen>
           ElevatedButton.icon(
             onPressed: () => CreateEventSheet.show(context),
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('+ New Shoot'),
+            label: const Text('New Shoot'),
           ),
         ],
       ),
@@ -1384,10 +1455,7 @@ class _HomeScreenState extends State<HomeScreen>
                       '$dateStr · ${event.eventType} · ${event.location}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: textMuted,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: textMuted, fontSize: 12),
                     ),
                   ],
                 ),
@@ -1395,7 +1463,9 @@ class _HomeScreenState extends State<HomeScreen>
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 4),
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(999),
@@ -1406,8 +1476,11 @@ class _HomeScreenState extends State<HomeScreen>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: const [
-                    Icon(Icons.check_circle_rounded,
-                        color: statusColor, size: 12),
+                    Icon(
+                      Icons.check_circle_rounded,
+                      color: statusColor,
+                      size: 12,
+                    ),
                     SizedBox(width: 4),
                     Text(
                       'Done',
@@ -1425,8 +1498,7 @@ class _HomeScreenState extends State<HomeScreen>
           const SizedBox(height: 12),
           // Financial snapshot ribbon
           Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 12, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(
               color: context.innerBg,
               borderRadius: BorderRadius.circular(999),
@@ -1435,13 +1507,17 @@ class _HomeScreenState extends State<HomeScreen>
               children: [
                 Expanded(
                   child: _buildCompactMetric(
-                      context, 'Total',
-                      _currency.format(event.totalAmount)),
+                    context,
+                    'Total',
+                    _currency.format(event.totalAmount),
+                  ),
                 ),
                 Expanded(
                   child: _buildCompactMetric(
-                      context, 'Got',
-                      _currency.format(event.amountReceived)),
+                    context,
+                    'Got',
+                    _currency.format(event.amountReceived),
+                  ),
                 ),
                 Expanded(
                   child: _buildCompactMetric(
@@ -1509,13 +1585,11 @@ class _HomeScreenState extends State<HomeScreen>
     final color = AppColors.statusColor(context, status);
 
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
-        border:
-            Border.all(color: color.withValues(alpha: 0.30)),
+        border: Border.all(color: color.withValues(alpha: 0.30)),
       ),
       child: Text(
         status.label,
@@ -1537,7 +1611,9 @@ class _HomeScreenState extends State<HomeScreen>
     final isDark = context.isDark;
     final textMain = context.textMain;
     final textMuted = context.textMuted;
-    final infoColor = isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7);
+    final infoColor = isDark
+        ? const Color(0xFF38BDF8)
+        : const Color(0xFF0284C7);
 
     return StudioCard(
       padding: const EdgeInsets.all(18),
@@ -1552,9 +1628,7 @@ class _HomeScreenState extends State<HomeScreen>
                 decoration: BoxDecoration(
                   color: infoColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: infoColor.withValues(alpha: 0.35),
-                  ),
+                  border: Border.all(color: infoColor.withValues(alpha: 0.35)),
                 ),
                 child: Icon(
                   Icons.info_outline_rounded,
@@ -1578,10 +1652,7 @@ class _HomeScreenState extends State<HomeScreen>
                     const SizedBox(height: 2),
                     Text(
                       'Recent client inquiries (active 15 days)',
-                      style: TextStyle(
-                        color: textMuted,
-                        fontSize: 11.5,
-                      ),
+                      style: TextStyle(color: textMuted, fontSize: 11.5),
                     ),
                   ],
                 ),
@@ -1591,9 +1662,7 @@ class _HomeScreenState extends State<HomeScreen>
                 decoration: BoxDecoration(
                   color: infoColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: infoColor.withValues(alpha: 0.4),
-                  ),
+                  border: Border.all(color: infoColor.withValues(alpha: 0.4)),
                 ),
                 child: Text(
                   '${clients.length} New',
@@ -1609,7 +1678,9 @@ class _HomeScreenState extends State<HomeScreen>
           const SizedBox(height: 14),
           Divider(color: context.cardBorder.withValues(alpha: 0.3), height: 1),
           const SizedBox(height: 10),
-          ...clients.map((client) => _buildInformationClientTile(context, client)),
+          ...clients.map(
+            (client) => _buildInformationClientTile(context, client),
+          ),
         ],
       ),
     );
@@ -1618,7 +1689,9 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildInformationClientTile(BuildContext context, Client client) {
     final textMain = context.textMain;
     final textMuted = context.textMuted;
-    final infoColor = context.isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7);
+    final infoColor = context.isDark
+        ? const Color(0xFF38BDF8)
+        : const Color(0xFF0284C7);
     final timeAgo = _formatInquiryAge(client.createdAt);
     final hasPhone = client.phone.trim().isNotEmpty;
 
@@ -1627,9 +1700,7 @@ class _HomeScreenState extends State<HomeScreen>
       decoration: BoxDecoration(
         color: context.innerBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: context.cardBorder.withValues(alpha: 0.35),
-        ),
+        border: Border.all(color: context.cardBorder.withValues(alpha: 0.35)),
       ),
       child: Material(
         color: Colors.transparent,
@@ -1650,7 +1721,9 @@ class _HomeScreenState extends State<HomeScreen>
                   radius: 18,
                   backgroundColor: infoColor.withValues(alpha: 0.18),
                   child: Text(
-                    client.name.isNotEmpty ? client.name.characters.first.toUpperCase() : 'C',
+                    client.name.isNotEmpty
+                        ? client.name.characters.first.toUpperCase()
+                        : 'C',
                     style: TextStyle(
                       color: infoColor,
                       fontSize: 13,
@@ -1679,7 +1752,10 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: infoColor.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(6),
@@ -1700,10 +1776,7 @@ class _HomeScreenState extends State<HomeScreen>
                         hasPhone ? client.phone : 'Inquiry only',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: textMuted,
-                          fontSize: 11.5,
-                        ),
+                        style: TextStyle(color: textMuted, fontSize: 11.5),
                       ),
                     ],
                   ),
@@ -1713,7 +1786,10 @@ class _HomeScreenState extends State<HomeScreen>
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF10B981),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     shape: RoundedRectangleBorder(
@@ -1727,7 +1803,8 @@ class _HomeScreenState extends State<HomeScreen>
                     } else {
                       Navigator.of(context).push(
                         SmoothPageRoute(
-                          builder: (_) => ClientDetailsScreen(clientId: client.id),
+                          builder: (_) =>
+                              ClientDetailsScreen(clientId: client.id),
                         ),
                       );
                     }
@@ -1852,10 +1929,7 @@ class _BannerData {
 
 // ===================== Animated Section Widget =====================
 class _AnimatedSection extends StatelessWidget {
-  const _AnimatedSection({
-    required this.animation,
-    required this.child,
-  });
+  const _AnimatedSection({required this.animation, required this.child});
 
   final Animation<double> animation;
   final Widget child;
@@ -1880,10 +1954,7 @@ class _AnimatedSection extends StatelessWidget {
 
 // ===================== Pressable Button Widget =====================
 class _PressableButton extends StatefulWidget {
-  const _PressableButton({
-    required this.child,
-    required this.onTap,
-  });
+  const _PressableButton({required this.child, required this.onTap});
 
   final Widget child;
   final VoidCallback onTap;
@@ -1898,10 +1969,7 @@ class _PressableButtonState extends State<_PressableButton> {
   @override
   Widget build(BuildContext context) {
     if (MediaQuery.disableAnimationsOf(context)) {
-      return GestureDetector(
-        onTap: widget.onTap,
-        child: widget.child,
-      );
+      return GestureDetector(onTap: widget.onTap, child: widget.child);
     }
     return GestureDetector(
       onTapDown: (_) {

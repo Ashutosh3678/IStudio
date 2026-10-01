@@ -15,6 +15,7 @@ import '../../widgets/studio_text_field.dart';
 import '../../widgets/uiverse_search_bar.dart';
 import 'client_details_screen.dart';
 import '../../routes/smooth_page_route.dart';
+import '../../utils/app_snackbar.dart';
 import '../../utils/launcher_utils.dart';
 
 enum ClientFilter {
@@ -857,18 +858,22 @@ class _ClientsScreenState extends State<ClientsScreen>
                         if (name.isEmpty) {
                           HapticFeedback.heavyImpact();
                           setSheetState(() => sheetError = 'Please enter client full name');
+                          AppSnackBar.error(sheetContext, 'Please enter client full name');
                           return;
                         }
 
                         if (phone.isEmpty) {
                           HapticFeedback.heavyImpact();
                           setSheetState(() => sheetError = 'Please enter phone number');
+                          AppSnackBar.error(sheetContext, 'Please enter phone number');
                           return;
                         }
 
                         if (digitsOnly.length < 10) {
                           HapticFeedback.heavyImpact();
                           setSheetState(() => sheetError = 'Phone number must be at least 10 digits');
+                          AppSnackBar.error(
+                              sheetContext, 'Phone number must be at least 10 digits');
                           return;
                         }
 
@@ -883,14 +888,13 @@ class _ClientsScreenState extends State<ClientsScreen>
                           createdAt: DateTime.now(),
                         );
 
-                        context.read<EventsProvider>().addClient(newClient);
                         Navigator.of(sheetContext).pop();
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                                'Client "${newClient.name}" created successfully.'),
-                          ),
+                        AppSnackBar.guard(
+                          context,
+                          context.read<EventsProvider>().addClient(newClient),
+                          success:
+                              'Client "${newClient.name}" created successfully.',
+                          error: 'Could not create client.',
                         );
                       },
                     ),

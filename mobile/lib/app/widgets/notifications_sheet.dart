@@ -7,6 +7,7 @@ import '../providers/notifications_provider.dart';
 import '../screens/events/event_details_screen.dart';
 import '../routes/smooth_page_route.dart';
 import '../theme/app_colors.dart';
+import '../utils/app_snackbar.dart';
 
 enum NotificationFilter {
   all,
@@ -152,7 +153,11 @@ class _NotificationsSheetState extends State<NotificationsSheet> {
                 const SizedBox(width: 6),
                 if (all.isNotEmpty)
                   TextButton(
-                    onPressed: () => notifsProvider.markAllAsRead(),
+                    onPressed: () {
+                      notifsProvider.markAllAsRead();
+                      AppSnackBar.success(
+                          context, 'All notifications marked as read.');
+                    },
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 4),
@@ -466,7 +471,10 @@ class _NotificationsSheetState extends State<NotificationsSheet> {
                           size: 16,
                           color: context.textMuted.withValues(alpha: 0.6),
                         ),
-                        onPressed: () => provider.dismiss(notif.id),
+                        onPressed: () {
+                          provider.dismiss(notif.id);
+                          AppSnackBar.success(context, 'Notification dismissed.');
+                        },
                         tooltip: 'Dismiss',
                       ),
                     ],

@@ -1,6 +1,8 @@
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../env/env.dart';
+
 class GoogleAuthResult {
   const GoogleAuthResult({
     required this.idToken,
@@ -21,11 +23,7 @@ class GoogleAuthService {
   GoogleAuthService({GoogleSignIn? googleSignIn})
       : _googleSignIn = googleSignIn ??
             GoogleSignIn(
-              serverClientId: const String.fromEnvironment(
-                'GOOGLE_WEB_CLIENT_ID',
-                defaultValue:
-                    '764740513996-q44or6khoaunemro3fogq4ps44o2o13m.apps.googleusercontent.com',
-              ),
+              serverClientId: Env.googleWebClientId,
               scopes: const ['email', 'profile'],
             );
 

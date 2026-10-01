@@ -15,6 +15,7 @@ import '../../widgets/studio_text_field.dart';
 import '../events/event_details_screen.dart';
 import '../events/create_event_sheet.dart';
 import '../../routes/smooth_page_route.dart';
+import '../../utils/app_snackbar.dart';
 import '../../utils/launcher_utils.dart';
 
 class ClientDetailsScreen extends StatelessWidget {
@@ -1428,10 +1429,12 @@ class ClientDetailsScreen extends StatelessWidget {
 
                         if (name.isEmpty) {
                           setSheetState(() => formError = 'Full name is required.');
+                          AppSnackBar.error(sheetCtx, 'Full name is required.');
                           return;
                         }
                         if (phone.isEmpty) {
                           setSheetState(() => formError = 'Phone number is required.');
+                          AppSnackBar.error(sheetCtx, 'Phone number is required.');
                           return;
                         }
 
@@ -1444,8 +1447,13 @@ class ClientDetailsScreen extends StatelessWidget {
                           status: selectedStatus,
                         );
 
-                        context.read<EventsProvider>().updateClient(updated);
                         Navigator.of(sheetCtx).pop();
+                        AppSnackBar.guard(
+                          context,
+                          context.read<EventsProvider>().updateClient(updated),
+                          success: 'Client profile updated.',
+                          error: 'Could not update client.',
+                        );
                       },
                     ),
                   ],

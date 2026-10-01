@@ -164,6 +164,12 @@ async function uploadPaymentProof(req, res) {
   }
 }
 
+async function removePaymentProof(req, res) {
+  const updated = await repository.updatePayment(req.params.id, req.userId, { proofUrl: '' });
+  if (!updated) return res.status(404).json({ success: false, message: 'Payment not found.' });
+  return res.json({ success: true, payment: updated.toPublicJSON() });
+}
+
 async function authorizePaymentProof(req, res, next) {
   const payment = await repository.findPaymentForUser(req.params.id, req.userId);
   if (!payment) return res.status(404).json({ success: false, message: 'Payment not found.' });
@@ -193,7 +199,7 @@ module.exports = {
   listClients, getClient, createClient, updateClient, deleteClient,
   listEvents, getEvent, createEvent, updateEvent, deleteEvent,
   listPayments, getPayment, createPayment, updatePayment, deletePayment,
-  uploadPaymentProof, authorizePaymentProof,
+  uploadPaymentProof, removePaymentProof, authorizePaymentProof,
   listExpenses, getExpense, createExpense, updateExpense, deleteExpense,
   listDeliverables, getDeliverable, createDeliverable, updateDeliverable, deleteDeliverable,
 };

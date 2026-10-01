@@ -431,6 +431,52 @@ class EventsProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> deletePayment(String eventId, String paymentId) async {
+    final index = _events.indexWhere((e) => e.id == eventId);
+    if (index == -1) return;
+    final previous = _events[index];
+    var updated = previous.copyWith(
+      payments: previous.payments.where((p) => p.id != paymentId).toList(),
+    );
+    final statusChanged = updated.status == EventStatus.completed &&
+        updated.remainingAmount > 0.01;
+    if (statusChanged) {
+      updated = updated.copyWith(status: EventStatus.inProgress);
+    }
+    _events[index] = updated;
+    notifyListeners();
+    try {
+      if (_token != null) {
+        await _service.deletePayment(_token!, paymentId);
+        if (statusChanged) {
+          await _service.updateEvent(_token!, updated);
+        }
+      }
+    } catch (_) {
+      _events[index] = previous;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> removePaymentProof(String eventId, String paymentId) async {
+    final index = _events.indexWhere((e) => e.id == eventId);
+    if (index == -1) return;
+    final saved = _token == null
+        ? null
+        : await _service.removePaymentProof(_token!, paymentId);
+    _events[index] = _events[index].copyWith(
+      payments: _events[index].payments
+          .map(
+            (item) => item.id == paymentId
+                ? (saved ?? item.copyWith(proof: ''))
+                : item,
+          )
+          .toList(),
+    );
+    notifyListeners();
+  }
+
   Future<String?> uploadPaymentProof(
     String eventId,
     String paymentId,

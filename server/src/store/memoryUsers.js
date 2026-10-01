@@ -65,6 +65,7 @@ function publicFields(user) {
     website: user.website || '',
     specialties: user.specialties || '',
     logoUrl: user.logoUrl || '',
+    paymentQrUrl: user.paymentQrUrl || '',
     googleId: user.googleId || '',
   };
 }
@@ -86,6 +87,7 @@ function toDoc(user, withPassword = false) {
     website: user.website || '',
     specialties: user.specialties || '',
     logoUrl: user.logoUrl || '',
+    paymentQrUrl: user.paymentQrUrl || '',
     toPublicJSON() {
       return publicFields(user);
     },

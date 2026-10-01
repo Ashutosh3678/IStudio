@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/app_snackbar.dart';
 import '../../utils/validators.dart';
 import '../../widgets/studio_button.dart';
 import '../../widgets/studio_text_field.dart';
@@ -92,22 +93,19 @@ class _SignupFormState extends State<SignupForm> {
     FocusScope.of(context).unfocus();
     if (!(_formKey.currentState?.validate() ?? false)) {
       HapticFeedback.heavyImpact();
+      AppSnackBar.error(context, 'Please fix the highlighted fields.');
       return;
     }
 
     if (_isUsernameAvailable == false) {
       HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please choose a different username.')),
-      );
+      AppSnackBar.error(context, 'Please choose a different username.');
       return;
     }
 
     if (_passwordController.text != _confirmController.text) {
       HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match.')),
-      );
+      AppSnackBar.error(context, 'Passwords do not match.');
       return;
     }
 

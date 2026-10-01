@@ -116,7 +116,6 @@ class _AddDeliverableSheetState extends State<AddDeliverableSheet> {
               const SizedBox(height: 18),
               StudioTextField(
                 label: 'Item name',
-                hint: 'e.g. Wedding photos, Album, Prints',
                 controller: _nameController,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -128,7 +127,6 @@ class _AddDeliverableSheetState extends State<AddDeliverableSheet> {
               const SizedBox(height: 14),
               StudioTextField(
                 label: 'Cost (₹)',
-                hint: 'e.g. 25000',
                 controller: _costController,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
@@ -344,7 +342,6 @@ class _PartialPaymentSheetState extends State<PartialPaymentSheet> {
               const SizedBox(height: 16),
               StudioTextField(
                 label: 'Amount received (₹)',
-                hint: 'e.g. 10000',
                 controller: _amountController,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,

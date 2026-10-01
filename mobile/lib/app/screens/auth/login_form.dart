@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../theme/app_colors.dart';
+import '../../utils/app_snackbar.dart';
 import '../../utils/validators.dart';
 import '../../widgets/studio_button.dart';
 import '../../widgets/studio_text_field.dart';
@@ -38,6 +39,7 @@ class _LoginFormState extends State<LoginForm> {
     FocusScope.of(context).unfocus();
     if (!(_formKey.currentState?.validate() ?? false)) {
       HapticFeedback.heavyImpact();
+      AppSnackBar.error(context, 'Please fix the highlighted fields.');
       return;
     }
     await widget.onSubmit(
@@ -90,12 +92,9 @@ class _LoginFormState extends State<LoginForm> {
                 onPressed: () async {
                   final reset = await ForgotPasswordSheet.show(context);
                   if (reset == true && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Password updated! Please sign in with your new password.',
-                        ),
-                      ),
+                    AppSnackBar.success(
+                      context,
+                      'Password updated! Please sign in with your new password.',
                     );
                   }
                 },

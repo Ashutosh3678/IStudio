@@ -251,10 +251,41 @@ const PROFILE_FIELDS = [
   'website',
   'specialties',
   'logoUrl',
+  'paymentQrUrl',
 ];
 
+const HOST_PATTERN = /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
+const HANDLE_PATTERN = /^@?[A-Za-z0-9._-]{1,50}$/;
+
+// Accepts a handle (when `domains` is set) or an http(s) link with a real domain.
+function validateLink(value, { label, domains }) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const invalid = `Enter a valid ${label} link.`;
+  const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(raw);
+  const lower = raw.toLowerCase();
+  if (domains && !hasScheme && !raw.includes('/') && !domains.some((d) => lower.includes(d))) {
+    return HANDLE_PATTERN.test(raw) ? null : `Enter a valid ${label} handle or link.`;
+  }
+  if (/\s/.test(raw)) return invalid;
+  let url;
+  try {
+    url = new URL(hasScheme ? raw : `https://${raw}`);
+  } catch (_) {
+    return invalid;
+  }
+  if (!['http:', 'https:'].includes(url.protocol)) return invalid;
+  const host = url.hostname.toLowerCase();
+  if (!HOST_PATTERN.test(host)) return invalid;
+  if (domains) {
+    const bare = host.replace(/^(www|m)\./, '');
+    if (!domains.some((d) => bare === d || bare.endsWith(`.${d}`))) return invalid;
+  }
+  return null;
+}
+
 function validateProfileFields(fields) {
-  const textFields = PROFILE_FIELDS.filter((key) => key !== 'logoUrl');
+  const textFields = PROFILE_FIELDS.filter((key) => key !== 'logoUrl' && key !== 'paymentQrUrl');
   for (const key of textFields) {
     if (fields[key] !== undefined && String(fields[key]).length > 240) {
       return `${key} is too long.`;
@@ -263,18 +294,20 @@ function validateProfileFields(fields) {
   if (fields.email && !/^\S+@\S+\.\S+$/.test(fields.email)) {
     return 'Enter a valid email address.';
   }
-  for (const key of ['website', 'instagram', 'youtube']) {
-    if (fields[key]) {
-      try {
-        const url = new URL(fields[key].startsWith('http') ? fields[key] : `https://${fields[key]}`);
-        if (!['http:', 'https:'].includes(url.protocol)) return `Enter a valid ${key} URL.`;
-      } catch (_) {
-        return `Enter a valid ${key} URL.`;
-      }
-    }
+  const linkRules = {
+    website: { label: 'website', domains: null },
+    instagram: { label: 'Instagram', domains: ['instagram.com', 'instagr.am'] },
+    youtube: { label: 'YouTube', domains: ['youtube.com', 'youtu.be'] },
+  };
+  for (const [key, rule] of Object.entries(linkRules)) {
+    const error = validateLink(fields[key], rule);
+    if (error) return error;
   }
   if (fields.logoUrl && (!fields.logoUrl.startsWith('https://') || !fields.logoUrl.includes('cloudinary.com'))) {
     return 'Profile images must be hosted securely.';
+  }
+  if (fields.paymentQrUrl && (!fields.paymentQrUrl.startsWith('https://') || !fields.paymentQrUrl.includes('cloudinary.com'))) {
+    return 'Payment QR images must be hosted securely.';
   }
   return null;
 }
@@ -375,6 +408,52 @@ async function uploadLogo(req, res) {
     return res.status(500).json({
       success: false,
       message: 'Unable to upload your profile image right now.',
+    });
+  }
+}
+
+async function uploadPaymentQr(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Choose your payment QR image to upload.',
+      });
+    }
+
+    const cloudinaryResult = await uploadToCloudinary(req.file.path, {
+      folder: `lumen_studio/payment_qr/${req.userId}`,
+    });
+
+    let paymentQrUrl = cloudinaryResult.secure_url || cloudinaryResult.url || '';
+    if (paymentQrUrl.startsWith('http://')) {
+      paymentQrUrl = `https://${paymentQrUrl.substring(7)}`;
+    }
+    if (!paymentQrUrl.startsWith('https://')) {
+      return res.status(500).json({
+        success: false,
+        message: 'Cloudinary did not return a valid HTTPS image URL.',
+      });
+    }
+
+    const user = await userRepository.updateUser(req.userId, { paymentQrUrl });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Profile not found.',
+      });
+    }
+
+    return res.json({
+      success: true,
+      imageUrl: paymentQrUrl,
+      user: user.toPublicJSON(),
+    });
+  } catch (error) {
+    logCaught(req, 'Payment QR upload error', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to upload your payment QR right now.',
     });
   }
 }
@@ -1041,6 +1120,7 @@ module.exports = {
   me,
   updateProfile,
   uploadLogo,
+  uploadPaymentQr,
   normalizePhone,
   forgotPasswordSendOtp,
   forgotPasswordVerifyOtp,

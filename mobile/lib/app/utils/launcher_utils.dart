@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'app_snackbar.dart';
+
 class LauncherUtils {
   const LauncherUtils._();
 
@@ -54,13 +56,6 @@ class LauncherUtils {
   }
 
   static void _showFeedback(BuildContext context, String message) {
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    AppSnackBar.error(context, message);
   }
 }

@@ -24,11 +24,17 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
   String _selectedCategory = 'All';
   bool _newestFirst = true;
 
-  static final _currency =
-      NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+  static final _currency = NumberFormat.currency(
+    locale: 'en_IN',
+    symbol: '₹',
+    decimalDigits: 0,
+  );
+
+  static const _completedFilter = 'Completed';
 
   final List<String> _categories = [
     'All',
+    _completedFilter,
     'Wedding',
     'Maternity',
     'Commercial',
@@ -53,22 +59,26 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
 
     final query = _searchController.text.trim().toLowerCase();
     final filtered = allPast.where((event) {
-      final matchesCategory = _selectedCategory == 'All' ||
-          (_selectedCategory == 'Others'
+      final matchesCategory =
+          _selectedCategory == 'All' ||
+          (_selectedCategory == _completedFilter
+              ? event.status == EventStatus.completed
+              : _selectedCategory == 'Others'
               ? !const [
-                  'wedding',
-                  'maternity',
-                  'commercial',
-                  'newborn',
-                  'portrait',
-                  'pre-wedding',
-                  'fashion',
-                  'event'
-                ].contains(event.eventType.toLowerCase()) ||
-                event.eventType.toLowerCase() == 'others'
+                      'wedding',
+                      'maternity',
+                      'commercial',
+                      'newborn',
+                      'portrait',
+                      'pre-wedding',
+                      'fashion',
+                      'event',
+                    ].contains(event.eventType.toLowerCase()) ||
+                    event.eventType.toLowerCase() == 'others'
               : event.eventType.toLowerCase() ==
-                  _selectedCategory.toLowerCase());
-      final matchesSearch = query.isEmpty ||
+                    _selectedCategory.toLowerCase());
+      final matchesSearch =
+          query.isEmpty ||
           event.title.toLowerCase().contains(query) ||
           event.clientName.toLowerCase().contains(query) ||
           event.location.toLowerCase().contains(query);
@@ -89,12 +99,15 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
             child: Column(
               children: [
                 StudioAppBar(
-                  title: 'Done',
+                  title: 'Past Shoots',
                   subtitle: 'Past shoots',
                   leading: IconButton(
                     tooltip: 'Back',
-                    icon: Icon(Icons.arrow_back_ios_new_rounded,
-                        color: textMain, size: 20),
+                    icon: Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: textMain,
+                      size: 20,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   actions: [
@@ -124,10 +137,18 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
                         style: TextStyle(color: textMain, fontSize: 14),
                         decoration: InputDecoration(
                           hintText: 'Search past shoots, clients, locations...',
-                          prefixIcon: Icon(Icons.search, color: textMuted, size: 20),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: textMuted,
+                            size: 20,
+                          ),
                           suffixIcon: _searchController.text.isNotEmpty
                               ? IconButton(
-                                  icon: Icon(Icons.clear, color: textMuted, size: 18),
+                                  icon: Icon(
+                                    Icons.clear,
+                                    color: textMuted,
+                                    size: 18,
+                                  ),
                                   onPressed: () {
                                     _searchController.clear();
                                     setState(() {});
@@ -137,7 +158,9 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
                           filled: true,
                           fillColor: context.cardBg,
                           contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -154,14 +177,14 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
                               label: Text(cat),
                               selected: isSelected,
                               onSelected: (val) {
-                                if (val) setState(() => _selectedCategory = cat);
+                                if (val) {
+                                  setState(() => _selectedCategory = cat);
+                                }
                               },
                               selectedColor: accent.withValues(alpha: 0.25),
                               backgroundColor: context.cardBg,
                               side: BorderSide(
-                                color: isSelected
-                                    ? accent
-                                    : context.cardBorder,
+                                color: isSelected ? accent : context.cardBorder,
                               ),
                               labelStyle: TextStyle(
                                 color: isSelected ? accent : textMain,
@@ -184,12 +207,14 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.history_toggle_off_rounded,
-                                  size: 48,
-                                  color: textMuted.withValues(alpha: 0.5)),
+                              Icon(
+                                Icons.history_toggle_off_rounded,
+                                size: 48,
+                                color: textMuted.withValues(alpha: 0.5),
+                              ),
                               const SizedBox(height: 12),
                               Text(
-                                'No completed shoots match your filter',
+                                'No past shoots match your filter',
                                 style: TextStyle(
                                   color: textMain,
                                   fontSize: 15,
@@ -202,7 +227,8 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
                       : ListView.separated(
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                           itemCount: filtered.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 12),
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: 12),
                           itemBuilder: (context, index) {
                             final event = filtered[index];
                             return _buildPastEventCard(context, event);
@@ -221,7 +247,8 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
     final dateStr = DateFormat('d MMM yyyy').format(event.startsAt);
     final textMain = context.textMain;
     final textMuted = context.textMuted;
-    final statusColor = AppColors.statusColor(context, EventStatus.completed);
+    final isCompleted = event.status == EventStatus.completed;
+    final statusColor = AppColors.statusColor(context, event.status);
 
     return StudioCard(
       padding: const EdgeInsets.all(16),
@@ -271,10 +298,7 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
                       '$dateStr · ${event.eventType} · ${event.location}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: textMuted,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: textMuted, fontSize: 12),
                     ),
                   ],
                 ),
@@ -282,7 +306,10 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
               const SizedBox(width: 6),
               Flexible(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(999),
@@ -293,12 +320,17 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.check_circle_rounded,
-                          color: statusColor, size: 12),
+                      Icon(
+                        isCompleted
+                            ? Icons.check_circle_rounded
+                            : Icons.schedule_rounded,
+                        color: statusColor,
+                        size: 12,
+                      ),
                       const SizedBox(width: 4),
                       Flexible(
                         child: Text(
-                          'Completed',
+                          event.status.label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -329,33 +361,49 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
               children: [
                 Expanded(
                   child: _buildCompactMetric(
-                      context, 'Total', _currency.format(event.totalAmount)),
+                    context,
+                    'Total',
+                    _currency.format(event.totalAmount),
+                  ),
                 ),
                 Container(
-                    width: 1,
-                    height: 24,
-                    color: context.cardBorder.withValues(alpha: 0.3)),
+                  width: 1,
+                  height: 24,
+                  color: context.cardBorder.withValues(alpha: 0.3),
+                ),
                 Expanded(
                   child: _buildCompactMetric(
-                      context, 'Received', _currency.format(event.amountReceived)),
+                    context,
+                    'Received',
+                    _currency.format(event.amountReceived),
+                  ),
                 ),
                 Container(
-                    width: 1,
-                    height: 24,
-                    color: context.cardBorder.withValues(alpha: 0.3)),
+                  width: 1,
+                  height: 24,
+                  color: context.cardBorder.withValues(alpha: 0.3),
+                ),
                 Expanded(
                   child: _buildCompactMetric(
-                      context, 'Expenses', _currency.format(event.totalExpenses),
-                      valueColor: AppColors.expense(context)),
+                    context,
+                    'Expenses',
+                    _currency.format(event.totalExpenses),
+                    valueColor: AppColors.expense(context),
+                  ),
                 ),
                 Container(
-                    width: 1,
-                    height: 24,
-                    color: context.cardBorder.withValues(alpha: 0.3)),
+                  width: 1,
+                  height: 24,
+                  color: context.cardBorder.withValues(alpha: 0.3),
+                ),
                 Expanded(
                   child: _buildCompactMetric(
-                      context, 'Net Profit', _currency.format(event.netProfit),
-                      valueColor: AppColors.profit(context), isBold: true),
+                    context,
+                    'Net Profit',
+                    _currency.format(event.netProfit),
+                    valueColor: AppColors.profit(context),
+                    isBold: true,
+                  ),
                 ),
               ],
             ),

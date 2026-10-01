@@ -87,7 +87,6 @@ const memoryInvoices = {
       'upiId',
       'amountReceived',
       'number',
-      'documentType',
     ];
     for (const key of allowed) {
       if (fields[key] !== undefined) invoice[key] = fields[key];

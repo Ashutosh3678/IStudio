@@ -9,6 +9,7 @@ import '../../providers/invoices_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/invoice_pdf_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/app_snackbar.dart';
 import '../../routes/smooth_page_route.dart';
 
 class InvoicePreviewScreen extends StatefulWidget {
@@ -63,19 +64,16 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
         filename: InvoicePdfService.fileName(_invoice, studio: studio),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${InvoicePdfService.documentTitle(_invoice)} saved to $path'),
-        ),
+      AppSnackBar.success(
+        context,
+        '${InvoicePdfService.documentTitle(_invoice)} saved to $path',
+        duration: const Duration(seconds: 3),
       );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Could not download ${InvoicePdfService.documentTitle(_invoice).toLowerCase()}.',
-          ),
-        ),
+      AppSnackBar.error(
+        context,
+        'Could not download ${InvoicePdfService.documentTitle(_invoice).toLowerCase()}.',
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -89,12 +87,9 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
       await InvoicePdfService.shareInvoice(invoice: _invoice, studio: studio);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Could not share ${InvoicePdfService.documentTitle(_invoice).toLowerCase()}.',
-          ),
-        ),
+      AppSnackBar.error(
+        context,
+        'Could not share ${InvoicePdfService.documentTitle(_invoice).toLowerCase()}.',
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -108,27 +103,19 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
       final saved = await provider.addInvoice(_invoice);
       await provider.rememberUpi(saved.upiId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${InvoicePdfService.documentTitle(saved)} ${saved.number} saved.',
-          ),
-        ),
+      AppSnackBar.success(
+        context,
+        '${InvoicePdfService.documentTitle(saved)} ${saved.number} saved.',
       );
       Navigator.of(context).pop(saved);
     } on ApiException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      AppSnackBar.error(context, error.message);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Could not save ${InvoicePdfService.documentTitle(_invoice).toLowerCase()}.',
-          ),
-        ),
+      AppSnackBar.error(
+        context,
+        'Could not save ${InvoicePdfService.documentTitle(_invoice).toLowerCase()}.',
       );
     } finally {
       if (mounted) setState(() => _busy = false);

@@ -7,7 +7,10 @@ import 'package:provider/provider.dart';
 
 import '../../models/studio_event.dart';
 import '../../providers/events_provider.dart';
+import '../../routes/smooth_page_route.dart';
+import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/app_snackbar.dart';
 import '../../widgets/studio_app_bar.dart';
 import '../../widgets/studio_button.dart';
 import '../../widgets/studio_card.dart';
@@ -15,6 +18,7 @@ import '../../widgets/studio_text_field.dart';
 import '../../widgets/fade_slide_in.dart';
 import '../../widgets/shimmer_loading.dart';
 import '../../widgets/animated_financial_text.dart';
+import 'edit_event_screen.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   const EventDetailsScreen({
@@ -51,9 +55,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
   );
 
   Animation<double> _interval(double begin, double end) => CurvedAnimation(
-        parent: _detailsController,
-        curve: Interval(begin, end, curve: Curves.easeOutCubic),
-      );
+    parent: _detailsController,
+    curve: Interval(begin, end, curve: Curves.easeOutCubic),
+  );
 
   @override
   void initState() {
@@ -103,9 +107,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
             title: 'Loading Shoot...',
             subtitle: 'Event Details',
           ),
-          body: const SafeArea(
-            child: EventDetailsShimmer(),
-          ),
+          body: const SafeArea(child: EventDetailsShimmer()),
         );
       }
 
@@ -165,7 +167,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                   ),
                   onSelected: (value) {
                     if (value == 'edit') {
-                      _showEditEventDialog(context, event);
+                      Navigator.of(context).push(
+                        SmoothPageRoute(
+                          builder: (_) => EditEventScreen(event: event),
+                        ),
+                      );
                     } else if (value == 'delete') {
                       _confirmDeleteEvent(context, event);
                     } else if (value == 'duplicate') {
@@ -177,11 +183,16 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                       value: 'edit',
                       child: Row(
                         children: [
-                          Icon(Icons.edit_outlined,
-                              color: context.accentColor, size: 18),
+                          Icon(
+                            Icons.edit_outlined,
+                            color: context.accentColor,
+                            size: 18,
+                          ),
                           const SizedBox(width: 10),
-                          Text('Edit Event',
-                              style: TextStyle(color: context.textMain)),
+                          Text(
+                            'Edit Event',
+                            style: TextStyle(color: context.textMain),
+                          ),
                         ],
                       ),
                     ),
@@ -189,11 +200,16 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                       value: 'duplicate',
                       child: Row(
                         children: [
-                          Icon(Icons.copy_outlined,
-                              color: context.textMuted, size: 18),
+                          Icon(
+                            Icons.copy_outlined,
+                            color: context.textMuted,
+                            size: 18,
+                          ),
                           const SizedBox(width: 10),
-                          Text('Duplicate',
-                              style: TextStyle(color: context.textMain)),
+                          Text(
+                            'Duplicate',
+                            style: TextStyle(color: context.textMain),
+                          ),
                         ],
                       ),
                     ),
@@ -202,14 +218,19 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                       value: 'delete',
                       child: Row(
                         children: const [
-                          Icon(Icons.delete_outline_rounded,
-                              color: Color(0xFFEF4444), size: 18),
+                          Icon(
+                            Icons.delete_outline_rounded,
+                            color: Color(0xFFEF4444),
+                            size: 18,
+                          ),
                           SizedBox(width: 10),
-                          Text('Delete',
-                              style: TextStyle(
-                                color: Color(0xFFEF4444),
-                                fontWeight: FontWeight.w600,
-                              )),
+                          Text(
+                            'Delete',
+                            style: TextStyle(
+                              color: Color(0xFFEF4444),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -223,10 +244,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                 children: [
                   // 7-Day Countdown Alert Hero (if within 7 days)
                   if (event.isWithin7Days)
-                    _entrance(
-                      _anim0,
-                      _build7DayCountdownHero(context, event),
-                    ),
+                    _entrance(_anim0, _build7DayCountdownHero(context, event)),
 
                   // A. Event Header
                   _entrance(_anim1, _buildEventHeader(context, event)),
@@ -318,9 +336,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                       const SizedBox(width: 6),
                       Flexible(
                         child: Text(
-                          days == 0
-                              ? 'TODAY'
-                              : 'SHOOT COMING UP',
+                          days == 0 ? 'TODAY' : 'SHOOT COMING UP',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -980,9 +996,14 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                             ),
                           ),
                         ),
+                        _buildDeleteIconButton(
+                          context,
+                          tooltip: 'Delete payment',
+                          onPressed: () => _deletePayment(context, event, p),
+                        ),
                       ],
                     ),
-                    if (p.reference != null || p.hasProof) ...[
+                    ...[
                       const SizedBox(height: 6),
                       Divider(color: context.cardBorder, height: 1),
                       const SizedBox(height: 6),
@@ -999,47 +1020,55 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                             )
                           else
                             const SizedBox.shrink(),
-                          if (p.hasProof)
-                            InkWell(
-                              onTap: () => _showProofDialog(context, p),
-                              borderRadius: BorderRadius.circular(6),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
+                          InkWell(
+                            onTap: () => p.hasProof
+                                ? _showProofDialog(context, event.id, p)
+                                : _pickAndUploadProof(
+                                    context,
+                                    event.id,
+                                    p.id,
+                                    replacing: false,
+                                  ),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: context.accentColor.withValues(
+                                  alpha: 0.16,
                                 ),
-                                decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
                                   color: context.accentColor.withValues(
-                                    alpha: 0.16,
+                                    alpha: 0.4,
                                   ),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: context.accentColor.withValues(
-                                      alpha: 0.4,
-                                    ),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.attachment_rounded,
-                                      size: 11,
-                                      color: context.accentColor,
-                                    ),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      'View Proof',
-                                      style: TextStyle(
-                                        color: context.accentColor,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
                                 ),
                               ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    p.hasProof
+                                        ? Icons.attachment_rounded
+                                        : Icons.add_photo_alternate_outlined,
+                                    size: 11,
+                                    color: context.accentColor,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    p.hasProof ? 'View Proof' : 'Add Proof',
+                                    style: TextStyle(
+                                      color: context.accentColor,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+                          ),
                         ],
                       ),
                     ],
@@ -1071,6 +1100,135 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDeleteIconButton(
+    BuildContext context, {
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    final danger = context.isDark
+        ? const Color(0xFFF87171)
+        : const Color(0xFFDC2626);
+    return Padding(
+      padding: const EdgeInsets.only(left: 10),
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          color: danger.withValues(alpha: context.isDark ? 0.12 : 0.08),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: danger.withValues(alpha: 0.28)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onPressed,
+            splashColor: danger.withValues(alpha: 0.2),
+            highlightColor: danger.withValues(alpha: 0.1),
+            child: SizedBox(
+              width: 30,
+              height: 30,
+              child: Icon(
+                Icons.delete_outline_rounded,
+                size: 16,
+                color: danger,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _confirmDeleteRecord(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dlgContext) => AlertDialog(
+        backgroundColor: dlgContext.cardBg,
+        title: Text(
+          title,
+          style: TextStyle(
+            color: dlgContext.textMain,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          '$message This cannot be undone.',
+          style: TextStyle(color: dlgContext.textMuted, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dlgContext).pop(false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: dlgContext.textMuted),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(dlgContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
+  Future<void> _deletePayment(
+    BuildContext context,
+    StudioEvent event,
+    PaymentRecord payment,
+  ) async {
+    final confirmed = await _confirmDeleteRecord(
+      context,
+      title: 'Delete payment?',
+      message:
+          '"${payment.title}" (${_currency.format(payment.amount)}) will be removed and the balance due will increase.',
+    );
+    if (!confirmed || !context.mounted) return;
+    await AppSnackBar.guard(
+      context,
+      context.read<EventsProvider>().deletePayment(event.id, payment.id),
+      success: 'Payment of ${_currency.format(payment.amount)} deleted.',
+      error: 'Could not delete payment.',
+    );
+  }
+
+  Future<void> _deleteExpense(
+    BuildContext context,
+    StudioEvent event,
+    ExpenseRecord expense,
+  ) async {
+    final confirmed = await _confirmDeleteRecord(
+      context,
+      title: 'Delete expense?',
+      message:
+          '"${expense.title}" (${_currency.format(expense.amount)}) will be removed from this event.',
+    );
+    if (!confirmed || !context.mounted) return;
+    await _runDeleteExpense(context, event, expense);
+  }
+
+  Future<void> _runDeleteExpense(
+    BuildContext context,
+    StudioEvent event,
+    ExpenseRecord expense,
+  ) {
+    return AppSnackBar.guard(
+      context,
+      context.read<EventsProvider>().deleteExpense(event.id, expense.id),
+      success: 'Expense of ${_currency.format(expense.amount)} deleted.',
+      error: 'Could not delete expense.',
     );
   }
 
@@ -1106,7 +1264,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                 onPressed: () => _showAddExpenseSheet(context, event.id),
                 icon: Icon(Icons.add, size: 16, color: context.accentColor),
                 label: Text(
-                  '+ Add Expense',
+                  'Add Expense',
                   style: TextStyle(color: context.accentColor, fontSize: 13),
                 ),
               ),
@@ -1141,9 +1299,13 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                   ),
                   child: const Icon(Icons.delete_outline, color: Colors.white),
                 ),
-                onDismissed: (_) {
-                  context.read<EventsProvider>().deleteExpense(event.id, ex.id);
-                },
+                confirmDismiss: (_) => _confirmDeleteRecord(
+                  context,
+                  title: 'Delete expense?',
+                  message:
+                      '"${ex.title}" (${_currency.format(ex.amount)}) will be removed from this event.',
+                ),
+                onDismissed: (_) => _runDeleteExpense(context, event, ex),
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.symmetric(
@@ -1200,6 +1362,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
                         ),
+                      ),
+                      _buildDeleteIconButton(
+                        context,
+                        tooltip: 'Delete expense',
+                        onPressed: () => _deleteExpense(context, event, ex),
                       ),
                     ],
                   ),
@@ -1326,17 +1493,22 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
                   onPressed: () => _seedWorkflow(context, event),
-                  icon: Icon(Icons.playlist_add_rounded,
-                      color: context.accentColor, size: 18),
+                  icon: Icon(
+                    Icons.playlist_add_rounded,
+                    color: context.accentColor,
+                    size: 18,
+                  ),
                   label: Text(
                     'Start ${event.eventType} Workflow',
                     style: TextStyle(color: context.accentColor),
                   ),
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
-                        color: context.accentColor.withValues(alpha: 0.5)),
+                      color: context.accentColor.withValues(alpha: 0.5),
+                    ),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ],
@@ -1356,7 +1528,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                 ),
                 TextButton.icon(
                   onPressed: () => _showAddWorkDialog(context, event),
-                  icon: Icon(Icons.add_task_rounded, size: 16, color: context.accentColor),
+                  icon: Icon(
+                    Icons.add_task_rounded,
+                    size: 16,
+                    color: context.accentColor,
+                  ),
                   label: Text(
                     'Add Work',
                     style: TextStyle(
@@ -1366,7 +1542,10 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                     ),
                   ),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
@@ -1378,9 +1557,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
             else
               _buildNextTaskCard(context, event, nextTask),
             const SizedBox(height: 18),
-            ...stages.map(
-              (stage) => _buildStageSection(context, event, stage),
-            ),
+            ...stages.map((stage) => _buildStageSection(context, event, stage)),
           ],
         ],
       ),
@@ -1557,38 +1734,41 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
   bool _isEventBeforeToday(StudioEvent event) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final eventDay = DateTime(event.startsAt.year, event.startsAt.month, event.startsAt.day);
+    final eventDay = DateTime(
+      event.startsAt.year,
+      event.startsAt.month,
+      event.startsAt.day,
+    );
     return today.isBefore(eventDay);
   }
 
   void _toggleTask(BuildContext context, StudioEvent event, String taskId) {
     if (_isEventBeforeToday(event)) {
       final dateStr = DateFormat('d MMM yyyy').format(event.startsAt);
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.lock_clock_rounded, color: Colors.amberAccent, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Checks will be active on event day ($dateStr) or after.',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
-          duration: const Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppSnackBar.error(
+        context,
+        'Checks will be active on event day ($dateStr) or after.',
       );
       return;
     }
-    context.read<EventsProvider>().toggleDeliverable(event.id, taskId);
+    final wasCompleted = event.deliverables.any(
+      (t) => t.id == taskId && t.isCompleted,
+    );
+    AppSnackBar.guard(
+      context,
+      context.read<EventsProvider>().toggleDeliverable(event.id, taskId),
+      success: wasCompleted
+          ? 'Work marked as pending.'
+          : 'Work marked as done.',
+      error: 'Could not update work status.',
+    );
   }
 
-  void _confirmDeleteTask(BuildContext context, String eventId, DeliverableTask task) {
+  void _confirmDeleteTask(
+    BuildContext context,
+    String eventId,
+    DeliverableTask task,
+  ) {
     showDialog(
       context: context,
       builder: (dlgContext) => AlertDialog(
@@ -1608,7 +1788,10 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dlgContext).pop(),
-            child: Text('Cancel', style: TextStyle(color: dlgContext.textMuted)),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: dlgContext.textMuted),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -1617,7 +1800,15 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
             ),
             onPressed: () {
               Navigator.of(dlgContext).pop();
-              context.read<EventsProvider>().deleteDeliverable(eventId, task.id);
+              AppSnackBar.guard(
+                context,
+                context.read<EventsProvider>().deleteDeliverable(
+                  eventId,
+                  task.id,
+                ),
+                success: '"${task.title}" removed.',
+                error: 'Could not remove work.',
+              );
             },
             child: const Text('Remove'),
           ),
@@ -1703,11 +1894,20 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                           st,
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+                            fontWeight: isSel
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: isSel
+                                ? (modalContext.isDark
+                                      ? AppColors.ink
+                                      : Colors.white)
+                                : modalContext.textMain,
                           ),
                         ),
                         selected: isSel,
+                        showCheckmark: false,
                         selectedColor: modalContext.accentColor,
+                        backgroundColor: modalContext.innerBg,
                         onSelected: (val) {
                           if (val) setModalState(() => selectedStage = st);
                         },
@@ -1721,15 +1921,39 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                 label: 'Add Work',
                 onPressed: () async {
                   final text = titleController.text.trim();
-                  if (text.isEmpty) return;
+                  if (text.isEmpty) {
+                    AppSnackBar.error(
+                      sheetContext,
+                      'Please enter a work title.',
+                    );
+                    return;
+                  }
                   final newTask = DeliverableTask(
                     id: 'task-${DateTime.now().millisecondsSinceEpoch}',
                     title: '$selectedStage: $text',
                     isCompleted: false,
                   );
-                  await context.read<EventsProvider>().addDeliverable(event.id, newTask);
-                  if (sheetContext.mounted) {
-                    Navigator.of(sheetContext).pop();
+                  try {
+                    await context.read<EventsProvider>().addDeliverable(
+                      event.id,
+                      newTask,
+                    );
+                    if (sheetContext.mounted) {
+                      Navigator.of(sheetContext).pop();
+                    }
+                    if (context.mounted) {
+                      AppSnackBar.success(
+                        context,
+                        '"$text" added to $selectedStage.',
+                      );
+                    }
+                  } catch (e) {
+                    if (sheetContext.mounted) {
+                      AppSnackBar.error(
+                        sheetContext,
+                        e is ApiException ? e.message : 'Could not add work.',
+                      );
+                    }
                   }
                 },
               ),
@@ -1866,7 +2090,12 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
       );
     }).toList();
 
-    context.read<EventsProvider>().addDeliverables(event.id, tasks);
+    AppSnackBar.guard(
+      context,
+      context.read<EventsProvider>().addDeliverables(event.id, tasks),
+      success: '${tasks.length} workflow tasks added.',
+      error: 'Could not add workflow tasks.',
+    );
   }
 
   Widget _buildNextTaskCard(
@@ -1894,7 +2123,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
             if (isUpcoming)
               Row(
                 children: [
-                  Icon(Icons.lock_clock_rounded, size: 13, color: context.textMuted),
+                  Icon(
+                    Icons.lock_clock_rounded,
+                    size: 13,
+                    color: context.textMuted,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     'Active on ${DateFormat('d MMM').format(event.startsAt)}',
@@ -1920,14 +2153,20 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: context.accentColor.withValues(alpha: isUpcoming ? 0.06 : 0.12),
+                color: context.accentColor.withValues(
+                  alpha: isUpcoming ? 0.06 : 0.12,
+                ),
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
-                  color: context.accentColor.withValues(alpha: isUpcoming ? 0.20 : 0.36),
+                  color: context.accentColor.withValues(
+                    alpha: isUpcoming ? 0.20 : 0.36,
+                  ),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: context.accentColor.withValues(alpha: isUpcoming ? 0.03 : 0.08),
+                    color: context.accentColor.withValues(
+                      alpha: isUpcoming ? 0.03 : 0.08,
+                    ),
                     blurRadius: 18,
                     spreadRadius: 1,
                   ),
@@ -1943,7 +2182,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(
-                      isUpcoming ? Icons.lock_outline_rounded : _taskIcon(task.title),
+                      isUpcoming
+                          ? Icons.lock_outline_rounded
+                          : _taskIcon(task.title),
                       color: context.accentColor,
                       size: 21,
                     ),
@@ -1983,7 +2224,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                   Text(
                     isUpcoming ? 'LOCKED' : 'START ->',
                     style: TextStyle(
-                      color: isUpcoming ? context.textMuted : context.accentColor,
+                      color: isUpcoming
+                          ? context.textMuted
+                          : context.accentColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
@@ -2032,7 +2275,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
       child: Column(
         children: [
           Icon(
-            isCompleted ? Icons.verified_rounded : Icons.pending_actions_rounded,
+            isCompleted
+                ? Icons.verified_rounded
+                : Icons.pending_actions_rounded,
             color: isCompleted ? const Color(0xFF10B981) : context.accentColor,
             size: 30,
           ),
@@ -2063,14 +2308,26 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () => _showAddPaymentSheet(context, event.id),
-              icon: Icon(Icons.payment_rounded, size: 16, color: context.accentColor),
+              icon: Icon(
+                Icons.payment_rounded,
+                size: 16,
+                color: context.accentColor,
+              ),
               label: Text(
                 'Record Remaining Payment',
-                style: TextStyle(color: context.accentColor, fontSize: 12, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: context.accentColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: context.accentColor.withValues(alpha: 0.4)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                side: BorderSide(
+                  color: context.accentColor.withValues(alpha: 0.4),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
@@ -2139,7 +2396,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
     final isUpcoming = _isEventBeforeToday(event);
     final statusColor = isCompleted
         ? context.accentColor
-        : (isUpcoming ? context.textMuted.withValues(alpha: 0.6) : context.textMuted);
+        : (isUpcoming
+              ? context.textMuted.withValues(alpha: 0.6)
+              : context.textMuted);
 
     return Material(
       color: Colors.transparent,
@@ -2184,18 +2443,22 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                       color: isCompleted
                           ? context.accentColor
                           : (isUpcoming
-                              ? context.textMuted.withValues(alpha: 0.4)
-                              : context.textMuted),
+                                ? context.textMuted.withValues(alpha: 0.4)
+                                : context.textMuted),
                       width: 1.4,
                     ),
                   ),
                   child: Icon(
                     isCompleted
                         ? Icons.check_rounded
-                        : (isUpcoming ? Icons.lock_clock_rounded : Icons.circle_outlined),
+                        : (isUpcoming
+                              ? Icons.lock_clock_rounded
+                              : Icons.circle_outlined),
                     color: isCompleted
                         ? Colors.white
-                        : (isUpcoming ? context.textMuted.withValues(alpha: 0.6) : Colors.transparent),
+                        : (isUpcoming
+                              ? context.textMuted.withValues(alpha: 0.6)
+                              : Colors.transparent),
                     size: isUpcoming && !isCompleted ? 14 : 18,
                   ),
                 ),
@@ -2239,9 +2502,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
               ),
               const SizedBox(width: 6),
               Text(
-                isCompleted
-                    ? 'COMPLETED'
-                    : (isUpcoming ? 'LOCKED' : 'PENDING'),
+                isCompleted ? 'COMPLETED' : (isUpcoming ? 'LOCKED' : 'PENDING'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -2408,7 +2669,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                             method.icon,
                             size: 14,
                             color: isSelected
-                                ? (context.isDark ? AppColors.ink : Colors.white)
+                                ? (context.isDark
+                                      ? AppColors.ink
+                                      : Colors.white)
                                 : context.textMuted,
                           ),
                           label: Text(method.label),
@@ -2417,7 +2680,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                           backgroundColor: context.innerBg,
                           labelStyle: TextStyle(
                             color: isSelected
-                                ? (context.isDark ? AppColors.ink : Colors.white)
+                                ? (context.isDark
+                                      ? AppColors.ink
+                                      : Colors.white)
                                 : context.textMain,
                             fontSize: 12,
                             fontWeight: isSelected
@@ -2741,28 +3006,16 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                                 final amountText = amountController.text.trim();
                                 final amount = double.tryParse(amountText);
                                 if (amountText.isEmpty) {
-                                  ScaffoldMessenger.of(
+                                  AppSnackBar.error(
                                     sheetContext,
-                                  ).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Please enter the payment amount.',
-                                      ),
-                                      duration: Duration(seconds: 2),
-                                    ),
+                                    'Please enter the payment amount.',
                                   );
                                   return;
                                 }
                                 if (amount == null || amount <= 0) {
-                                  ScaffoldMessenger.of(
+                                  AppSnackBar.error(
                                     sheetContext,
-                                  ).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Enter a valid amount greater than 0.',
-                                      ),
-                                      duration: Duration(seconds: 2),
-                                    ),
+                                    'Enter a valid amount greater than 0.',
                                   );
                                   return;
                                 }
@@ -2790,8 +3043,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                                 if (saved != null &&
                                     proofBytes != null &&
                                     proofFilename != null) {
-                                  proofError =
-                                      await provider.uploadPaymentProof(
+                                  proofError = await provider
+                                      .uploadPaymentProof(
                                         eventId,
                                         saved.id,
                                         proofBytes!,
@@ -2799,25 +3052,33 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                                       );
                                 }
                                 if (!modalContext.mounted) return;
+                                if (saved == null) {
+                                  AppSnackBar.error(
+                                    sheetContext,
+                                    'Could not record payment. Please try again.',
+                                  );
+                                  return;
+                                }
                                 Navigator.of(sheetContext).pop();
                                 if (proofError != null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Payment recorded, but proof upload failed: $proofError',
-                                      ),
-                                      duration: const Duration(seconds: 4),
-                                      backgroundColor: Colors.orange.shade800,
-                                    ),
+                                  AppSnackBar.error(
+                                    context,
+                                    'Payment recorded, but proof upload failed: $proofError',
+                                    duration: const Duration(seconds: 4),
                                   );
                                 } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Payment of ₹${amount.toInt()} recorded!',
-                                      ),
-                                      duration: const Duration(seconds: 2),
-                                    ),
+                                  AppSnackBar.success(
+                                    context,
+                                    'Payment of ₹${amount.toInt()} recorded!',
+                                  );
+                                }
+                              } catch (e) {
+                                if (sheetContext.mounted) {
+                                  AppSnackBar.error(
+                                    sheetContext,
+                                    e is ApiException
+                                        ? e.message
+                                        : 'Could not record payment. Please try again.',
                                   );
                                 }
                               } finally {
@@ -2838,13 +3099,53 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
     );
   }
 
-  void _showProofDialog(BuildContext context, PaymentRecord payment) {
-    final dateStr = DateFormat('d MMMM yyyy, h:mm a').format(payment.paidAt);
-    final hasImageProof =
-        payment.proof != null &&
-        payment.proof!.trim().isNotEmpty &&
-        (payment.proof!.startsWith('http') ||
-            payment.proof!.startsWith('data:image'));
+  Future<bool> _pickAndUploadProof(
+    BuildContext context,
+    String eventId,
+    String paymentId, {
+    required bool replacing,
+  }) async {
+    final provider = context.read<EventsProvider>();
+    final XFile? picked;
+    try {
+      picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+    } catch (_) {
+      if (context.mounted) {
+        AppSnackBar.error(context, 'Could not open the gallery.');
+      }
+      return false;
+    }
+    if (picked == null) return false;
+    final bytes = await picked.readAsBytes();
+    final error = await provider.uploadPaymentProof(
+      eventId,
+      paymentId,
+      bytes,
+      picked.name,
+    );
+    if (!context.mounted) return error == null;
+    if (error != null) {
+      AppSnackBar.error(context, 'Proof upload failed: $error');
+      return false;
+    }
+    AppSnackBar.success(
+      context,
+      replacing ? 'Payment proof updated.' : 'Payment proof added.',
+    );
+    return true;
+  }
+
+  void _showProofDialog(
+    BuildContext context,
+    String eventId,
+    PaymentRecord initialPayment,
+  ) {
+    var payment = initialPayment;
+    var isUploading = false;
+    var isDeleting = false;
 
     showModalBottomSheet(
       context: context,
@@ -2853,183 +3154,312 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              24,
-              20,
-              MediaQuery.of(sheetContext).viewInsets.bottom + 24,
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Payment Proof & Receipt',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: context.textMain,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.close, color: context.textMuted),
-                        onPressed: () => Navigator.of(sheetContext).pop(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: context.innerBg,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: context.accentColor.withValues(alpha: 0.35),
-                      ),
-                    ),
-                    child: Column(
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          final dateStr = DateFormat(
+            'd MMMM yyyy, h:mm a',
+          ).format(payment.paidAt);
+          final hasImageProof =
+              payment.proof != null &&
+              payment.proof!.trim().isNotEmpty &&
+              (payment.proof!.startsWith('http') ||
+                  payment.proof!.startsWith('data:image'));
+
+          Future<void> replaceProof() async {
+            setSheetState(() => isUploading = true);
+            final ok = await _pickAndUploadProof(
+              sheetContext,
+              eventId,
+              payment.id,
+              replacing: payment.hasProof,
+            );
+            if (!sheetContext.mounted) return;
+            final refreshed = sheetContext
+                .read<EventsProvider>()
+                .findById(eventId)
+                ?.payments
+                .where((p) => p.id == payment.id)
+                .firstOrNull;
+            setSheetState(() {
+              isUploading = false;
+              if (ok && refreshed != null) payment = refreshed;
+            });
+          }
+
+          Future<void> deleteProof() async {
+            final confirmed = await _confirmDeleteRecord(
+              sheetContext,
+              title: 'Delete proof?',
+              message:
+                  'The proof attached to "${payment.title}" will be removed. The payment itself will stay.',
+            );
+            if (!confirmed || !sheetContext.mounted) return;
+            setSheetState(() => isDeleting = true);
+            final provider = sheetContext.read<EventsProvider>();
+            final ok = await AppSnackBar.guard(
+              sheetContext,
+              provider.removePaymentProof(eventId, payment.id),
+              success: 'Payment proof deleted.',
+              error: 'Could not delete proof.',
+            );
+            if (!sheetContext.mounted) return;
+            setSheetState(() {
+              isDeleting = false;
+              if (ok) payment = payment.copyWith(proof: '');
+            });
+          }
+
+          final isBusy = isUploading || isDeleting;
+          final danger = context.isDark
+              ? const Color(0xFFF87171)
+              : const Color(0xFFDC2626);
+
+          return SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                24,
+                20,
+                MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: context.accentColor.withValues(alpha: 0.16),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.verified_outlined,
-                            color: context.accentColor,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
                         Text(
-                          _currency.format(payment.amount),
+                          'Payment Proof & Receipt',
                           style: GoogleFonts.plusJakartaSans(
                             color: context.textMain,
-                            fontSize: 26,
+                            fontSize: 20,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Payment Verified · ${payment.method.label}',
-                          style: TextStyle(
-                            color: context.accentColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (hasImageProof) ...[
-                          const SizedBox(height: 14),
-                          GestureDetector(
-                            onTap: () =>
-                                _showFullScreenProof(context, payment.proof!),
-                            child: Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(
-                                    payment.proof!,
-                                    height: 160,
-                                    width: double.infinity,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (ctx, err, stack) =>
-                                        Container(
-                                          height: 80,
-                                          color: context.cardBg,
-                                          child: Center(
-                                            child: Text(
-                                              'Image Proof: ${payment.proof}',
-                                              style: TextStyle(
-                                                color: context.textMuted,
-                                                fontSize: 11,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                  ),
-                                ),
-                                Positioned(
-                                  right: 8,
-                                  bottom: 8,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.7,
-                                      ),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.zoom_in_rounded,
-                                          color: Colors.white,
-                                          size: 14,
-                                        ),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          'Full Screen',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 16),
-                        Divider(color: context.cardBorder, height: 1),
-                        const SizedBox(height: 14),
-                        _buildProofDetailRow(
-                          context,
-                          'Description',
-                          payment.title,
-                        ),
-                        const SizedBox(height: 8),
-                        _buildProofDetailRow(context, 'Date & Time', dateStr),
-                        const SizedBox(height: 8),
-                        _buildProofDetailRow(
-                          context,
-                          'Transaction Ref',
-                          (payment.reference != null &&
-                                  payment.reference!.trim().isNotEmpty)
-                              ? payment.reference!.trim()
-                              : 'None provided',
+                        IconButton(
+                          icon: Icon(Icons.close, color: context.textMuted),
+                          onPressed: () => Navigator.of(sheetContext).pop(),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  StudioButton(
-                    label: 'Done',
-                    onPressed: () => Navigator.of(sheetContext).pop(),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: context.innerBg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: context.accentColor.withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 52,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: context.accentColor.withValues(
+                                alpha: 0.16,
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.verified_outlined,
+                              color: context.accentColor,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _currency.format(payment.amount),
+                            style: GoogleFonts.plusJakartaSans(
+                              color: context.textMain,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Payment Verified · ${payment.method.label}',
+                            style: TextStyle(
+                              color: context.accentColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (hasImageProof) ...[
+                            const SizedBox(height: 14),
+                            GestureDetector(
+                              onTap: () =>
+                                  _showFullScreenProof(context, payment.proof!),
+                              child: Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.network(
+                                      payment.proof!,
+                                      height: 160,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (ctx, err, stack) =>
+                                          Container(
+                                            height: 80,
+                                            color: context.cardBg,
+                                            child: Center(
+                                              child: Text(
+                                                'Image Proof: ${payment.proof}',
+                                                style: TextStyle(
+                                                  color: context.textMuted,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    right: 8,
+                                    bottom: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.7,
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.zoom_in_rounded,
+                                            color: Colors.white,
+                                            size: 14,
+                                          ),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Full Screen',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 16),
+                          Divider(color: context.cardBorder, height: 1),
+                          const SizedBox(height: 14),
+                          _buildProofDetailRow(
+                            context,
+                            'Description',
+                            payment.title,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildProofDetailRow(context, 'Date & Time', dateStr),
+                          const SizedBox(height: 8),
+                          _buildProofDetailRow(
+                            context,
+                            'Transaction Ref',
+                            (payment.reference != null &&
+                                    payment.reference!.trim().isNotEmpty)
+                                ? payment.reference!.trim()
+                                : 'None provided',
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildProofActionButton(
+                            color: context.accentColor,
+                            isLoading: isUploading,
+                            icon: payment.hasProof
+                                ? Icons.edit_rounded
+                                : Icons.upload_file_rounded,
+                            label: isUploading
+                                ? 'Uploading...'
+                                : (payment.hasProof
+                                      ? 'Replace Proof'
+                                      : 'Add Proof'),
+                            onPressed: isBusy ? null : replaceProof,
+                          ),
+                        ),
+                        if (payment.hasProof) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildProofActionButton(
+                              color: danger,
+                              isLoading: isDeleting,
+                              icon: Icons.delete_outline_rounded,
+                              label: isDeleting ? 'Deleting...' : 'Delete Proof',
+                              onPressed: isBusy ? null : deleteProof,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    StudioButton(
+                      label: 'Done',
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildProofActionButton({
+    required Color color,
+    required bool isLoading,
+    required IconData icon,
+    required String label,
+    required VoidCallback? onPressed,
+  }) {
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        backgroundColor: color.withValues(alpha: 0.06),
+        side: BorderSide(color: color.withValues(alpha: 0.45)),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
+      onPressed: onPressed,
+      icon: isLoading
+          ? SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: color),
+            )
+          : Icon(icon, size: 18),
+      label: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
     );
   }
 
@@ -3182,30 +3612,43 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                         final amount = double.tryParse(
                           amountController.text.trim(),
                         );
-                        if (amount != null &&
-                            amount > 0 &&
-                            titleController.text.trim().isNotEmpty) {
-                          final finalCategory =
-                              category == 'Others' &&
-                                  customCategoryController.text
-                                      .trim()
-                                      .isNotEmpty
-                              ? customCategoryController.text.trim()
-                              : (category == 'Others' ? 'Other' : category);
-
-                          final expense = ExpenseRecord(
-                            id: 'exp-${DateTime.now().millisecondsSinceEpoch}',
-                            title: titleController.text.trim(),
-                            amount: amount,
-                            category: finalCategory,
-                            incurredAt: DateTime.now(),
+                        if (titleController.text.trim().isEmpty) {
+                          AppSnackBar.error(
+                            sheetContext,
+                            'Please enter an expense title.',
                           );
+                          return;
+                        }
+                        if (amount == null || amount <= 0) {
+                          AppSnackBar.error(
+                            sheetContext,
+                            'Enter a valid amount greater than 0.',
+                          );
+                          return;
+                        }
+                        final finalCategory =
+                            category == 'Others' &&
+                                customCategoryController.text.trim().isNotEmpty
+                            ? customCategoryController.text.trim()
+                            : (category == 'Others' ? 'Other' : category);
+
+                        final expense = ExpenseRecord(
+                          id: 'exp-${DateTime.now().millisecondsSinceEpoch}',
+                          title: titleController.text.trim(),
+                          amount: amount,
+                          category: finalCategory,
+                          incurredAt: DateTime.now(),
+                        );
+                        Navigator.of(sheetContext).pop();
+                        AppSnackBar.guard(
+                          context,
                           context.read<EventsProvider>().addExpense(
                             eventId,
                             expense,
-                          );
-                          Navigator.of(sheetContext).pop();
-                        }
+                          ),
+                          success: 'Expense of ₹${amount.toInt()} added.',
+                          error: 'Could not add expense.',
+                        );
                       },
                     ),
                   ],
@@ -3240,10 +3683,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: context.textMuted),
-            ),
+            child: Text('Cancel', style: TextStyle(color: context.textMuted)),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -3261,11 +3701,19 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
       if (confirmed != true) return;
       try {
         await provider.deleteEvent(event.id);
-        if (context.mounted) Navigator.of(context).pop();
+        if (context.mounted) {
+          final rootContext = Navigator.of(
+            context,
+            rootNavigator: true,
+          ).context;
+          Navigator.of(context).pop();
+          AppSnackBar.success(rootContext, '"${event.title}" deleted.');
+        }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to delete event: $e')),
+          AppSnackBar.error(
+            context,
+            e is ApiException ? e.message : 'Failed to delete event.',
           );
         }
       }
@@ -3284,146 +3732,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
           .map((t) => DeliverableTask(id: 'dup-${t.id}', title: t.title))
           .toList(),
     );
-    context.read<EventsProvider>().addEvent(newEvent).then((_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Event duplicated')),
-        );
-      }
-    }).catchError((e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to duplicate: $e')),
-        );
-      }
-    });
-  }
-
-  void _showEditEventDialog(BuildContext context, StudioEvent event) {
-    EventStatus selectedStatus = event.status;
-    final notesController = TextEditingController(text: event.notes);
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (modalContext, setDialogState) {
-            return AlertDialog(
-              backgroundColor: Theme.of(context).dialogTheme.backgroundColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              title: Text(
-                'Edit Event Details',
-                style: GoogleFonts.plusJakartaSans(
-                  color: context.textMain,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Status',
-                      style: TextStyle(
-                        color: context.textMain,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    ...EventStatus.values.map((status) {
-                      final isSelected = selectedStatus == status;
-                      return InkWell(
-                        onTap: () {
-                          setDialogState(() => selectedStatus = status);
-                        },
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? context.accentColor.withValues(alpha: 0.15)
-                                : context.innerBg,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isSelected
-                                  ? context.accentColor
-                                  : context.cardBorder,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                isSelected
-                                    ? Icons.radio_button_checked
-                                    : Icons.radio_button_off,
-                                color: isSelected
-                                    ? context.accentColor
-                                    : context.textMuted,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                status.label,
-                                style: TextStyle(
-                                  color: context.textMain,
-                                  fontWeight: isSelected
-                                      ? FontWeight.w700
-                                      : FontWeight.normal,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                    const SizedBox(height: 16),
-                    StudioTextField(
-                      label: 'Notes & Instructions',
-                      hint:
-                          'Edit shoot notes, client requirements or special instructions...',
-                      controller: notesController,
-                      maxLines: 4,
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text(
-                    'Cancel',
-                    style: TextStyle(color: context.textMuted),
-                  ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: context.accentColor,
-                    foregroundColor: context.isDark ? AppColors.ink : Colors.white,
-                  ),
-                  onPressed: () {
-                    context.read<EventsProvider>().updateEvent(
-                      event.copyWith(
-                        status: selectedStatus,
-                        notes: notesController.text.trim(),
-                      ),
-                    );
-                    Navigator.of(dialogContext).pop();
-                  },
-                  child: const Text('Save'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+    AppSnackBar.guard(
+      context,
+      context.read<EventsProvider>().addEvent(newEvent),
+      success: 'Event duplicated.',
+      error: 'Failed to duplicate event.',
     );
   }
 
@@ -3494,12 +3807,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
               InteractiveViewer(
                 minScale: 0.5,
                 maxScale: 4.0,
-                child: Center(
-                  child: Image.memory(
-                    bytes,
-                    fit: BoxFit.contain,
-                  ),
-                ),
+                child: Center(child: Image.memory(bytes, fit: BoxFit.contain)),
               ),
               Positioned(
                 top: 12,

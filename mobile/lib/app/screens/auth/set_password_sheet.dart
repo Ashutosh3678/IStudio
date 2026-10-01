@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/app_snackbar.dart';
 import '../../utils/validators.dart';
 import '../../widgets/studio_button.dart';
 import '../../widgets/studio_text_field.dart';
@@ -50,6 +51,7 @@ class _SetPasswordSheetState extends State<SetPasswordSheet> {
     if (_passwordController.text != _confirmController.text) {
       HapticFeedback.heavyImpact();
       setState(() => _errorMessage = 'Passwords do not match.');
+      AppSnackBar.error(context, 'Passwords do not match.');
       return;
     }
 
@@ -64,10 +66,15 @@ class _SetPasswordSheetState extends State<SetPasswordSheet> {
     if (mounted) {
       setState(() => _isLoading = false);
       if (success) {
+        final rootContext = Navigator.of(context, rootNavigator: true).context;
         Navigator.of(context).pop(true);
+        if (rootContext.mounted) {
+          AppSnackBar.success(rootContext, 'Password set successfully.');
+        }
       } else {
-        setState(() =>
-            _errorMessage = auth.errorMessage ?? 'Unable to set password.');
+        final message = auth.errorMessage ?? 'Unable to set password.';
+        setState(() => _errorMessage = message);
+        AppSnackBar.error(context, message);
       }
     }
   }

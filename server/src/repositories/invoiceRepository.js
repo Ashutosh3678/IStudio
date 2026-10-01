@@ -102,7 +102,6 @@ async function updateInvoice(id, userId, fields) {
     'dueDate',
     'upiId',
     'amountReceived',
-    'documentType',
   ];
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const invoice = await findByIdForUser(id, userId);

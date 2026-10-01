@@ -2,8 +2,6 @@ import 'package:flutter/foundation.dart';
 
 enum InvoiceStatus { paid, pending, partial, overdue }
 
-enum InvoiceDocumentType { receipt, estimate }
-
 enum InvoiceFilter {
   all,
   paid,
@@ -65,7 +63,6 @@ class Invoice {
     required this.deliverables,
     this.upiId = '',
     this.amountReceived = 0,
-    this.documentType = InvoiceDocumentType.receipt,
   });
 
   final String id;
@@ -79,9 +76,11 @@ class Invoice {
   final List<InvoiceDeliverable> deliverables;
   final String upiId;
   final double amountReceived;
-  final InvoiceDocumentType documentType;
 
-  bool get isEstimate => documentType == InvoiceDocumentType.estimate;
+  /// Legacy estimate records may still exist in storage; they are not receipts.
+  static bool isLegacyEstimate(Map<String, dynamic> json) =>
+      json['documentType'] == 'estimate' ||
+      (json['number'] as String? ?? '').toUpperCase().startsWith('EST');
 
   double get total =>
       deliverables.fold(0, (sum, item) => sum + item.cost);
@@ -134,7 +133,6 @@ class Invoice {
     List<InvoiceDeliverable>? deliverables,
     String? upiId,
     double? amountReceived,
-    InvoiceDocumentType? documentType,
   }) {
     return Invoice(
       id: id ?? this.id,
@@ -148,7 +146,6 @@ class Invoice {
       deliverables: deliverables ?? this.deliverables,
       upiId: upiId ?? this.upiId,
       amountReceived: amountReceived ?? this.amountReceived,
-      documentType: documentType ?? this.documentType,
     );
   }
 
@@ -164,7 +161,6 @@ class Invoice {
     'deliverables': deliverables.map((item) => item.toJson()).toList(),
     'upiId': upiId,
     'amountReceived': amountReceived,
-    'documentType': documentType.name,
   };
 
   factory Invoice.fromJson(Map<String, dynamic> json) {
@@ -185,10 +181,6 @@ class Invoice {
       deliverables: items,
       upiId: json['upiId'] as String? ?? '',
       amountReceived: (json['amountReceived'] as num?)?.toDouble() ?? 0,
-      documentType: (json['documentType'] as String?) == 'estimate' ||
-              (json['number'] as String? ?? '').toUpperCase().startsWith('EST')
-          ? InvoiceDocumentType.estimate
-          : InvoiceDocumentType.receipt,
     );
   }
 }

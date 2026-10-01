@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,13 +8,17 @@ import 'package:provider/provider.dart';
 
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/api_config.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/app_snackbar.dart';
 import '../../utils/validators.dart';
+import '../../widgets/avatar_crop_screen.dart';
 import '../../widgets/profile_avatar.dart';
 import '../../widgets/studio_button.dart';
 import '../../widgets/studio_card.dart';
 import '../../widgets/studio_text_field.dart';
 import '../../widgets/change_password_sheet.dart';
+import '../legal/legal_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -25,6 +30,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _editing = false;
   bool _isUploadingImage = false;
+  bool _isUploadingQr = false;
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _studioName;
   late final TextEditingController _ownerName;
@@ -178,65 +184,118 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final picker = ImagePicker();
       final picked = await picker.pickImage(
         source: source,
-        maxWidth: 1024,
-        maxHeight: 1024,
+        maxWidth: 2048,
+        maxHeight: 2048,
         imageQuality: 85,
       );
-      if (picked == null) return;
+      if (picked == null || !mounted) return;
+
+      final original = await picked.readAsBytes();
+      if (!mounted) return;
+      final cropped = await AvatarCropScreen.open(
+        context,
+        bytes: original,
+        filename: picked.name,
+      );
+      if (cropped == null || !mounted) return;
 
       setState(() => _isUploadingImage = true);
 
-      final bytes = await picked.readAsBytes();
-      final filename = picked.name;
-
-      if (!mounted) return;
       final auth = context.read<AuthProvider>();
-      final success = await auth.uploadLogo(bytes, filename);
+      final success = await auth.uploadLogo(cropped.bytes, cropped.filename);
 
       if (!mounted) return;
       setState(() => _isUploadingImage = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            success
-                ? 'Profile image updated successfully.'
-                : auth.errorMessage ?? 'Could not upload profile image.',
-          ),
-          backgroundColor: AppColors.navy,
-        ),
-      );
+      if (success) {
+        AppSnackBar.success(context, 'Profile image updated successfully.');
+      } else {
+        AppSnackBar.error(
+            context, auth.errorMessage ?? 'Could not upload profile image.');
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _isUploadingImage = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to pick or upload image: $e'),
-            backgroundColor: AppColors.navy,
-          ),
-        );
+        AppSnackBar.error(context, 'Failed to pick or upload image: $e');
       }
     }
+  }
+
+  static const _photoHeroTag = 'profile-photo';
+
+  void _viewProfilePhoto(String logoUrl) {
+    final resolved = ApiConfig.resolveMedia(logoUrl);
+    final ImageProvider image = resolved.startsWith('data:')
+        ? MemoryImage(base64Decode(resolved.split(',').last))
+        : NetworkImage(resolved);
+
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black.withValues(alpha: 0.92),
+        barrierDismissible: true,
+        pageBuilder: (routeContext, _, _) => Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(routeContext).pop(),
+                    child: InteractiveViewer(
+                      minScale: 1,
+                      maxScale: 4,
+                      child: Center(
+                        child: Hero(
+                          tag: _photoHeroTag,
+                          child: Image(
+                            image: image,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, _, _) => const Text(
+                              'Could not load photo.',
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IconButton(
+                    tooltip: 'Close',
+                    icon: const Icon(Icons.close_rounded, color: Colors.white),
+                    onPressed: () => Navigator.of(routeContext).pop(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        transitionsBuilder: (_, animation, _, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
+    );
   }
 
   Future<void> _removeProfilePhoto() async {
     final auth = context.read<AuthProvider>();
     final success = await auth.updateProfile({'logoUrl': ''});
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? 'Profile photo removed.'
-              : auth.errorMessage ?? 'Could not remove photo.',
-        ),
-        backgroundColor: AppColors.navy,
-      ),
-    );
+    if (success) {
+      AppSnackBar.success(context, 'Profile photo removed.');
+    } else {
+      AppSnackBar.error(context, auth.errorMessage ?? 'Could not remove photo.');
+    }
   }
 
   Future<void> _save() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      AppSnackBar.error(context, 'Please fix the highlighted fields.');
+      return;
+    }
     final auth = context.read<AuthProvider>();
     final success = await auth.updateProfile({
       'studioName': _studioName.text.trim(),
@@ -254,31 +313,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
     if (success) {
       setState(() => _editing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profile saved.'),
-          backgroundColor: AppColors.navy,
-        ),
-      );
+      AppSnackBar.success(context, 'Profile saved.');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(auth.errorMessage ?? 'Could not save profile.'),
-          backgroundColor: AppColors.navy,
-        ),
-      );
+      AppSnackBar.error(context, auth.errorMessage ?? 'Could not save profile.');
     }
   }
 
   Future<void> _openChangePasswordSheet() async {
     final success = await ChangePasswordSheet.show(context);
     if (success == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password updated successfully.'),
-          backgroundColor: AppColors.navy,
-        ),
-      );
+      AppSnackBar.success(context, 'Password updated successfully.');
     }
   }
 
@@ -357,7 +401,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           width: 2.5,
                         ),
                       ),
-                      child: ProfileAvatar(logoUrl: user?.logoUrl, size: 104),
+                      child: GestureDetector(
+                        onTap: isBusy
+                            ? null
+                            : () => (user?.logoUrl.isNotEmpty ?? false)
+                                ? _viewProfilePhoto(user!.logoUrl)
+                                : _showImageSourcePicker(),
+                        child: ProfileAvatar(
+                          logoUrl: user?.logoUrl,
+                          size: 104,
+                          heroTag: _photoHeroTag,
+                        ),
+                      ),
                     ),
                     if (_isUploadingImage)
                       Container(
@@ -442,10 +497,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _buildSocialCard(user),
 
                 const SizedBox(height: 18),
+                _buildSectionHeader(context, 'Payments', Icons.qr_code_2_rounded),
+                const SizedBox(height: 8),
+                _buildPaymentQrCard(user),
+
+                const SizedBox(height: 18),
                 // Section 3: Account Settings
                 _buildSectionHeader(context, 'Account Settings', Icons.settings_outlined),
                 const SizedBox(height: 8),
                 _buildSettingsCard(context),
+
+                const SizedBox(height: 18),
+                _buildSectionHeader(context, 'Legal', Icons.policy_outlined),
+                const SizedBox(height: 8),
+                _buildLegalCard(context),
 
                 const SizedBox(height: 24),
                 StudioButton(
@@ -455,8 +520,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onPressed: isBusy
                       ? null
                       : () {
+                          final auth = context.read<AuthProvider>();
+                          final rootContext =
+                              Navigator.of(context, rootNavigator: true).context;
                           Navigator.of(context).pop();
-                          context.read<AuthProvider>().logout();
+                          auth.logout();
+                          AppSnackBar.success(rootContext, 'Signed out successfully.');
                         },
                 ),
               ],
@@ -513,6 +582,170 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _DetailRow(icon: Icons.ondemand_video_rounded, label: 'YouTube', value: _orDash(user?.youtube)),
           _DetailRow(icon: Icons.link_rounded, label: 'Website', value: _orDash(user?.website)),
           _DetailRow(icon: Icons.info_outline_rounded, label: 'About', value: _orDash(user?.about), last: true),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _uploadPaymentQr() async {
+    final XFile? picked;
+    try {
+      picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 95,
+      );
+    } catch (_) {
+      if (mounted) AppSnackBar.error(context, 'Could not open the gallery.');
+      return;
+    }
+    if (picked == null || !mounted) return;
+    setState(() => _isUploadingQr = true);
+    final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    final auth = context.read<AuthProvider>();
+    final ok = await auth.uploadPaymentQr(bytes, picked.name);
+    if (!mounted) return;
+    setState(() => _isUploadingQr = false);
+    if (ok) {
+      AppSnackBar.success(context, 'Payment QR saved. It will appear on your invoices.');
+    } else {
+      AppSnackBar.error(context, auth.errorMessage ?? 'Could not upload payment QR.');
+    }
+  }
+
+  Future<void> _removePaymentQr() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dlgContext) => AlertDialog(
+        backgroundColor: dlgContext.cardBg,
+        title: Text(
+          'Remove payment QR?',
+          style: TextStyle(color: dlgContext.textMain, fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          'Invoices will show your UPI ID instead of the QR.',
+          style: TextStyle(color: dlgContext.textMuted, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dlgContext).pop(false),
+            child: Text('Cancel', style: TextStyle(color: dlgContext.textMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(dlgContext).pop(true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final auth = context.read<AuthProvider>();
+    final ok = await auth.updateProfile({'paymentQrUrl': ''});
+    if (!mounted) return;
+    if (ok) {
+      AppSnackBar.success(context, 'Payment QR removed.');
+    } else {
+      AppSnackBar.error(context, auth.errorMessage ?? 'Could not remove payment QR.');
+    }
+  }
+
+  Widget _buildPaymentQrCard(User? user) {
+    final qrUrl = user?.paymentQrUrl.trim() ?? '';
+    final hasQr = qrUrl.isNotEmpty;
+    final accent = context.accentColor;
+    const danger = Color(0xFFEF4444);
+
+    return StudioCard(
+      child: Row(
+        children: [
+          Container(
+            width: 84,
+            height: 84,
+            decoration: BoxDecoration(
+              color: hasQr ? Colors.white : context.innerBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: context.cardBorder),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: _isUploadingQr
+                ? Center(
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: accent),
+                    ),
+                  )
+                : hasQr
+                    ? Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Image.network(
+                          ApiConfig.resolveMedia(qrUrl),
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, _, _) =>
+                              Icon(Icons.broken_image_outlined, color: context.textMuted),
+                        ),
+                      )
+                    : Icon(Icons.qr_code_2_rounded, size: 40, color: context.textMuted),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Payment QR',
+                  style: TextStyle(
+                    color: context.textMain,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  hasQr
+                      ? 'Shown as "Scan to Pay" on your invoices.'
+                      : 'Upload your UPI QR to show it on invoices. Without it, your UPI ID is shown.',
+                  style: TextStyle(color: context.textMuted, fontSize: 12, height: 1.35),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _isUploadingQr ? null : _uploadPaymentQr,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: accent,
+                        side: BorderSide(color: accent.withValues(alpha: 0.5)),
+                        visualDensity: VisualDensity.compact,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      icon: Icon(hasQr ? Icons.edit_rounded : Icons.upload_rounded, size: 16),
+                      label: Text(hasQr ? 'Replace' : 'Upload QR'),
+                    ),
+                    if (hasQr)
+                      OutlinedButton.icon(
+                        onPressed: _isUploadingQr ? null : _removePaymentQr,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: danger,
+                          side: BorderSide(color: danger.withValues(alpha: 0.5)),
+                          visualDensity: VisualDensity.compact,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                        label: const Text('Remove'),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -629,6 +862,94 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildLegalCard(BuildContext context) {
+    return StudioCard(
+      child: Container(
+        decoration: BoxDecoration(
+          color: context.innerBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: context.cardBorder),
+        ),
+        child: Column(
+          children: [
+            _buildLegalTile(
+              context,
+              icon: Icons.privacy_tip_outlined,
+              title: 'Privacy Policy',
+              subtitle: 'How we handle your studio and client data',
+              document: LegalDocument.privacy,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(14)),
+            ),
+            Divider(height: 1, color: context.cardBorder),
+            _buildLegalTile(
+              context,
+              icon: Icons.gavel_rounded,
+              title: 'Terms & Conditions',
+              subtitle: 'Rules for using the app',
+              document: LegalDocument.terms,
+              borderRadius:
+                  const BorderRadius.vertical(bottom: Radius.circular(14)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegalTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required LegalDocument document,
+    required BorderRadius borderRadius,
+  }) {
+    final accent = context.accentColor;
+    final textMuted = context.textMuted;
+    return InkWell(
+      borderRadius: borderRadius,
+      onTap: () => LegalScreen.open(context, document),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: accent, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: context.textMain,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(color: textMuted, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildForm(bool isLoading) {
     return Form(
       key: _formKey,
@@ -675,6 +996,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             controller: _email,
             keyboardType: TextInputType.emailAddress,
             prefixIcon: Icons.mail_outline_rounded,
+            validator: Validators.email,
           ),
           const SizedBox(height: 14),
           StudioTextField(
@@ -682,6 +1004,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             hint: 'Where the studio is based',
             controller: _city,
             prefixIcon: Icons.location_city_outlined,
+            validator: (value) => (value == null || value.trim().isEmpty)
+                ? 'Enter your city'
+                : null,
           ),
           const SizedBox(height: 14),
           StudioTextField(
@@ -689,6 +1014,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             hint: 'Street, floor, landmark',
             controller: _address,
             prefixIcon: Icons.place_outlined,
+            validator: (value) => (value == null || value.trim().isEmpty)
+                ? 'Enter your studio address'
+                : null,
           ),
           const SizedBox(height: 14),
           StudioTextField(
@@ -696,27 +1024,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
             hint: 'Weddings, portraits, commercial...',
             controller: _specialties,
             prefixIcon: Icons.auto_awesome_outlined,
+            validator: (value) => (value == null || value.trim().isEmpty)
+                ? 'Enter what you specialise in'
+                : null,
           ),
           const SizedBox(height: 14),
           StudioTextField(
-            label: 'Instagram',
+            label: 'Instagram (optional)',
             hint: '@yourstudio',
             controller: _instagram,
+            keyboardType: TextInputType.url,
             prefixIcon: Icons.camera_alt_outlined,
+            validator: Validators.instagram,
           ),
           const SizedBox(height: 14),
           StudioTextField(
-            label: 'YouTube Channel / Link',
+            label: 'YouTube (optional)',
             hint: 'https://youtube.com/@yourstudio',
             controller: _youtube,
+            keyboardType: TextInputType.url,
             prefixIcon: Icons.ondemand_video_rounded,
+            validator: Validators.youtube,
           ),
           const SizedBox(height: 14),
           StudioTextField(
-            label: 'Website',
+            label: 'Website (optional)',
             hint: 'https://yourstudio.com',
             controller: _website,
+            keyboardType: TextInputType.url,
             prefixIcon: Icons.link_rounded,
+            validator: Validators.website,
           ),
           const SizedBox(height: 14),
           StudioTextField(
@@ -724,6 +1061,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             hint: 'Tell clients what makes your studio special',
             controller: _about,
             maxLines: 4,
+            validator: (value) => (value == null || value.trim().isEmpty)
+                ? 'Write a short description'
+                : null,
           ),
           const SizedBox(height: 20),
           StudioButton(
@@ -857,18 +1197,18 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
         _otpController.text = debugOtp;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] as String? ?? 'Verification code sent to your email.'),
-          backgroundColor: AppColors.navy,
-        ),
+      AppSnackBar.success(
+        context,
+        result['message'] as String? ?? 'Verification code sent to your email.',
       );
     } catch (e) {
       if (!mounted) return;
+      final message = e.toString().replaceFirst('Exception: ', '');
       setState(() {
         _sendingOtp = false;
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        _errorMessage = message;
       });
+      AppSnackBar.error(context, message);
     }
   }
 
@@ -877,11 +1217,15 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
     final password = _passwordController.text;
 
     if (otp.length != 6) {
-      setState(() => _errorMessage = 'Please enter the 6-digit verification code.');
+      const message = 'Please enter the 6-digit verification code.';
+      setState(() => _errorMessage = message);
+      AppSnackBar.error(context, message);
       return;
     }
     if (password.isEmpty) {
-      setState(() => _errorMessage = 'Please enter your account password.');
+      const message = 'Please enter your account password.';
+      setState(() => _errorMessage = message);
+      AppSnackBar.error(context, message);
       return;
     }
 
@@ -897,18 +1241,19 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
     setState(() => _deleting = false);
 
     if (success) {
+      final rootContext = Navigator.of(context, rootNavigator: true).context;
       Navigator.of(context).pop(); // Close bottom sheet
       Navigator.of(context).pop(); // Exit profile screen
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Your account and associated data have been permanently deleted.'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      if (rootContext.mounted) {
+        AppSnackBar.success(
+          rootContext,
+          'Your account and associated data have been permanently deleted.',
+        );
+      }
     } else {
-      setState(() {
-        _errorMessage = auth.errorMessage ?? 'Unable to delete account.';
-      });
+      final message = auth.errorMessage ?? 'Unable to delete account.';
+      setState(() => _errorMessage = message);
+      AppSnackBar.error(context, message);
     }
   }
 

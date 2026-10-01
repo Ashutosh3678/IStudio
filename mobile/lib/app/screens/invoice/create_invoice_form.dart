@@ -9,6 +9,7 @@ import '../../providers/events_provider.dart';
 import '../../providers/invoices_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/app_snackbar.dart';
 import '../../utils/validators.dart';
 import '../../widgets/studio_button.dart';
 import '../../widgets/studio_card.dart';
@@ -17,14 +18,9 @@ import 'invoice_preview_screen.dart';
 import 'invoice_sheets.dart';
 
 class CreateInvoiceForm extends StatefulWidget {
-  const CreateInvoiceForm({
-    super.key,
-    required this.onSaved,
-    this.documentType = InvoiceDocumentType.receipt,
-  });
+  const CreateInvoiceForm({super.key, required this.onSaved});
 
   final ValueChanged<Invoice> onSaved;
-  final InvoiceDocumentType documentType;
 
   @override
   State<CreateInvoiceForm> createState() => CreateInvoiceFormState();
@@ -48,8 +44,7 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
     decimalDigits: 0,
   );
 
-  double get _total =>
-      _deliverables.fold(0, (sum, item) => sum + item.cost);
+  double get _total => _deliverables.fold(0, (sum, item) => sum + item.cost);
 
   @override
   void initState() {
@@ -89,9 +84,7 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
     final provider = context.read<InvoicesProvider>();
     return Invoice(
       id: 'inv-${DateTime.now().millisecondsSinceEpoch}',
-      number: widget.documentType == InvoiceDocumentType.estimate
-          ? provider.nextEstimateNumber()
-          : provider.nextNumber(),
+      number: provider.nextNumber(),
       eventName: _eventController.text.trim(),
       contactName: _contactController.text.trim(),
       phone: Validators.normalizePhone(_phoneController.text),
@@ -100,18 +93,16 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
       dueDate: _dueDate,
       deliverables: List.unmodifiable(_deliverables),
       upiId: _upiController.text.trim(),
-      documentType: widget.documentType,
     );
   }
 
   bool _validate() {
-    if (!_formKey.currentState!.validate()) return false;
+    if (!_formKey.currentState!.validate()) {
+      AppSnackBar.error(context, 'Please fix the highlighted fields.');
+      return false;
+    }
     if (_deliverables.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Add at least one item before continuing.'),
-        ),
-      );
+      AppSnackBar.error(context, 'Add at least one item before continuing.');
       return false;
     }
     return true;
@@ -141,42 +132,31 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
       if (!mounted) return;
       resetForm();
       widget.onSaved(saved);
+      AppSnackBar.success(context, 'Receipt ${saved.number} saved.');
       await InvoicePreviewScreen.open(context, invoice: saved);
     } on ApiException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      AppSnackBar.error(context, error.message);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.documentType == InvoiceDocumentType.estimate
-                ? 'Could not save estimated cost.'
-                : 'Could not save receipt.',
-          ),
-        ),
-      );
+      AppSnackBar.error(context, 'Could not save receipt.');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
   Future<void> _addOrEditDeliverable([InvoiceDeliverable? existing]) async {
-    final result = await AddDeliverableSheet.show(
-      context,
-      existing: existing,
-    );
-    if (result == null) return;
+    final result = await AddDeliverableSheet.show(context, existing: existing);
+    if (result == null || !mounted) return;
+    final index = _deliverables.indexWhere((item) => item.id == result.id);
     setState(() {
-      final index = _deliverables.indexWhere((item) => item.id == result.id);
       if (index >= 0) {
         _deliverables[index] = result;
       } else {
         _deliverables.add(result);
       }
     });
+    AppSnackBar.success(context, index >= 0 ? 'Item updated.' : 'Item added.');
   }
 
   Future<void> _pickDueDate() async {
@@ -208,9 +188,7 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
       event.clientId ?? '',
     );
     setState(() {
-      _eventController.text = widget.documentType == InvoiceDocumentType.estimate
-          ? '${event.title} · ${DateFormat('d MMM yyyy').format(event.startsAt)} · ${event.location}'
-          : event.title;
+      _eventController.text = event.title;
       _contactController.text = event.clientName;
       if ((client?.phone ?? '').isNotEmpty) {
         _phoneController.text = client!.phone;
@@ -238,10 +216,6 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
           130 + MediaQuery.paddingOf(context).bottom,
         ),
         children: [
-          if (widget.documentType == InvoiceDocumentType.estimate) ...[
-            _buildEstimateNotice(context),
-            const SizedBox(height: 18),
-          ],
           _sectionTitle(context, 'Client Details'),
           const SizedBox(height: 12),
           if (events.isNotEmpty) ...[
@@ -276,27 +250,22 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
           ],
           StudioTextField(
             label: 'Shoot name',
-            hint: 'e.g. Wedding — Client Name',
             controller: _eventController,
-            validator: (value) =>
-                (value == null || value.trim().isEmpty)
-                    ? 'Enter the shoot name'
-                    : null,
+            validator: (value) => (value == null || value.trim().isEmpty)
+                ? 'Enter the shoot name'
+                : null,
           ),
           const SizedBox(height: 14),
           StudioTextField(
             label: 'Client name',
-            hint: 'e.g. Client Name',
             controller: _contactController,
-            validator: (value) =>
-                (value == null || value.trim().isEmpty)
-                    ? 'Enter the client name'
-                    : null,
+            validator: (value) => (value == null || value.trim().isEmpty)
+                ? 'Enter the client name'
+                : null,
           ),
           const SizedBox(height: 14),
           StudioTextField(
             label: 'Phone number',
-            hint: 'e.g. 9876543210',
             controller: _phoneController,
             keyboardType: TextInputType.phone,
             validator: Validators.phone,
@@ -308,10 +277,9 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
             controller: _addressController,
             maxLines: 3,
             textInputAction: TextInputAction.newline,
-            validator: (value) =>
-                (value == null || value.trim().isEmpty)
-                    ? 'Enter a billing address'
-                    : null,
+            validator: (value) => (value == null || value.trim().isEmpty)
+                ? 'Enter a billing address'
+                : null,
           ),
           const SizedBox(height: 14),
           Text(
@@ -438,6 +406,7 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
                           setState(() {
                             _deliverables.removeWhere((d) => d.id == item.id);
                           });
+                          AppSnackBar.success(context, '${item.name} removed.');
                         },
                         icon: Icon(
                           Icons.close_rounded,
@@ -451,12 +420,7 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
               );
             }),
           const SizedBox(height: 16),
-          _sectionTitle(
-            context,
-            widget.documentType == InvoiceDocumentType.estimate
-                ? 'Estimate Summary'
-                : 'Bill Summary',
-          ),
+          _sectionTitle(context, 'Bill Summary'),
           const SizedBox(height: 12),
           StudioCard(
             child: Column(
@@ -472,35 +436,28 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
               ],
             ),
           ),
-          if (widget.documentType == InvoiceDocumentType.receipt) ...[
-            const SizedBox(height: 24),
-            _sectionTitle(context, 'Payment (UPI)'),
-            const SizedBox(height: 12),
-            StudioTextField(
-              label: 'UPI ID',
-              hint: 'e.g. lumenstudio@okaxis',
-              controller: _upiController,
-              prefixIcon: Icons.qr_code_2_rounded,
-              textInputAction: TextInputAction.done,
-              validator: (value) {
-                final trimmed = value?.trim() ?? '';
-                if (trimmed.isEmpty) return null;
-                if (!trimmed.contains('@') || trimmed.length < 5) {
-                  return 'Enter a valid UPI ID';
-                }
-                return null;
-              },
-            ),
-          ],
+          const SizedBox(height: 24),
+          _sectionTitle(context, 'Payment (UPI)'),
+          const SizedBox(height: 12),
+          StudioTextField(
+            label: 'UPI ID',
+            controller: _upiController,
+            prefixIcon: Icons.qr_code_2_rounded,
+            textInputAction: TextInputAction.done,
+            validator: (value) {
+              final trimmed = value?.trim() ?? '';
+              if (trimmed.isEmpty) return null;
+              if (!trimmed.contains('@') || trimmed.length < 5) {
+                return 'Enter a valid UPI ID';
+              }
+              return null;
+            },
+          ),
           const SizedBox(height: 24),
           OutlinedButton.icon(
             onPressed: _saving ? null : _preview,
             icon: const Icon(Icons.visibility_outlined),
-            label: Text(
-              widget.documentType == InvoiceDocumentType.estimate
-                  ? 'Preview Estimated Cost'
-                  : 'Check Receipt',
-            ),
+            label: const Text('Check Receipt'),
             style: OutlinedButton.styleFrom(
               foregroundColor: textMain,
               side: BorderSide(color: context.cardBorder),
@@ -512,9 +469,7 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
           ),
           const SizedBox(height: 12),
           StudioButton(
-            label: widget.documentType == InvoiceDocumentType.estimate
-                ? 'Save Estimated Cost'
-                : 'Save & Share Receipt',
+            label: 'Save & Share Receipt',
             isLoading: _saving,
             onPressed: _save,
           ),
@@ -542,46 +497,6 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildEstimateNotice(BuildContext context) {
-    final accent = context.accentColor;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accent.withValues(alpha: 0.38)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.request_quote_rounded, color: accent, size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'ESTIMATED COST / QUOTATION',
-                  style: TextStyle(
-                    color: context.textMain,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.35,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'A proposed price for client review. It is not a receipt or proof of payment.',
-                  style: TextStyle(color: context.textMuted, fontSize: 12, height: 1.25),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 

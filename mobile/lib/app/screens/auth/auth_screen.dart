@@ -9,11 +9,13 @@ import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/app_snackbar.dart';
 import '../../widgets/auth_background.dart';
 import '../../widgets/auth_mode_toggle.dart';
 import '../../widgets/fade_slide_in.dart';
 import '../../widgets/google_sign_in_button.dart';
 import '../../widgets/studio_logo.dart';
+import '../legal/legal_screen.dart';
 import 'login_form.dart';
 import 'set_password_sheet.dart';
 import 'signup_form.dart';
@@ -65,8 +67,11 @@ class _AuthScreenState extends State<AuthScreen>
   Future<void> _handleLogin(String identifier, String password) async {
     final auth = context.read<AuthProvider>();
     final success = await auth.login(identifier: identifier, password: password);
-    if (!success && mounted) {
-      _showError(auth.errorMessage);
+    if (!mounted) return;
+    if (success) {
+      AppSnackBar.success(context, 'Signed in successfully. Welcome back!');
+    } else {
+      _showError(auth.errorMessage ?? 'Sign in failed. Please try again.');
     }
   }
 
@@ -105,6 +110,7 @@ class _AuthScreenState extends State<AuthScreen>
     final auth = context.read<AuthProvider>();
     final success = await auth.signInWithGoogle();
     if (success && mounted) {
+      AppSnackBar.success(context, 'Signed in with Google.');
       if (auth.user?.needsPasswordSetup == true) {
         await SetPasswordSheet.show(context);
       }
@@ -115,9 +121,7 @@ class _AuthScreenState extends State<AuthScreen>
 
   void _showError(String? message) {
     if (message == null || !mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    AppSnackBar.error(context, message);
   }
 
   @override
@@ -219,6 +223,8 @@ class _AuthScreenState extends State<AuthScreen>
                                 onSignup: _handleSignup,
                                 onGoogleSignIn: _handleGoogleSignIn,
                               ),
+                              const SizedBox(height: 16),
+                              const _LegalFooter(),
                             ],
                           ),
                         ),
@@ -230,6 +236,46 @@ class _AuthScreenState extends State<AuthScreen>
             },
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LegalFooter extends StatelessWidget {
+  const _LegalFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    final baseStyle = GoogleFonts.plusJakartaSans(
+      color: context.textMuted,
+      fontSize: 12,
+      height: 1.5,
+    );
+    final linkStyle = baseStyle.copyWith(
+      color: context.accentColor,
+      fontWeight: FontWeight.w700,
+    );
+
+    Widget link(String label, LegalDocument doc) => InkWell(
+      borderRadius: BorderRadius.circular(6),
+      onTap: () => LegalScreen.open(context, doc),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+        child: Text(label, style: linkStyle),
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text('By continuing, you agree to our ', style: baseStyle),
+          link('Terms & Conditions', LegalDocument.terms),
+          Text(' and ', style: baseStyle),
+          link('Privacy Policy', LegalDocument.privacy),
+        ],
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/app_snackbar.dart';
 import '../../utils/validators.dart';
 import '../../widgets/studio_button.dart';
 import '../../widgets/studio_text_field.dart';
@@ -92,11 +93,14 @@ class _ForgotPasswordSheetState extends State<ForgotPasswordSheet> {
         _maskedPhone = res['maskedPhone'] as String?;
         _step = _ResetStep.newPassword;
       });
+      AppSnackBar.success(context, 'Username verified. Set your new password.');
     } on ApiException catch (e) {
       setState(() => _errorMessage = e.message);
+      if (mounted) AppSnackBar.error(context, e.message);
     } catch (_) {
-      setState(() => _errorMessage =
-          'Unable to verify username. Please check your connection.');
+      const message = 'Unable to verify username. Please check your connection.';
+      setState(() => _errorMessage = message);
+      if (mounted) AppSnackBar.error(context, message);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -107,6 +111,7 @@ class _ForgotPasswordSheetState extends State<ForgotPasswordSheet> {
     if (!(_passwordKey.currentState?.validate() ?? false)) return;
     if (_newPasswordController.text != _confirmPasswordController.text) {
       setState(() => _errorMessage = 'Passwords do not match.');
+      AppSnackBar.error(context, 'Passwords do not match.');
       return;
     }
 
@@ -130,8 +135,9 @@ class _ForgotPasswordSheetState extends State<ForgotPasswordSheet> {
           if (mounted) Navigator.of(context).pop(true);
         });
       } else {
-        setState(() =>
-            _errorMessage = auth.errorMessage ?? 'Unable to reset password.');
+        final message = auth.errorMessage ?? 'Unable to reset password.';
+        setState(() => _errorMessage = message);
+        AppSnackBar.error(context, message);
       }
     }
   }

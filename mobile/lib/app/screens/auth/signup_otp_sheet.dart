@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/app_snackbar.dart';
 import '../../widgets/pin_particle_field.dart';
 import '../../widgets/studio_button.dart';
 
@@ -125,11 +126,18 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
         setState(() => _debugOtp = debugOtp);
         _pinFieldKey.currentState?.setDigitsWithCascade(debugOtp);
       }
+      if (mounted) {
+        AppSnackBar.success(context, 'A new code was sent to ${widget.email}.');
+      }
     } on ApiException catch (e) {
       setState(() => _errorMessage = e.message);
+      if (mounted) AppSnackBar.error(context, e.message);
     } catch (_) {
       setState(() =>
           _errorMessage = 'Unable to resend code. Please try again.');
+      if (mounted) {
+        AppSnackBar.error(context, 'Unable to resend code. Please try again.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -140,6 +148,7 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
     final otp = _otpControllers.map((c) => c.text.trim()).join();
     if (otp.length != 6) {
       setState(() => _errorMessage = 'Please enter the complete 6-digit code.');
+      AppSnackBar.error(context, 'Please enter the complete 6-digit code.');
       return;
     }
 
@@ -160,10 +169,15 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
     if (mounted) {
       setState(() => _isLoading = false);
       if (success) {
+        final rootContext = Navigator.of(context, rootNavigator: true).context;
         Navigator.of(context).pop(true);
+        if (rootContext.mounted) {
+          AppSnackBar.success(rootContext, 'Account created successfully. Welcome!');
+        }
       } else {
-        setState(() =>
-            _errorMessage = auth.errorMessage ?? 'Unable to complete verification.');
+        final message = auth.errorMessage ?? 'Unable to complete verification.';
+        setState(() => _errorMessage = message);
+        AppSnackBar.error(context, message);
       }
     }
   }

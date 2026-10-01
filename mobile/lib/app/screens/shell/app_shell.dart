@@ -4,12 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../providers/auth_provider.dart';
 import '../../providers/events_provider.dart';
 import '../../providers/notifications_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_motion.dart';
-import '../../widgets/complete_profile_sheet.dart';
 import '../calendar/calendar_screen.dart';
 import '../clients/clients_screen.dart';
 import '../home/home_screen.dart';
@@ -31,27 +29,6 @@ class _AppShellState extends State<AppShell> {
     InvoiceScreen(),
     ClientsScreen(),
   ];
-
-  bool _checkedProfile = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_checkedProfile) {
-      _checkedProfile = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _checkProfileCompletion();
-      });
-    }
-  }
-
-  void _checkProfileCompletion() {
-    if (!mounted) return;
-    final user = context.read<AuthProvider>().user;
-    if (user != null && user.isProfileIncomplete) {
-      CompleteProfileSheet.show(context);
-    }
-  }
 
   void _switchTab(int newIndex) {
     if (newIndex == _index) return;

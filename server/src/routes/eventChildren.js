@@ -56,6 +56,7 @@ router.post('/payments/:id/proof', controller.authorizePaymentProof, (req, res, 
     return next();
   });
 }, controller.uploadPaymentProof);
+router.delete('/payments/:id/proof', controller.removePaymentProof);
 
 router.get('/events/:eventId/expenses', controller.listExpenses);
 router.post('/events/:eventId/expenses', idempotency, expenseRules, controller.createExpense);

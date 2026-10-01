@@ -47,6 +47,7 @@ const userSchema = new mongoose.Schema(
     website: { type: String, default: '', trim: true },
     specialties: { type: String, default: '', trim: true },
     logoUrl: { type: String, default: '' },
+    paymentQrUrl: { type: String, default: '' },
   },
   {
     timestamps: true,
@@ -80,6 +81,7 @@ userSchema.methods.toPublicJSON = function toPublicJSON() {
     website: this.website || '',
     specialties: this.specialties || '',
     logoUrl: this.logoUrl || '',
+    paymentQrUrl: this.paymentQrUrl || '',
     googleId: this.googleId || '',
   };
 };

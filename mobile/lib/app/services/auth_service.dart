@@ -153,6 +153,21 @@ class AuthService {
     return _parseUser(payload);
   }
 
+  Future<User> uploadPaymentQr({
+    required String token,
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    final payload = await _api.postMultipart(
+      '/auth/payment-qr',
+      fieldName: 'logo',
+      bytes: bytes,
+      filename: filename,
+      token: token,
+    );
+    return _parseUser(payload);
+  }
+
   Future<Map<String, dynamic>> verifyForgotPasswordUsername(String username) async {
     final payload = await _api.post('/auth/forgot-password/verify-username', {
       'username': username.trim(),
