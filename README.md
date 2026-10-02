@@ -20,6 +20,17 @@ npm run dev
 
 The API listens on `http://localhost:5000`.
 
+## Google Play review account
+
+Set these environment variables on the deployed backend:
+
+```env
+PLAY_REVIEW_EMAIL=test@gmail.com
+PLAY_REVIEW_PASSWORD=123456789
+```
+
+The API creates this account when it starts. If the email already exists, its password is reset to the configured value on startup. The password is stored as a bcrypt hash. Share these credentials with Google Play reviewers; the account uses the app's normal functionality.
+
 Open `http://localhost:5000/api-docs/` for the interactive Swagger UI. The raw OpenAPI document is available at `http://localhost:5000/openapi.yaml`.
 
 - `POST /api/auth/signup` — `{ username, phone, password }`

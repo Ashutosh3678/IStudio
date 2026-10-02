@@ -15,6 +15,7 @@ const logger = require('./config/logger');
 const { requestLogger } = require('./middleware/requestLogger');
 
 const { connectDb } = require('./config/db');
+const { ensurePlayReviewAccount } = require('./services/playReviewAccountService');
 const authRoutes = require('./routes/auth');
 const invoiceRoutes = require('./routes/invoices');
 const clientRoutes = require('./routes/clients');
@@ -149,6 +150,10 @@ async function start() {
   try {
     validateRuntimeConfig();
     await connectDb();
+    const playReviewAccount = await ensurePlayReviewAccount();
+    if (playReviewAccount) {
+      logger.info('Google Play review account is ready', { created: playReviewAccount.created });
+    }
     app.listen(port, '0.0.0.0', () => {
       console.log(`Server running on port ${port}`);
       logger.info('API listening', {
