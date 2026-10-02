@@ -272,7 +272,7 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
                   const SizedBox(height: 8),
                   Center(
                     child: Text(
-                      'Studio logo / photo (optional)',
+                      'Studio logo (optional)',
                       style: TextStyle(color: context.textMuted, fontSize: 12),
                     ),
                   ),

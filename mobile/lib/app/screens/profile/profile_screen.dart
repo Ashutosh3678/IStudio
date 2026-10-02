@@ -558,9 +558,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
               ),
               const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                runSpacing: 4,
                 children: [
                   Icon(Icons.person_outline_rounded, size: 15, color: context.textMuted),
                   const SizedBox(width: 4),

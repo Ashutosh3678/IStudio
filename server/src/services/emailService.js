@@ -194,6 +194,39 @@ async function sendVerificationEmail({ to, otp, username = '' }) {
   }
 }
 
+async function sendDeletionRequestNotification({ requestId, email, phone, createdAt }) {
+  const mailTransporter = getTransporter();
+  if (!mailTransporter) {
+    return { sent: false, reason: 'smtp_not_configured' };
+  }
+
+  const from = process.env.EMAIL_FROM || '"Clients Hub Studio" <no-reply@clientshub.com>';
+  const subject = `Data deletion request ${requestId} - Clients Hub`;
+  const text = [
+    'A data deletion request was submitted.',
+    `Request ID: ${requestId}`,
+    `Email: ${email}`,
+    `Phone: ${phone}`,
+    `Submitted: ${new Date(createdAt).toISOString()}`,
+    '',
+    'Verify ownership before deleting account data.',
+  ].join('\n');
+
+  try {
+    const info = await mailTransporter.sendMail({
+      from,
+      to: 'istudio2512@gmail.com',
+      replyTo: email,
+      subject,
+      text,
+    });
+    return { sent: true, messageId: info.messageId };
+  } catch (error) {
+    return { sent: false, reason: 'delivery_failed', error };
+  }
+}
+
 module.exports = {
   sendVerificationEmail,
+  sendDeletionRequestNotification,
 };
