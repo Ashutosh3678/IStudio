@@ -19,6 +19,15 @@ class GoogleAuthResult {
   final String? photoUrl;
 }
 
+class GoogleAuthException implements Exception {
+  const GoogleAuthException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class GoogleAuthService {
   GoogleAuthService({GoogleSignIn? googleSignIn})
       : _googleSignIn = googleSignIn ??
@@ -45,8 +54,9 @@ class GoogleAuthService {
 
       if ((idToken == null || idToken.isEmpty) &&
           (accessToken == null || accessToken.isEmpty)) {
-        throw Exception(
-          'Google authentication completed, but no authorization token was received.',
+        throw const GoogleAuthException(
+          'Google authentication completed, but no authorization token was received. '
+          'Check that GOOGLE_WEB_CLIENT_ID is a Web application client ID.',
         );
       }
 
@@ -58,11 +68,31 @@ class GoogleAuthService {
         photoUrl: account.photoUrl,
       );
     } on PlatformException catch (e) {
-      if (e.code == 'sign_in_canceled' || e.code == 'network_error') {
-        return null;
-      }
+      if (e.code == 'sign_in_canceled') return null;
+      throw GoogleAuthException(_describe(e));
+    } on GoogleAuthException {
       rethrow;
+    } catch (e) {
+      throw GoogleAuthException('Google sign-in failed: $e');
     }
+  }
+
+  static String _describe(PlatformException e) {
+    final details = '${e.message ?? ''} ${e.details ?? ''}';
+    if (e.code == 'network_error') {
+      return 'No internet connection. Please check your network and try again.';
+    }
+    // ApiException 10 = DEVELOPER_ERROR: package name / SHA-1 not registered
+    // in Google Cloud, or serverClientId is not a Web application client.
+    if (details.contains('ApiException: 10') || details.contains(': 10:')) {
+      return 'Google sign-in is not configured for this build (error 10). '
+          'Check the SHA-1 fingerprint and Web client ID.';
+    }
+    if (details.contains('ApiException: 12500')) {
+      return 'Google sign-in failed (error 12500). Check the OAuth consent '
+          'screen and support email in Google Cloud.';
+    }
+    return 'Google sign-in failed (${e.code}${e.message != null ? ': ${e.message}' : ''}).';
   }
 
   Future<void> signOut() async {

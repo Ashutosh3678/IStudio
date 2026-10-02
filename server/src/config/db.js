@@ -32,6 +32,12 @@ async function connectDb() {
     logger.warn('MongoDB disconnected');
   });
   logger.info('MongoDB connected', { database: dbName });
+
+  try {
+    await require('../models/User').migrateIndexes();
+  } catch (error) {
+    logger.error('Failed to migrate user indexes', { error: error.message });
+  }
 }
 
 module.exports = { connectDb };

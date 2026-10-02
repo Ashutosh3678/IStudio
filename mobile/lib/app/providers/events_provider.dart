@@ -21,14 +21,24 @@ class EventsProvider extends ChangeNotifier {
   List<Client> get clients => List.unmodifiable(_clients);
   List<StudioEvent> get events => List.unmodifiable(_events);
   bool get isLoading => _loading;
+  bool _hasLoaded = false;
+
+  /// True once events for the signed-in user were fetched successfully.
+  bool get hasLoaded => _hasLoaded;
+  bool _authResolved = false;
+
+  /// True only after auth finished bootstrapping and nobody is signed in.
+  bool get isSignedOut => _authResolved && _userId == null;
 
   void syncAuth(AuthProvider auth) {
     if (auth.isBootstrapping) return;
+    _authResolved = true;
     final userId = auth.user?.id;
     final token = auth.token;
     if (userId == _userId && token == _token) return;
     _userId = userId;
     _token = token;
+    _hasLoaded = false;
     _clients.clear();
     _events.clear();
     _loading = userId != null;
@@ -673,6 +683,7 @@ class EventsProvider extends ChangeNotifier {
       if (token != _token) return;
       _clients.addAll(clients);
       _events.addAll(events);
+      _hasLoaded = true;
     } catch (_) {
       _clients.clear();
       _events.clear();

@@ -1,12 +1,25 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import '../models/studio_event.dart';
 import '../models/studio_notification.dart';
+import '../services/event_reminder_service.dart';
 import 'events_provider.dart';
 
 class NotificationsProvider extends ChangeNotifier {
   NotificationsProvider() {
     _startTicker();
+    _loadPermissionState();
+    _lifecycle = AppLifecycleListener(onResume: _loadPermissionState);
+  }
+
+  late final AppLifecycleListener _lifecycle;
+
+  Future<void> _loadPermissionState() async {
+    final enabled = await EventReminderService.instance.areNotificationsEnabled();
+    if (enabled != _notificationsAllowed) {
+      _notificationsAllowed = enabled;
+      notifyListeners();
+    }
   }
 
   Timer? _ticker;
@@ -45,8 +58,15 @@ class NotificationsProvider extends ChangeNotifier {
   bool _notificationsAllowed = false;
   bool get notificationsAllowed => _notificationsAllowed;
 
-  void enableNotifications() {
-    _notificationsAllowed = true;
+  Future<void> enableNotifications() async {
+    final service = EventReminderService.instance;
+    var granted = await service.requestPermission();
+    if (!granted) {
+      // Android stops showing the prompt after repeated denials.
+      await service.openSettings();
+      granted = await service.areNotificationsEnabled();
+    }
+    _notificationsAllowed = granted;
     notifyListeners();
   }
 
@@ -54,6 +74,11 @@ class NotificationsProvider extends ChangeNotifier {
   void syncEvents(EventsProvider eventsProvider) {
     final now = DateTime.now();
     final events = eventsProvider.events;
+    if (eventsProvider.isSignedOut) {
+      EventReminderService.instance.syncEvents(const []);
+    } else if (eventsProvider.hasLoaded) {
+      EventReminderService.instance.syncEvents(events);
+    }
     final List<StudioNotification> generated = [];
 
     for (final event in events) {
@@ -201,6 +226,7 @@ class NotificationsProvider extends ChangeNotifier {
   @override
   void dispose() {
     _ticker?.cancel();
+    _lifecycle.dispose();
     super.dispose();
   }
 }

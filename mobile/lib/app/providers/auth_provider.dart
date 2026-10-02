@@ -164,8 +164,15 @@ class AuthProvider extends ChangeNotifier {
     } on ApiException catch (error) {
       _errorMessage = error.message;
       return false;
-    } catch (_) {
-      _errorMessage = 'Google sign-in could not be completed. Please try again.';
+    } on GoogleAuthException catch (error) {
+      debugPrint('Google sign-in error: ${error.message}');
+      _errorMessage = error.message;
+      return false;
+    } catch (error, stackTrace) {
+      debugPrint('Google sign-in error: $error\n$stackTrace');
+      _errorMessage = kDebugMode
+          ? 'Google sign-in could not be completed: $error'
+          : 'Google sign-in could not be completed. Please try again.';
       return false;
     } finally {
       _isLoading = false;

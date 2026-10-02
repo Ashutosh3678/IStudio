@@ -211,7 +211,7 @@ class _NotificationsSheetState extends State<NotificationsSheet> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Get alerts 3 days, 2 days, 1 day & on shoot day.',
+                          'Get alerts 7 days, 3 days, 1 day & 5 hours before.',
                           style: TextStyle(
                             color: textMuted,
                             fontSize: 11.5,

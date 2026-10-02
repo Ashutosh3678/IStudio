@@ -13,15 +13,12 @@ const userSchema = new mongoose.Schema(
     },
     googleId: {
       type: String,
-      unique: true,
-      sparse: true,
       default: null,
     },
     phone: {
       type: String,
       required: false,
       default: '',
-      sparse: true,
       validate: {
         validator: function (v) {
           if (!v) return true;
@@ -53,6 +50,33 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+// Partial indexes: Google-only users have no phone and phone users have no
+// googleId, so empty/null values must not count towards uniqueness.
+userSchema.index(
+  { phone: 1 },
+  { unique: true, partialFilterExpression: { phone: { $type: 'string', $gt: '' } } },
+);
+userSchema.index(
+  { googleId: 1 },
+  { unique: true, partialFilterExpression: { googleId: { $type: 'string', $gt: '' } } },
+);
+
+userSchema.statics.migrateIndexes = async function migrateIndexes() {
+  let existing = [];
+  try {
+    existing = await this.collection.indexes();
+  } catch (error) {
+    if (error.codeName !== 'NamespaceNotFound') throw error;
+  }
+  for (const name of ['phone_1', 'googleId_1']) {
+    const index = existing.find((item) => item.name === name);
+    if (index && !index.partialFilterExpression) {
+      await this.collection.dropIndex(name);
+    }
+  }
+  await this.createIndexes();
+};
 
 userSchema.plugin(dataSecurity.encryptedFieldsPlugin, {
   deterministicFields: [],
