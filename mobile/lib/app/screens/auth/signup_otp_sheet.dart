@@ -17,7 +17,6 @@ class SignupOtpSheet extends StatefulWidget {
     required this.password,
     this.phone,
     this.initialCooldown = 60,
-    this.initialDebugOtp,
   });
 
   final String username;
@@ -25,7 +24,6 @@ class SignupOtpSheet extends StatefulWidget {
   final String password;
   final String? phone;
   final int initialCooldown;
-  final String? initialDebugOtp;
 
   static Future<bool?> show(
     BuildContext context, {
@@ -34,7 +32,6 @@ class SignupOtpSheet extends StatefulWidget {
     required String password,
     String? phone,
     int initialCooldown = 60,
-    String? initialDebugOtp,
   }) {
     return showModalBottomSheet<bool>(
       context: context,
@@ -46,7 +43,6 @@ class SignupOtpSheet extends StatefulWidget {
         password: password,
         phone: phone,
         initialCooldown: initialCooldown,
-        initialDebugOtp: initialDebugOtp,
       ),
     );
   }
@@ -56,28 +52,29 @@ class SignupOtpSheet extends StatefulWidget {
 }
 
 class _SignupOtpSheetState extends State<SignupOtpSheet> {
-  final GlobalKey<PinParticleFieldState> _pinFieldKey =
-      GlobalKey<PinParticleFieldState>();
-  final List<TextEditingController> _otpControllers =
-      List.generate(6, (_) => TextEditingController());
+  final List<TextEditingController> _otpControllers = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
   final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
 
   int _cooldownSeconds = 60;
   Timer? _cooldownTimer;
   bool _isLoading = false;
   String? _errorMessage;
-  String? _debugOtp;
 
   @override
   void initState() {
     super.initState();
-    _debugOtp = widget.initialDebugOtp;
     _startCooldown(widget.initialCooldown);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _otpFocusNodes[0].requestFocus();
-      if (_debugOtp != null && _debugOtp!.isNotEmpty && mounted) {
-        _pinFieldKey.currentState?.setDigitsWithCascade(_debugOtp!);
-      }
+      AppSnackBar.success(
+        context,
+        'Verification email sent. Check your inbox and spam folder.',
+        duration: const Duration(seconds: 4),
+      );
     });
   }
 
@@ -119,22 +116,22 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
         email: widget.email,
       );
       final cd = (res['cooldownSeconds'] as num?)?.toInt() ?? 60;
-      final debugOtp = res['debugOtp'] as String?;
       _startCooldown(cd);
 
-      if (debugOtp != null && debugOtp.isNotEmpty) {
-        setState(() => _debugOtp = debugOtp);
-        _pinFieldKey.currentState?.setDigitsWithCascade(debugOtp);
-      }
       if (mounted) {
-        AppSnackBar.success(context, 'A new code was sent to ${widget.email}.');
+        AppSnackBar.success(
+          context,
+          'A new code was sent. Check your inbox and spam folder.',
+          duration: const Duration(seconds: 4),
+        );
       }
     } on ApiException catch (e) {
       setState(() => _errorMessage = e.message);
       if (mounted) AppSnackBar.error(context, e.message);
     } catch (_) {
-      setState(() =>
-          _errorMessage = 'Unable to resend code. Please try again.');
+      setState(
+        () => _errorMessage = 'Unable to resend code. Please try again.',
+      );
       if (mounted) {
         AppSnackBar.error(context, 'Unable to resend code. Please try again.');
       }
@@ -172,7 +169,10 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
         final rootContext = Navigator.of(context, rootNavigator: true).context;
         Navigator.of(context).pop(true);
         if (rootContext.mounted) {
-          AppSnackBar.success(rootContext, 'Account created successfully. Welcome!');
+          AppSnackBar.success(
+            rootContext,
+            'Account created successfully. Welcome!',
+          );
         }
       } else {
         final message = auth.errorMessage ?? 'Unable to complete verification.';
@@ -212,8 +212,9 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
               width: 44,
               height: 4,
               decoration: BoxDecoration(
-                color: (isDark ? Colors.white : Colors.black)
-                    .withValues(alpha: 0.16),
+                color: (isDark ? Colors.white : Colors.black).withValues(
+                  alpha: 0.16,
+                ),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -229,8 +230,11 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
                   color: AppColors.sky.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.mark_email_read_outlined,
-                    color: AppColors.sky, size: 22),
+                child: const Icon(
+                  Icons.mark_email_read_outlined,
+                  color: AppColors.sky,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -249,11 +253,23 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
                     Text(
                       'Code sent to ${widget.email}',
                       style: TextStyle(
-                        color: isDark ? AppColors.muted : AppColors.lightTextMuted,
+                        color: isDark
+                            ? AppColors.muted
+                            : AppColors.lightTextMuted,
                         fontSize: 12.5,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Enter the code from your inbox to verify this email address.',
+                      style: TextStyle(
+                        color: isDark
+                            ? AppColors.muted
+                            : AppColors.lightTextMuted,
+                        fontSize: 11.5,
+                      ),
                     ),
                   ],
                 ),
@@ -275,7 +291,11 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, color: Colors.redAccent, size: 18),
+                  const Icon(
+                    Icons.info_outline,
+                    color: Colors.redAccent,
+                    size: 18,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -293,59 +313,8 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
             const SizedBox(height: 16),
           ],
 
-          // Debug OTP Banner (fallback when SMTP is not configured)
-          if (_debugOtp != null && _debugOtp!.isNotEmpty) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.sky.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppColors.sky.withValues(alpha: 0.35),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.key_rounded, color: AppColors.sky, size: 18),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Verification Code: $_debugOtp',
-                      style: const TextStyle(
-                        color: AppColors.sky,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    onPressed: () {
-                      _pinFieldKey.currentState?.setDigitsWithCascade(_debugOtp!);
-                    },
-                    child: const Text(
-                      'Auto-fill',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-
           // 6 PIN boxes with particle burst on every pin entry
           PinParticleField(
-            key: _pinFieldKey,
             controllers: _otpControllers,
             focusNodes: _otpFocusNodes,
             isDark: isDark,
@@ -364,7 +333,9 @@ class _SignupOtpSheetState extends State<SignupOtpSheet> {
                 ? Text(
                     'Resend code in ${_cooldownSeconds}s',
                     style: TextStyle(
-                      color: isDark ? AppColors.muted : AppColors.lightTextMuted,
+                      color: isDark
+                          ? AppColors.muted
+                          : AppColors.lightTextMuted,
                       fontSize: 12.5,
                     ),
                   )

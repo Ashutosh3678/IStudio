@@ -9,6 +9,7 @@ process.env.JWT_SECRET = 'test-jwt-secret-key-32chars-min!!';
 const userRepository = require('../src/repositories/userRepository');
 const memoryUsers = require('../src/store/memoryUsers');
 const otpService = require('../src/services/otpService');
+const emailService = require('../src/services/emailService');
 
 describe('New Auth & Plain Phone Storage Requirements', () => {
   before(() => {
@@ -35,27 +36,68 @@ describe('New Auth & Plain Phone Storage Requirements', () => {
 
   it('generates and verifies email OTP successfully', async () => {
     const testEmail = `verify_${Date.now()}@photostudio.com`;
-    const res = await otpService.generateAndSendEmailOtp(testEmail, 'TestCreator');
+    const originalSend = emailService.sendVerificationEmail;
+    let sentOtp;
+    emailService.sendVerificationEmail = async ({ otp }) => {
+      sentOtp = otp;
+      return { sent: true };
+    };
 
-    assert.equal(res.success, true);
-    assert.ok(res.debugOtp);
-    assert.equal(res.debugOtp.length, 6);
+    try {
+      const res = await otpService.generateAndSendEmailOtp(testEmail, 'TestCreator');
 
-    // Verify correct OTP
-    const isValid = await otpService.verifyEmailOtp(testEmail, res.debugOtp);
-    assert.equal(isValid, true);
+      assert.equal(res.success, true);
+      assert.equal(res.message, `Verification code sent to ${testEmail}.`);
+      assert.equal('debugOtp' in res, false);
+      assert.equal(sentOtp.length, 6);
+
+      const isValid = await otpService.verifyEmailOtp(testEmail, sentOtp);
+      assert.equal(isValid, true);
+    } finally {
+      emailService.sendVerificationEmail = originalSend;
+    }
   });
 
   it('rejects incorrect email OTP', async () => {
     const testEmail = `wrongotp_${Date.now()}@photostudio.com`;
-    await otpService.generateAndSendEmailOtp(testEmail, 'TestUser');
+    const originalSend = emailService.sendVerificationEmail;
+    let sentOtp;
+    emailService.sendVerificationEmail = async ({ otp }) => {
+      sentOtp = otp;
+      return { sent: true };
+    };
 
-    await assert.rejects(
-      async () => {
-        await otpService.verifyEmailOtp(testEmail, '000000');
-      },
-      /Incorrect verification code/
-    );
+    try {
+      await otpService.generateAndSendEmailOtp(testEmail, 'TestUser');
+
+      await assert.rejects(
+        async () => {
+          await otpService.verifyEmailOtp(testEmail, sentOtp === '000000' ? '000001' : '000000');
+        },
+        /Incorrect verification code/
+      );
+    } finally {
+      emailService.sendVerificationEmail = originalSend;
+    }
+  });
+
+  it('does not issue or retain an email OTP when delivery fails', async () => {
+    const testEmail = `undelivered_${Date.now()}@photostudio.com`;
+    const originalSend = emailService.sendVerificationEmail;
+    emailService.sendVerificationEmail = async () => ({ sent: false });
+
+    try {
+      await assert.rejects(
+        () => otpService.generateAndSendEmailOtp(testEmail, 'TestUser'),
+        { statusCode: 503 },
+      );
+      await assert.rejects(
+        () => otpService.verifyEmailOtp(testEmail, '123456'),
+        /No active verification code/
+      );
+    } finally {
+      emailService.sendVerificationEmail = originalSend;
+    }
   });
 
   it('finds user by email or by username for login', async () => {

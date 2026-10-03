@@ -169,17 +169,27 @@ async function sendVerificationEmail({ to, otp, username = '' }) {
   const html = renderOtpEmailHtml({ otp, username });
 
   if (!mailTransporter) {
-    logger.info(`[EmailService] SMTP not configured. Verification code for ${to} is: ${otp}`);
-    return { sent: false, reason: 'smtp_not_configured', otp };
+    logger.error('[EmailService] SMTP is not configured; verification email was not sent', {
+      to,
+    });
+    const error = new Error('Email delivery is unavailable. Please try again later.');
+    error.statusCode = 503;
+    throw error;
   }
 
   try {
     const SEND_TIMEOUT_MS = 15000;
     const sendPromise = mailTransporter.sendMail({ from, to, subject, text, html });
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('SMTP send timed out after 15s')), SEND_TIMEOUT_MS)
+    let timeout;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeout = setTimeout(
+        () => reject(new Error('SMTP send timed out after 15s')),
+        SEND_TIMEOUT_MS,
+      );
+    });
+    const info = await Promise.race([sendPromise, timeoutPromise]).finally(() =>
+      clearTimeout(timeout),
     );
-    const info = await Promise.race([sendPromise, timeoutPromise]);
     logger.info('[EmailService] Verification email sent successfully', {
       to,
       messageId: info.messageId,
@@ -190,7 +200,9 @@ async function sendVerificationEmail({ to, otp, username = '' }) {
       to,
       error: err.message,
     });
-    return { sent: false, error: err.message, otp };
+    const error = new Error('Unable to deliver verification email. Please try again later.');
+    error.statusCode = 503;
+    throw error;
   }
 }
 

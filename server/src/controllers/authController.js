@@ -1194,9 +1194,8 @@ async function deleteAccountSendOtp(req, res) {
     const result = await otpService.generateAndSendEmailOtp(email);
     return res.json({
       success: true,
-      message: `Verification code sent to ${email}.`,
+      message: result.message,
       email,
-      debugOtp: result.debugOtp,
     });
   } catch (error) {
     logCaught(req, "deleteAccountSendOtp error", error);
@@ -1312,9 +1311,8 @@ async function sendEmailChangeOtp(req, res) {
     const result = await otpService.generateAndSendEmailOtp(newEmail);
     return res.json({
       success: true,
-      message: `Verification code sent to ${newEmail}.`,
+      message: result.message,
       email: newEmail,
-      debugOtp: result.debugOtp,
     });
   } catch (error) {
     logCaught(req, "sendEmailChangeOtp error", error);

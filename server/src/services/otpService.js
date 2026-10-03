@@ -289,6 +289,18 @@ async function generateAndSendEmailOtp(email, username = '') {
   const rawOtp = generateNumericOtp();
   const hashedOtp = await bcrypt.hash(rawOtp, 8);
 
+  const emailResult = await emailService.sendVerificationEmail({
+    to: cleanEmail,
+    otp: rawOtp,
+    username,
+  });
+
+  if (!emailResult || emailResult.sent !== true) {
+    const err = new Error('Unable to deliver verification email. Please try again later.');
+    err.statusCode = 503;
+    throw err;
+  }
+
   otpStore.set(key, {
     hashedOtp,
     expiresAt: now + OTP_TTL_MS * 2, // 10 minutes for email
@@ -296,19 +308,10 @@ async function generateAndSendEmailOtp(email, username = '') {
     attempts: 0,
   });
 
-  const emailResult = await emailService.sendVerificationEmail({
-    to: cleanEmail,
-    otp: rawOtp,
-    username,
-  });
-
   return {
     success: true,
-    message: emailResult.sent
-      ? `Verification code sent to ${cleanEmail}.`
-      : `Verification code generated for ${cleanEmail}.`,
+    message: `Verification code sent to ${cleanEmail}.`,
     cooldownSeconds: 60,
-    debugOtp: rawOtp,
   };
 }
 
@@ -366,4 +369,3 @@ module.exports = {
   generateAndSendEmailOtp,
   verifyEmailOtp,
 };
-

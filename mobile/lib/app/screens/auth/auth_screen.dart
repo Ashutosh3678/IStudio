@@ -89,7 +89,6 @@ class _AuthScreenState extends State<AuthScreen>
       );
       if (!mounted) return;
       final cd = (res['cooldownSeconds'] as num?)?.toInt() ?? 60;
-      final debugOtp = res['debugOtp'] as String?;
       await SignupOtpSheet.show(
         context,
         username: username,
@@ -97,7 +96,6 @@ class _AuthScreenState extends State<AuthScreen>
         password: password,
         phone: phone,
         initialCooldown: cd,
-        initialDebugOtp: debugOtp,
       );
     } on ApiException catch (e) {
       _showError(e.message);

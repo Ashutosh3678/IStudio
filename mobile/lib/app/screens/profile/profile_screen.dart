@@ -1395,15 +1395,10 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
       });
       _startCooldown();
 
-      // Auto-fill debug OTP if provided by server fallback
-      final debugOtp = result['debugOtp'] as String?;
-      if (debugOtp != null && debugOtp.isNotEmpty) {
-        _otpController.text = debugOtp;
-      }
-
       AppSnackBar.success(
         context,
-        result['message'] as String? ?? 'Verification code sent to your email.',
+        'Verification email sent. Check your inbox and spam folder.',
+        duration: const Duration(seconds: 4),
       );
     } catch (e) {
       if (!mounted) return;
@@ -1852,14 +1847,10 @@ class _ChangeEmailSheetState extends State<_ChangeEmailSheet> {
       });
       _startCooldown();
 
-      final debugOtp = result['debugOtp'] as String?;
-      if (debugOtp != null && debugOtp.isNotEmpty) {
-        _otpController.text = debugOtp;
-      }
-
       AppSnackBar.success(
         context,
-        result['message'] as String? ?? 'Verification code sent to $email.',
+        'Verification email sent. Check your inbox and spam folder.',
+        duration: const Duration(seconds: 4),
       );
     } catch (e) {
       if (!mounted) return;
@@ -2224,4 +2215,3 @@ class _ChangeEmailSheetState extends State<_ChangeEmailSheet> {
     );
   }
 }
-

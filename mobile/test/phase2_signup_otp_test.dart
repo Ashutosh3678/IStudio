@@ -53,6 +53,21 @@ void main() {
 
       expect(find.text('Verify Your Email'), findsOneWidget);
       expect(find.text('Code sent to alice@example.com'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        find.text(
+          'Verification email sent. Check your inbox and spam folder.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Enter the code from your inbox to verify this email address.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Verification Code:'), findsNothing);
+      expect(find.text('Auto-fill'), findsNothing);
       expect(find.text('Confirm & Activate Account'), findsOneWidget);
     });
   });
