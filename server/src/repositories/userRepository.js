@@ -137,7 +137,7 @@ async function deleteUserAccount(userId) {
 
 async function searchPhotographers({ userId, location, query, state, district, category, categories, limit = 50 }) {
   if (memoryUsers.enabled) {
-    return memoryUsers.searchPhotographers({ userId, location, query, category, limit });
+    return memoryUsers.searchPhotographers({ userId, location, query, state, district, category, categories, limit });
   }
 
   const mongoose = require('mongoose');
@@ -168,6 +168,9 @@ async function searchPhotographers({ userId, location, query, state, district, c
         { address: { $regex: escaped, $options: 'i' } },
         { studioName: { $regex: escaped, $options: 'i' } },
         { ownerName: { $regex: escaped, $options: 'i' } },
+        { state: { $regex: escaped, $options: 'i' } },
+        { district: { $regex: escaped, $options: 'i' } },
+        { username: { $regex: escaped, $options: 'i' } },
       ],
     });
   }

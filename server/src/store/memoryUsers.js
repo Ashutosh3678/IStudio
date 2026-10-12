@@ -192,7 +192,10 @@ const memoryUsers = {
           const matchAddress = normalized(u.address).includes(locLower);
           const matchStudio = normalized(u.studioName).includes(locLower);
           const matchOwner = normalized(u.ownerName).includes(locLower);
-          if (!matchCity && !matchAddress && !matchStudio && !matchOwner) return false;
+          const matchState = normalized(u.state).includes(locLower);
+          const matchDistrict = normalized(u.district).includes(locLower);
+          const matchUsername = normalized(u.username).includes(locLower);
+          if (!matchCity && !matchAddress && !matchStudio && !matchOwner && !matchState && !matchDistrict && !matchUsername) return false;
         }
         if (catList.length > 0) {
           const userCats = Array.isArray(u.categories) ? u.categories : [];
