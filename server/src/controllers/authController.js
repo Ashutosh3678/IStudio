@@ -283,6 +283,8 @@ const PROFILE_FIELDS = [
   "studioName",
   "ownerName",
   "city",
+  "state",
+  "district",
   "address",
   "about",
   "instagram",

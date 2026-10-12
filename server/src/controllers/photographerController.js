@@ -32,6 +32,8 @@ function calculateDistanceKm(lat1, lon1, lat2, lon2) {
 async function searchNearbyPhotographers(req, res) {
   try {
     const location = String(req.query.location || req.query.city || '').trim();
+    const state = String(req.query.state || '').trim();
+    const district = String(req.query.district || '').trim();
     const query = String(req.query.query || '').trim();
     let categoriesParam = req.query.categories !== undefined ? req.query.categories : req.query.category;
     let categoriesList = [];
@@ -62,6 +64,8 @@ async function searchNearbyPhotographers(req, res) {
       userId: req.userId,
       location: textFilter,
       query: '',
+      state,
+      district,
       category,
       categories: categoriesList,
       limit,

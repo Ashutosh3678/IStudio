@@ -59,6 +59,8 @@ function publicFields(user) {
     ownerName: user.ownerName || user.username,
     email: user.email || '',
     city: user.city || '',
+    state: user.state || '',
+    district: user.district || '',
     address: user.address || '',
     about: user.about || '',
     instagram: user.instagram || '',
@@ -84,6 +86,8 @@ function toDoc(user, withPassword = false) {
     ownerName: user.ownerName || user.username,
     email: user.email || '',
     city: user.city || '',
+      state: user.state || '',
+      district: user.district || '',
     address: user.address || '',
     about: user.about || '',
     instagram: user.instagram || '',
@@ -141,6 +145,8 @@ const memoryUsers = {
       ownerName: data.ownerName || data.username,
       email: data.email || '',
       city: data.city || '',
+      state: data.state || '',
+      district: data.district || '',
       address: data.address || '',
       about: data.about || '',
       instagram: data.instagram || '',
@@ -169,7 +175,7 @@ const memoryUsers = {
     saveUsersToDisk(users);
     return true;
   },
-  searchPhotographers({ userId, location, query, category, categories, limit = 50 }) {
+  searchPhotographers({ userId, location, query, state, district, category, categories, limit = 50 }) {
     const locLower = String(location || query || '').toLowerCase().trim();
     const catList = Array.isArray(categories) && categories.length > 0
       ? categories.map((c) => String(c).toLowerCase().trim()).filter(Boolean)
@@ -178,11 +184,14 @@ const memoryUsers = {
     return users
       .filter((u) => u.id !== userId)
       .filter((u) => {
+        const normalized = (value) => String(value || '').trim().toLowerCase();
+        if (state && normalized(u.state) !== normalized(state)) return false;
+        if (district && normalized(u.district || u.city) !== normalized(district)) return false;
         if (locLower) {
-          const matchCity = (u.city || '').toLowerCase().includes(locLower);
-          const matchAddress = (u.address || '').toLowerCase().includes(locLower);
-          const matchStudio = (u.studioName || '').toLowerCase().includes(locLower);
-          const matchOwner = (u.ownerName || '').toLowerCase().includes(locLower);
+          const matchCity = normalized(u.city).includes(locLower);
+          const matchAddress = normalized(u.address).includes(locLower);
+          const matchStudio = normalized(u.studioName).includes(locLower);
+          const matchOwner = normalized(u.ownerName).includes(locLower);
           if (!matchCity && !matchAddress && !matchStudio && !matchOwner) return false;
         }
         if (catList.length > 0) {

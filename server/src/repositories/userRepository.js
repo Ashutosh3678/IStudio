@@ -135,7 +135,7 @@ async function deleteUserAccount(userId) {
   return true;
 }
 
-async function searchPhotographers({ userId, location, query, category, limit = 50 }) {
+async function searchPhotographers({ userId, location, query, state, district, category, categories, limit = 50 }) {
   if (memoryUsers.enabled) {
     return memoryUsers.searchPhotographers({ userId, location, query, category, limit });
   }
@@ -147,6 +147,18 @@ async function searchPhotographers({ userId, location, query, category, limit = 
   }
 
   const conditions = [];
+  const normalizedState = String(state || '').trim();
+  const normalizedDistrict = String(district || '').trim();
+  if (normalizedState) conditions.push({ state: { $regex: `^${escapeRegex(normalizedState)}$`, $options: 'i' } });
+  if (normalizedDistrict) {
+    conditions.push({
+      $or: [
+        { district: { $regex: `^${escapeRegex(normalizedDistrict)}$`, $options: 'i' } },
+        // Legacy profiles have city but no district; exact city matching is safe backfill.
+        { district: { $in: ['', null] }, city: { $regex: `^${escapeRegex(normalizedDistrict)}$`, $options: 'i' } },
+      ],
+    });
+  }
   const loc = String(location || query || '').trim();
   if (loc) {
     const escaped = escapeRegex(loc);
