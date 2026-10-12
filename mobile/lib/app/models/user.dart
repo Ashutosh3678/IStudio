@@ -7,6 +7,8 @@ class User {
     this.ownerName = '',
     this.email = '',
     this.city = '',
+    this.state = '',
+    this.district = '',
     this.address = '',
     this.about = '',
     this.instagram = '',
@@ -29,6 +31,8 @@ class User {
   final String ownerName;
   final String email;
   final String city;
+  final String state;
+  final String district;
   final String address;
   final String about;
   final String instagram;
@@ -73,6 +77,8 @@ class User {
       ownerName: json['ownerName'] as String? ?? '',
       email: json['email'] as String? ?? '',
       city: json['city'] as String? ?? '',
+      state: json['state'] as String? ?? '',
+      district: json['district'] as String? ?? '',
       address: json['address'] as String? ?? '',
       about: json['about'] as String? ?? '',
       instagram: json['instagram'] as String? ?? '',
@@ -108,6 +114,8 @@ class User {
       'ownerName': ownerName,
       'email': email,
       'city': city,
+      'state': state,
+      'district': district,
       'address': address,
       'about': about,
       'instagram': instagram,
@@ -130,6 +138,8 @@ class User {
     String? phone,
     String? email,
     String? city,
+    String? state,
+    String? district,
     String? address,
     String? about,
     String? instagram,
@@ -152,6 +162,8 @@ class User {
       ownerName: ownerName ?? this.ownerName,
       email: email ?? this.email,
       city: city ?? this.city,
+      state: state ?? this.state,
+      district: district ?? this.district,
       address: address ?? this.address,
       about: about ?? this.about,
       instagram: instagram ?? this.instagram,

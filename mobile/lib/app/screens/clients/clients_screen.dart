@@ -82,6 +82,271 @@ class _ClientsScreenState extends State<ClientsScreen>
         curve: Interval(begin, end, curve: Curves.easeOutCubic),
       );
 
+  Widget _buildClientFilterButton(BuildContext context, List<dynamic> allClients) {
+    final hasActive = _activeFilter != ClientFilter.all;
+    final accent = context.accentColor;
+
+    return Material(
+      color: Colors.transparent,
+      child: Tooltip(
+        message: 'Filter Clients',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _openClientFilterSheet(context, allClients),
+          child: Ink(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: hasActive
+                  ? accent.withValues(alpha: context.isDark ? 0.22 : 0.12)
+                  : context.cardBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: hasActive ? accent : context.cardBorder,
+                width: hasActive ? 1.5 : 1,
+              ),
+              boxShadow: hasActive
+                  ? [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.25),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  Icons.tune_rounded,
+                  size: 20,
+                  color: hasActive ? accent : context.textMain,
+                ),
+                if (hasActive)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: accent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openClientFilterSheet(BuildContext context, List<dynamic> allClients) async {
+    HapticFeedback.lightImpact();
+    final provider = context.read<EventsProvider>();
+    final accent = context.accentColor;
+
+    int countForFilter(ClientFilter filter) {
+      if (filter == ClientFilter.all) return allClients.length;
+      return allClients.where((client) {
+        final events = provider.getEventsForClient(client.id, clientName: client.name);
+        switch (filter) {
+          case ClientFilter.all:
+            return true;
+          case ClientFilter.information:
+            return client.status == ClientStatus.information;
+          case ClientFilter.upcoming:
+            return client.status == ClientStatus.comingUp ||
+                events.any((e) =>
+                    (e.status == EventStatus.upcoming ||
+                        e.status == EventStatus.inProgress) &&
+                    !e.startsAt.isBefore(
+                        DateTime.now().subtract(const Duration(days: 1))));
+          case ClientFilter.completed:
+            return client.status == ClientStatus.completed ||
+                (events.isNotEmpty &&
+                    events.every((e) =>
+                        e.status == EventStatus.completed ||
+                        e.startsAt.isBefore(
+                            DateTime.now().subtract(const Duration(days: 1)))));
+          case ClientFilter.notResponded:
+            return client.status == ClientStatus.notResponded;
+          case ClientFilter.paymentDue:
+            return events.any((e) =>
+                e.remainingAmount > 0 || e.status == EventStatus.paymentDue);
+        }
+      }).length;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.72,
+          ),
+          padding: EdgeInsets.fromLTRB(
+              20, 10, 20, 20 + MediaQuery.paddingOf(context).bottom),
+          decoration: BoxDecoration(
+            color: sheetContext.cardBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border(
+              top: BorderSide(color: sheetContext.cardBorder, width: 1),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Drag handle
+              Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: sheetContext.textMuted.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header row
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.tune_rounded, color: accent, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Filter Clients',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: sheetContext.textMain,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (_activeFilter != ClientFilter.all)
+                    TextButton(
+                      onPressed: () {
+                        setState(() => _activeFilter = ClientFilter.all);
+                        Navigator.of(sheetContext).pop();
+                      },
+                      child: Text(
+                        'Reset',
+                        style: TextStyle(
+                          color: accent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Filter options
+              Flexible(
+                child: StatefulBuilder(
+                  builder: (_, setSheetState) => ListView(
+                    shrinkWrap: true,
+                    children: ClientFilter.values.map((filter) {
+                      final isSelected = _activeFilter == filter;
+                      final count = countForFilter(filter);
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () {
+                            setState(() => _activeFilter = filter);
+                            Navigator.of(sheetContext).pop();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? accent.withValues(
+                                      alpha: sheetContext.isDark ? 0.18 : 0.1)
+                                  : sheetContext.innerBg.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isSelected
+                                    ? accent
+                                    : sheetContext.cardBorder
+                                        .withValues(alpha: 0.5),
+                                width: isSelected ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isSelected
+                                      ? Icons.check_circle_rounded
+                                      : Icons.radio_button_unchecked_rounded,
+                                  size: 18,
+                                  color: isSelected
+                                      ? accent
+                                      : sheetContext.textMuted,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    filter.label,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: sheetContext.textMain,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? accent.withValues(alpha: 0.2)
+                                        : sheetContext.cardBorder
+                                            .withValues(alpha: 0.3),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '$count',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: isSelected
+                                          ? accent
+                                          : sheetContext.textMuted,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<EventsProvider>();
@@ -153,60 +418,23 @@ class _ClientsScreenState extends State<ClientsScreen>
                 ],
               ),
 
-              // Animated Uiverse Search Bar
+              // Animated Uiverse Search Bar + Filter Hamburger
               FadeTransition(
-                opacity: _staggered(0.0, 0.30),
+                opacity: _staggered(0.0, 0.40),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-                  child: UiverseSearchBar(
-                    controller: _searchController,
-                    hintText: 'Search by name or phone...',
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-              ),
-
-              // Filter Chips
-              FadeTransition(
-                opacity: _staggered(0.10, 0.40),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
-                    children: ClientFilter.values.map((filter) {
-                      final isSelected = _activeFilter == filter;
-                      return Padding(
-                        padding:
-                            const EdgeInsets.only(right: 8, bottom: 8),
-                        child: FilterChip(
-                          label: Text(filter.label),
-                          selected: isSelected,
-                          selectedColor: accent,
-                          backgroundColor: context.cardBg,
-                          showCheckmark: false,
-                          shape: const StadiumBorder(),
-                          labelStyle: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : textMain,
-                            fontSize: 12,
-                            fontWeight: isSelected
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                          ),
-                          side: BorderSide(
-                            color: isSelected
-                                ? accent
-                                : context.cardBorder
-                                    .withValues(alpha: 0.4),
-                          ),
-                          onSelected: (_) {
-                            HapticFeedback.selectionClick();
-                            setState(() => _activeFilter = filter);
-                          },
+                    children: [
+                      Expanded(
+                        child: UiverseSearchBar(
+                          controller: _searchController,
+                          hintText: 'Search by name or phone...',
+                          onChanged: (_) => setState(() {}),
                         ),
-                      );
-                    }).toList(),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildClientFilterButton(context, allClients),
+                    ],
                   ),
                 ),
               ),

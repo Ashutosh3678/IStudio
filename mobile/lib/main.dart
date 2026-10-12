@@ -16,7 +16,6 @@ import 'app/screens/shell/app_shell.dart';
 import 'app/services/crash_reporter.dart';
 import 'app/theme/app_colors.dart';
 import 'app/theme/app_theme.dart';
-import 'app/widgets/error_boundary.dart';
 import 'app/widgets/studio_splash.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey =
@@ -29,11 +28,9 @@ void main() {
     // 1. Framework UI / rendering error capture
     FlutterError.onError = (FlutterErrorDetails details) {
       CrashReporter.instance.recordFlutterError(details);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (rootNavigatorKey.currentState?.canPop() ?? false) {
-          rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
-        }
-      });
+      // Keep Flutter's original diagnostics visible during development.
+      // Do not replace framework errors with a custom recovery screen.
+      FlutterError.presentError(details);
     };
 
     // 2. Uncaught asynchronous & engine exceptions (prevents OS termination)
@@ -44,17 +41,6 @@ void main() {
         reason: 'PlatformDispatcher uncaught error',
       );
       return true; // Mark as handled to prevent OS crash dialogs or app termination
-    };
-
-    // 3. Graceful fallback widget for UI rendering exceptions
-    ErrorWidget.builder = (FlutterErrorDetails details) {
-      return StudioErrorRecoveryView(
-        error: details.exception,
-        stackTrace: details.stack,
-        onReturnHome: () {
-          rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
-        },
-      );
     };
 
     SystemChrome.setSystemUIOverlayStyle(
@@ -121,11 +107,6 @@ class IStudioApp extends StatelessWidget {
             darkTheme: AppTheme.dark,
             themeMode: themeProvider.themeMode,
             scrollBehavior: const FluidScrollBehavior(),
-            builder: (context, childWidget) {
-              return GlobalErrorBoundary(
-                child: childWidget ?? const SizedBox.shrink(),
-              );
-            },
             home: const _AuthGate(),
           );
         },

@@ -23,6 +23,7 @@ class GlobalErrorBoundary extends StatefulWidget {
 class _GlobalErrorBoundaryState extends State<GlobalErrorBoundary> {
   Object? _error;
   StackTrace? _stackTrace;
+  bool _recoveryScheduled = false;
 
   @override
   void initState() {
@@ -33,8 +34,32 @@ class _GlobalErrorBoundaryState extends State<GlobalErrorBoundary> {
     setState(() {
       _error = null;
       _stackTrace = null;
+      _recoveryScheduled = false;
     });
     widget.onReset?.call();
+  }
+
+  void _handleBuildError(Object error, StackTrace? stackTrace) {
+    CrashReporter.instance.recordError(
+      error,
+      stackTrace,
+      reason: 'GlobalErrorBoundary intercepted build error',
+    );
+
+    // Build/deactivation errors must not synchronously replace the subtree
+    // that is currently being deactivated. Doing so leaves inherited widgets
+    // with live dependents and triggers Flutter's `_dependents.isEmpty`
+    // assertion. Wait until the current frame has finished first.
+    if (_recoveryScheduled || !mounted) return;
+    _recoveryScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _error != null) return;
+      setState(() {
+        _error = error;
+        _stackTrace = stackTrace;
+        _recoveryScheduled = false;
+      });
+    });
   }
 
   @override
@@ -48,17 +73,7 @@ class _GlobalErrorBoundaryState extends State<GlobalErrorBoundary> {
     }
 
     return _ErrorCatcher(
-      onError: (error, stackTrace) {
-        CrashReporter.instance.recordError(
-          error,
-          stackTrace,
-          reason: 'GlobalErrorBoundary intercepted build error',
-        );
-        setState(() {
-          _error = error;
-          _stackTrace = stackTrace;
-        });
-      },
+      onError: _handleBuildError,
       child: widget.child,
     );
   }

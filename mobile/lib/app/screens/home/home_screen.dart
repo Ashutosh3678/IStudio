@@ -32,7 +32,7 @@ import '../../routes/smooth_page_route.dart';
 import '../../utils/app_snackbar.dart';
 import '../../utils/launcher_utils.dart';
 import '../../widgets/shimmer_loading.dart';
-import '../../widgets/category_selector_sheet.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -125,66 +125,400 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
-  static bool _profileCompletionSnackbarShown = false;
-  static bool _locationSnackbarShown = false;
+  static bool _profileCompletionPopupShown = false;
+  bool _dismissedDiscoveryBanner = false;
 
   void _checkProfileCompletionPrompt() {
-    if (!mounted || _profileCompletionSnackbarShown) return;
+    if (!mounted || _profileCompletionPopupShown) return;
     final user = context.read<AuthProvider>().user;
     if (user == null) return;
 
-    // Users who already have categories — skip category prompt, check location
-    if (user.categories.isNotEmpty) {
-      _profileCompletionSnackbarShown = true; // prevent re-entry
-      _checkStudioLocationPrompt(user);
+    final isMissingStateOrDistrict =
+        user.state.trim().isEmpty || user.district.trim().isEmpty;
+    final isMissingLocation =
+        user.latitude == null || user.longitude == null;
+    final isMissingCategories = user.categories.isEmpty;
+
+    if (!isMissingStateOrDistrict && !isMissingLocation && !isMissingCategories) {
       return;
     }
 
-    _profileCompletionSnackbarShown = true;
-    AppSnackBar.info(
-      context,
-      'Select your photographer roles & categories to complete your profile.',
-      duration: const Duration(seconds: 10),
-      actionLabel: 'Complete Profile',
-      onAction: () async {
-        final selected = await CategorySelectorSheet.show(
-          context,
-          initial: user.categories,
+    _profileCompletionPopupShown = true;
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (mounted) {
+        _showCompleteProfilePopup(
+          user: user,
+          missingStateDistrict: isMissingStateOrDistrict,
+          missingLocation: isMissingLocation,
+          missingCategories: isMissingCategories,
         );
-        if (selected != null && mounted) {
-          final auth = context.read<AuthProvider>();
-          final success = await auth.updateProfile({
-            'categories': selected,
-          });
-          if (success && mounted) {
-            AppSnackBar.success(context, 'Profile categories saved.');
-          }
-        }
-      },
-    );
-
-    // Schedule location prompt after the categories snackbar
-    Future.delayed(const Duration(seconds: 11), () {
-      if (mounted) _checkStudioLocationPrompt(user);
+      }
     });
   }
 
-  void _checkStudioLocationPrompt(User user) {
-    if (!mounted || _locationSnackbarShown) return;
-    if (user.latitude != null && user.longitude != null) return;
-    _locationSnackbarShown = true;
-    AppSnackBar.info(
-      context,
-      'Add your studio location so photographers can find you nearby.',
-      duration: const Duration(seconds: 10),
-      actionLabel: 'Set Location',
-      onAction: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => const ProfileScreen(initialEditing: true),
+  Future<void> _showCompleteProfilePopup({
+    required User user,
+    required bool missingStateDistrict,
+    required bool missingLocation,
+    required bool missingCategories,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dlgContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 420),
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: dlgContext.cardBg,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: dlgContext.cardBorder,
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 28,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        AppColors.sky,
+                        AppColors.skyDeep,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.skyGlow,
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.explore_rounded,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Complete Your Profile',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: dlgContext.textMain,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Add your location & details so clients and fellow photographers worldwide can discover your studio in the Discover directory.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: dlgContext.textMuted,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: dlgContext.innerBg.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: dlgContext.cardBorder.withValues(alpha: 0.5),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildChecklistRow(
+                        dlgContext,
+                        icon: Icons.location_city_rounded,
+                        title: 'State & District',
+                        subtitle: 'For location-based discovery',
+                        isSet: !missingStateDistrict,
+                      ),
+                      Divider(height: 16, color: dlgContext.cardBorder.withValues(alpha: 0.3)),
+                      _buildChecklistRow(
+                        dlgContext,
+                        icon: Icons.my_location_rounded,
+                        title: 'Studio Map Pin',
+                        subtitle: 'For nearby distance calculations',
+                        isSet: !missingLocation,
+                      ),
+                      Divider(height: 16, color: dlgContext.cardBorder.withValues(alpha: 0.3)),
+                      _buildChecklistRow(
+                        dlgContext,
+                        icon: Icons.camera_alt_outlined,
+                        title: 'Photography Roles',
+                        subtitle: 'Wedding, Drone, Portrait, etc.',
+                        isSet: !missingCategories,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(dlgContext).pop(),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: Text(
+                          'Later',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: dlgContext.textMuted,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: dlgContext.ctaGradient,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.skyGlow,
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(dlgContext).pop();
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const ProfileScreen(initialEditing: true),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: Text(
+                            'Update Profile',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildChecklistRow(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool isSet,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 20,
+          color: isSet ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: context.textMain,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: context.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: isSet
+                ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                : const Color(0xFFF59E0B).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isSet ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                size: 13,
+                color: isSet ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                isSet ? 'Set' : 'Missing',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isSet ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDiscoveryPromptCard(BuildContext context, User user) {
+    if (_dismissedDiscoveryBanner) return const SizedBox.shrink();
+    final missingLoc = user.state.trim().isEmpty || user.district.trim().isEmpty;
+    final missingCoord = user.latitude == null || user.longitude == null;
+    final missingCat = user.categories.isEmpty;
+    if (!missingLoc && !missingCoord && !missingCat) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: context.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.sky.withValues(alpha: 0.35),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.sky.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.explore_rounded,
+              color: AppColors.sky,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Complete Discovery Profile',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: context.textMain,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Add State, District & Map Location so photographers worldwide can discover you.',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: context.textMuted,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ProfileScreen(initialEditing: true),
+                ),
+              );
+            },
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              backgroundColor: AppColors.sky.withValues(alpha: 0.12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              'Update',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.sky,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.close_rounded, size: 16, color: context.textMuted),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+            onPressed: () => setState(() => _dismissedDiscoveryBanner = true),
+          ),
+        ],
+      ),
     );
   }
 
@@ -288,6 +622,9 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                       ),
                       const SizedBox(height: 14),
+
+                      // Discovery Profile Completion Banner (if State/District or Coordinates missing)
+                      if (user != null) _buildDiscoveryPromptCard(context, user),
 
                       // Compact promotional banner
                       _AnimatedSection(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -48,6 +49,229 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  int _categoryCount(String cat, List<StudioEvent> events) {
+    if (cat == 'All') return events.length;
+    if (cat == _completedFilter) return events.where((e) => e.status == EventStatus.completed).length;
+    if (cat == 'Others') {
+      return events.where((e) =>
+        !const ['wedding', 'maternity', 'commercial', 'newborn', 'portrait', 'pre-wedding', 'fashion', 'event']
+            .contains(e.eventType.toLowerCase()) ||
+        e.eventType.toLowerCase() == 'others'
+      ).length;
+    }
+    return events.where((e) => e.eventType.toLowerCase() == cat.toLowerCase()).length;
+  }
+
+  Widget _buildFilterHamburger(BuildContext context, List<StudioEvent> allPast) {
+    final hasActive = _selectedCategory != 'All';
+    final accent = context.accentColor;
+
+    return Material(
+      color: Colors.transparent,
+      child: Tooltip(
+        message: 'Filter Past Shoots',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _showCategoryFilterSheet(context, allPast),
+          child: Ink(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: hasActive
+                  ? accent.withValues(alpha: context.isDark ? 0.22 : 0.12)
+                  : context.cardBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: hasActive ? accent : context.cardBorder,
+                width: hasActive ? 1.5 : 1,
+              ),
+              boxShadow: hasActive
+                  ? [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.25),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  Icons.tune_rounded,
+                  size: 20,
+                  color: hasActive ? accent : context.textMain,
+                ),
+                if (hasActive)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: accent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCategoryFilterSheet(BuildContext context, List<StudioEvent> allPast) async {
+    HapticFeedback.lightImpact();
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.72,
+          ),
+          padding: EdgeInsets.fromLTRB(20, 10, 20, 20 + MediaQuery.paddingOf(context).bottom),
+          decoration: BoxDecoration(
+            color: sheetContext.cardBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border(
+              top: BorderSide(color: sheetContext.cardBorder, width: 1),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: sheetContext.textMuted.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: sheetContext.accentColor.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.tune_rounded, color: sheetContext.accentColor, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Filter Past Shoots',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: sheetContext.textMain,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (_selectedCategory != 'All')
+                    TextButton(
+                      onPressed: () {
+                        setState(() => _selectedCategory = 'All');
+                        Navigator.of(sheetContext).pop();
+                      },
+                      child: Text(
+                        'Reset',
+                        style: TextStyle(
+                          color: sheetContext.accentColor,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: _categories.map((cat) {
+                    final isSelected = _selectedCategory == cat;
+                    final count = _categoryCount(cat, allPast);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () {
+                          setState(() => _selectedCategory = cat);
+                          Navigator.of(sheetContext).pop();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? sheetContext.accentColor.withValues(alpha: sheetContext.isDark ? 0.18 : 0.1)
+                                : sheetContext.innerBg.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isSelected
+                                  ? sheetContext.accentColor
+                                  : sheetContext.cardBorder.withValues(alpha: 0.5),
+                              width: isSelected ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                size: 18,
+                                color: isSelected ? sheetContext.accentColor : sheetContext.textMuted,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  cat,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                    color: sheetContext.textMain,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? sheetContext.accentColor.withValues(alpha: 0.2)
+                                      : sheetContext.cardBorder.withValues(alpha: 0.3),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$count',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: isSelected ? sheetContext.accentColor : sheetContext.textMuted,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -132,72 +356,102 @@ class _PastEventsScreenState extends State<PastEventsScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                   child: Column(
                     children: [
-                      TextField(
-                        controller: _searchController,
-                        onChanged: (_) => setState(() {}),
-                        style: TextStyle(color: textMain, fontSize: 14),
-                        decoration: InputDecoration(
-                          hintText: 'Search past shoots, clients, locations...',
-                          prefixIcon: Icon(
-                            Icons.search,
-                            color: textMuted,
-                            size: 20,
-                          ),
-                          suffixIcon: _searchController.text.isNotEmpty
-                              ? IconButton(
-                                  icon: Icon(
-                                    Icons.clear,
-                                    color: textMuted,
-                                    size: 18,
-                                  ),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() {});
-                                  },
-                                )
-                              : null,
-                          filled: true,
-                          fillColor: context.cardBg,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        height: 36,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _categories.length,
-                          separatorBuilder: (_, _) => const SizedBox(width: 8),
-                          itemBuilder: (context, idx) {
-                            final cat = _categories[idx];
-                            final isSelected = _selectedCategory == cat;
-                            return ChoiceChip(
-                              label: Text(cat),
-                              selected: isSelected,
-                              onSelected: (val) {
-                                if (val) {
-                                  setState(() => _selectedCategory = cat);
-                                }
-                              },
-                              selectedColor: accent.withValues(alpha: 0.25),
-                              backgroundColor: context.cardBg,
-                              side: BorderSide(
-                                color: isSelected ? accent : context.cardBorder,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: (_) => setState(() {}),
+                              style: TextStyle(color: textMain, fontSize: 14),
+                              decoration: InputDecoration(
+                                hintText: 'Search past shoots, clients, locations...',
+                                prefixIcon: Icon(
+                                  Icons.search,
+                                  color: textMuted,
+                                  size: 20,
+                                ),
+                                suffixIcon: _searchController.text.isNotEmpty
+                                    ? IconButton(
+                                        icon: Icon(
+                                          Icons.clear,
+                                          color: textMuted,
+                                          size: 18,
+                                        ),
+                                        onPressed: () {
+                                          _searchController.clear();
+                                          setState(() {});
+                                        },
+                                      )
+                                    : null,
+                                filled: true,
+                                fillColor: context.cardBg,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
                               ),
-                              labelStyle: TextStyle(
-                                color: isSelected ? accent : textMain,
-                                fontSize: 12,
-                                fontWeight: isSelected
-                                    ? FontWeight.w700
-                                    : FontWeight.normal,
-                              ),
-                            );
-                          },
-                        ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterHamburger(context, allPast),
+                        ],
                       ),
+                      if (_selectedCategory != 'All') ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Text(
+                              'Filtered by:',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11.5,
+                                color: textMuted,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => setState(() => _selectedCategory = 'All'),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: accent.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: accent.withValues(alpha: 0.35)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      _selectedCategory,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: accent,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(Icons.close_rounded, size: 14, color: accent),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const Spacer(),
+                            TextButton(
+                              onPressed: () => setState(() => _selectedCategory = 'All'),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Clear',
+                                style: TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),

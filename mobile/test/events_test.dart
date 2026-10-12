@@ -285,12 +285,8 @@ void main() {
         expect(find.text('Northwind Atelier'), findsOneWidget);
         expect(find.text('The Iyer Family'), findsOneWidget);
 
-        // Verify filter chips
-        expect(find.text('All'), findsOneWidget);
-        expect(find.text('Information'), findsWidgets);
-        expect(find.text('Coming Up'), findsWidgets);
-        expect(find.text('Completed'), findsWidgets);
-        expect(find.text('Due'), findsOneWidget);
+        // Verify filter hamburger button is present (replaces inline chip row)
+        expect(find.byTooltip('Filter Clients'), findsOneWidget);
 
         // Test Search by phone
         await tester.enterText(find.byType(TextField), '98234');

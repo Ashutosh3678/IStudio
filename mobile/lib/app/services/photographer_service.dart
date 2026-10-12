@@ -10,6 +10,8 @@ class PhotographerService {
     required String token,
     String? location,
     String? query,
+    String? state,
+    String? district,
     /// Pass one or more categories to filter. Empty list means no filter.
     List<String> categories = const [],
     double? latitude,
@@ -22,6 +24,8 @@ class PhotographerService {
     if (query != null && query.trim().isNotEmpty) {
       params['query'] = query.trim();
     }
+    if (state != null && state.trim().isNotEmpty) params['state'] = state.trim();
+    if (district != null && district.trim().isNotEmpty) params['district'] = district.trim();
     if (categories.isNotEmpty) {
       params['category'] = categories.map((c) => c.trim()).join(',');
     }

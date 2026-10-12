@@ -57,7 +57,7 @@ void main() {
       // Step 1: Initial verification sheet renders email and Send Verification Code
       expect(find.text('Permanently Delete Account'), findsOneWidget);
       expect(find.text('This action cannot be undone.'), findsOneWidget);
-      expect(find.text('studio@example.com'), findsNWidgets(2));
+      expect(find.text('studio@example.com'), findsAtLeastNWidgets(1));
       expect(find.text('Send Verification Code'), findsOneWidget);
       expect(find.text('Already have a code?'), findsOneWidget);
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -141,6 +142,193 @@ class _InvoiceHistoryTabState extends State<InvoiceHistoryTab> {
     }
   }
 
+  Widget _buildInvoiceFilterButton(BuildContext context, InvoicesProvider provider) {
+    final isAll = _filter == InvoiceFilter.all;
+    final accent = context.accentColor;
+
+    return Material(
+      color: Colors.transparent,
+      child: Tooltip(
+        message: 'Filter Bills',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => _openInvoiceFilterSheet(context, provider),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: isAll
+                  ? context.cardBg
+                  : accent.withValues(alpha: context.isDark ? 0.2 : 0.12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isAll ? context.cardBorder : accent,
+                width: isAll ? 1 : 1.4,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.tune_rounded,
+                  size: 15,
+                  color: isAll ? context.textMuted : accent,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _filter.label,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isAll ? context.textMain : accent,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 16,
+                  color: isAll ? context.textMuted : accent,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openInvoiceFilterSheet(BuildContext context, InvoicesProvider provider) async {
+    HapticFeedback.lightImpact();
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          padding: EdgeInsets.fromLTRB(20, 10, 20, 20 + MediaQuery.paddingOf(context).bottom),
+          decoration: BoxDecoration(
+            color: sheetContext.cardBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border(
+              top: BorderSide(color: sheetContext.cardBorder, width: 1),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: sheetContext.textMuted.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: sheetContext.accentColor.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.tune_rounded, color: sheetContext.accentColor, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Filter Bills',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: sheetContext.textMain,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (_filter != InvoiceFilter.all)
+                    TextButton(
+                      onPressed: () {
+                        setState(() => _filter = InvoiceFilter.all);
+                        Navigator.of(sheetContext).pop();
+                      },
+                      child: Text(
+                        'Reset to All',
+                        style: TextStyle(color: sheetContext.accentColor, fontSize: 13, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ...InvoiceFilter.values.map((filter) {
+                final isSelected = _filter == filter;
+                final count = provider.filtered(filter).length;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () {
+                      setState(() => _filter = filter);
+                      Navigator.of(sheetContext).pop();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? sheetContext.accentColor.withValues(alpha: sheetContext.isDark ? 0.18 : 0.1)
+                            : sheetContext.innerBg.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? sheetContext.accentColor : sheetContext.cardBorder.withValues(alpha: 0.5),
+                          width: isSelected ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                            size: 18,
+                            color: isSelected ? sheetContext.accentColor : sheetContext.textMuted,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              filter.label,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14,
+                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                color: sheetContext.textMain,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? sheetContext.accentColor.withValues(alpha: 0.2)
+                                  : sheetContext.cardBorder.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '$count',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: isSelected ? sheetContext.accentColor : sheetContext.textMuted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<InvoicesProvider>();
@@ -216,42 +404,38 @@ class _InvoiceHistoryTabState extends State<InvoiceHistoryTab> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: Row(
-            children: InvoiceFilter.values.map((filter) {
-              final selected = _filter == filter;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8, bottom: 8),
-                child: FilterChip(
-                  label: Text(filter.label),
-                  selected: selected,
-                  selectedColor: accent,
-                  backgroundColor: context.cardBg,
-                  showCheckmark: false,
-                  labelStyle: TextStyle(
-                    color: selected
-                        ? Colors.white
-                        : textMain,
-                    fontSize: 12,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                  side: BorderSide(
-                    color: selected
-                        ? accent
-                        : context.cardBorder.withValues(alpha: 0.3),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  onSelected: (value) {
-                    if (value) setState(() => _filter = filter);
-                  },
+            children: [
+              Text(
+                'Recent Bills',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: textMain,
                 ),
-              );
-            }).toList(),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${invoices.length}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: accent,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              // Hamburger / Filter button
+              _buildInvoiceFilterButton(context, provider),
+            ],
           ),
         ),
         Expanded(

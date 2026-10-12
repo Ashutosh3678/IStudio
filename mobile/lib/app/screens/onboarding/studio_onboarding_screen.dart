@@ -33,6 +33,8 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
   late final TextEditingController _phone;
   late final TextEditingController _email;
   late final TextEditingController _city;
+  late final TextEditingController _state;
+  late final TextEditingController _district;
   late final TextEditingController _address;
   late final TextEditingController _specialties;
   late final TextEditingController _about;
@@ -55,6 +57,8 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
     _phone = TextEditingController(text: user?.phone ?? '');
     _email = TextEditingController(text: user?.email ?? '');
     _city = TextEditingController(text: user?.city ?? '');
+    _state = TextEditingController(text: user?.state ?? '');
+    _district = TextEditingController(text: user?.district ?? '');
     _address = TextEditingController(text: user?.address ?? '');
     _specialties = TextEditingController(text: user?.specialties ?? '');
     _about = TextEditingController(text: user?.about ?? '');
@@ -80,6 +84,8 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
       _phone,
       _email,
       _city,
+      _state,
+      _district,
       _address,
       _specialties,
       _about,
@@ -176,6 +182,8 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
       'ownerName': _ownerName.text.trim(),
       'phone': _phone.text.trim(),
       'city': _city.text.trim(),
+      'state': _state.text.trim(),
+      'district': _district.text.trim(),
       'address': _address.text.trim(),
       'specialties': _specialties.text.trim(),
       'about': _about.text.trim(),
@@ -403,6 +411,12 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
                               if (result.city != null && result.city!.isNotEmpty) {
                                 _city.text = result.city!;
                               }
+                              if (result.state != null && result.state!.isNotEmpty) {
+                                _state.text = result.state!;
+                              }
+                              if (result.district != null && result.district!.isNotEmpty) {
+                                _district.text = result.district!;
+                              }
                               if (_address.text.trim().isEmpty) {
                                 _address.text = result.displayName;
                               }
@@ -412,10 +426,26 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
                         const SizedBox(height: 14),
                         StudioTextField(
                           label: 'City *',
-                          hint: 'e.g. Mumbai',
+                          hint: 'e.g. Mumbai, New York, London',
                           controller: _city,
                           prefixIcon: Icons.location_city_outlined,
                           validator: (v) => _required(v, 'Enter your city'),
+                        ),
+                        const SizedBox(height: 14),
+                        StudioTextField(
+                          label: 'State / Region *',
+                          hint: 'e.g. Telangana, California, Ontario',
+                          controller: _state,
+                          prefixIcon: Icons.map_outlined,
+                          validator: (v) => _required(v, 'Enter your state or region'),
+                        ),
+                        const SizedBox(height: 14),
+                        StudioTextField(
+                          label: 'District / Area *',
+                          hint: 'e.g. Hyderabad, Manhattan, Westminster',
+                          controller: _district,
+                          prefixIcon: Icons.location_city_outlined,
+                          validator: (v) => _required(v, 'Enter your district or area'),
                         ),
                         const SizedBox(height: 14),
                         StudioTextField(

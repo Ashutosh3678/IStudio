@@ -47,6 +47,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late final TextEditingController _phone;
   late final TextEditingController _email;
   late final TextEditingController _city;
+  late final TextEditingController _state;
+  late final TextEditingController _district;
   late final TextEditingController _address;
   late final TextEditingController _about;
   late final TextEditingController _instagram;
@@ -74,6 +76,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _phone = TextEditingController(text: user?.phone ?? '');
     _email = TextEditingController(text: user?.email ?? '');
     _city = TextEditingController(text: user?.city ?? '');
+    _state = TextEditingController(text: user?.state ?? '');
+    _district = TextEditingController(text: user?.district ?? '');
     _address = TextEditingController(text: user?.address ?? '');
     _about = TextEditingController(text: user?.about ?? '');
     _instagram = TextEditingController(text: user?.instagram ?? '');
@@ -98,6 +102,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _phone.dispose();
     _email.dispose();
     _city.dispose();
+    _state.dispose();
+    _district.dispose();
     _address.dispose();
     _about.dispose();
     _instagram.dispose();
@@ -117,6 +123,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _phone.text = user.phone;
     _email.text = user.email;
     _city.text = user.city;
+    _state.text = user.state;
+    _district.text = user.district;
     _address.text = user.address;
     _about.text = user.about;
     _instagram.text = user.instagram;
@@ -410,6 +418,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'username': _username.text.trim(),
       'phone': _phone.text.trim(),
       'city': _city.text.trim(),
+      'state': _state.text.trim(),
+      'district': _district.text.trim(),
       'address': _address.text.trim(),
       'about': _about.text.trim(),
       'instagram': _instagram.text.trim(),
@@ -719,10 +729,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _DetailRow(icon: Icons.phone_outlined, label: 'Phone', value: user?.phone ?? '—'),
           _DetailRow(icon: Icons.mail_outline_rounded, label: 'Email', value: _orDash(user?.email)),
           _DetailRow(icon: Icons.location_city_outlined, label: 'City', value: _orDash(user?.city)),
+          if (user?.state.isNotEmpty == true)
+            _DetailRow(icon: Icons.map_outlined, label: 'State', value: _orDash(user?.state)),
+          if (user?.district.isNotEmpty == true)
+            _DetailRow(icon: Icons.location_on_outlined, label: 'District', value: _orDash(user?.district)),
           _DetailRow(icon: Icons.place_outlined, label: 'Address', value: _orDash(user?.address), last: true),
         ],
       ),
     );
+  }
+
+  IconData _getRoleIcon(String role) {
+    final lower = role.toLowerCase();
+    if (lower.contains('video') || lower.contains('cinema')) {
+      return Icons.videocam_rounded;
+    } else if (lower.contains('drone')) {
+      return Icons.flight_takeoff_rounded;
+    } else if (lower.contains('candid')) {
+      return Icons.auto_awesome_rounded;
+    } else if (lower.contains('baby') || lower.contains('newborn') || lower.contains('maternity')) {
+      return Icons.child_care_rounded;
+    } else if (lower.contains('wedding')) {
+      return Icons.favorite_rounded;
+    } else if (lower.contains('portrait') || lower.contains('fashion')) {
+      return Icons.face_rounded;
+    }
+    return Icons.camera_alt_rounded;
   }
 
   Widget _buildSocialCard(User? user) {
@@ -732,55 +764,181 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Photographer Categories chips
-          if (cats.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(0, 4, 0, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.camera_alt_outlined, size: 16, color: context.accentColor),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.camera_alt_outlined, size: 16, color: context.accentColor),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Photographer Roles',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: context.textMuted,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    if (cats.isNotEmpty) ...[
                       const SizedBox(width: 8),
-                      Text(
-                        'Photographer Roles',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: context.textMuted,
-                          letterSpacing: 0.3,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: context.accentColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${cats.length}',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: context.accentColor,
+                          ),
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: cats.map((c) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    const Spacer(),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () async {
+                        final updated = await CategorySelectorSheet.show(
+                          context,
+                          initial: cats,
+                        );
+                        if (updated != null && mounted) {
+                          final auth = context.read<AuthProvider>();
+                          final ok = await auth.updateProfile({'categories': updated});
+                          if (ok && mounted) {
+                            AppSnackBar.success(context, 'Roles updated successfully.');
+                          }
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              cats.isEmpty ? Icons.add_circle_outline_rounded : Icons.edit_rounded,
+                              size: 13,
+                              color: context.accentColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              cats.isEmpty ? 'Select Roles' : 'Edit',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: context.accentColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                if (cats.isEmpty)
+                  InkWell(
+                    onTap: () async {
+                      final updated = await CategorySelectorSheet.show(context, initial: const []);
+                      if (updated != null && mounted) {
+                        final auth = context.read<AuthProvider>();
+                        final ok = await auth.updateProfile({'categories': updated});
+                        if (ok && mounted) {
+                          AppSnackBar.success(context, 'Roles saved successfully.');
+                        }
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
-                        color: context.accentColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
+                        color: context.accentColor.withValues(alpha: context.isDark ? 0.08 : 0.05),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: context.accentColor.withValues(alpha: 0.35),
+                          color: context.accentColor.withValues(alpha: 0.25),
                         ),
                       ),
-                      child: Text(
-                        c,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: context.accentColor,
-                        ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.add_circle_outline_rounded, size: 16, color: context.accentColor),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Select your photographer roles & specialties',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: context.accentColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    )).toList(),
+                    ),
+                  )
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: cats.map((c) {
+                      final icon = _getRoleIcon(c);
+                      final isOperator = PhotographerCategories.isOperatorRole(c);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isOperator
+                              ? AppColors.sky.withValues(alpha: context.isDark ? 0.16 : 0.08)
+                              : context.accentColor.withValues(alpha: context.isDark ? 0.16 : 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isOperator
+                                ? AppColors.sky.withValues(alpha: 0.35)
+                                : context.accentColor.withValues(alpha: 0.35),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: (isOperator ? AppColors.sky : context.accentColor)
+                                    .withValues(alpha: 0.18),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                icon,
+                                size: 12,
+                                color: isOperator ? AppColors.sky : context.accentColor,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              c,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: context.textMain,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
-                  Divider(height: 20, color: context.cardBorder),
-                ],
-              ),
+                Divider(height: 22, color: context.cardBorder),
+              ],
             ),
-          ],
+          ),
           _DetailRow(icon: Icons.auto_awesome_outlined, label: 'Specialties', value: _orDash(user?.specialties)),
           _DetailRow(icon: Icons.camera_alt_outlined, label: 'Instagram', value: _orDash(user?.instagram)),
           _DetailRow(icon: Icons.ondemand_video_rounded, label: 'YouTube', value: _orDash(user?.youtube)),
@@ -1355,6 +1513,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (_city.text.trim().isEmpty && result.city != null) {
                   _city.text = result.city!;
                 }
+                // Auto-fill state if empty
+                if (_state.text.trim().isEmpty && result.state != null) {
+                  _state.text = result.state!;
+                }
+                // Auto-fill district if empty
+                if (_district.text.trim().isEmpty && result.district != null) {
+                  _district.text = result.district!;
+                }
                 // Auto-fill address if empty
                 if (_address.text.trim().isEmpty) {
                   _address.text = result.displayName;
@@ -1371,6 +1537,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             validator: (value) => (value == null || value.trim().isEmpty)
                 ? 'Enter your city'
                 : null,
+          ),
+          const SizedBox(height: 14),
+          StudioTextField(
+            label: 'State / Region',
+            hint: 'e.g. Telangana, Maharashtra, California',
+            controller: _state,
+            prefixIcon: Icons.map_outlined,
+          ),
+          const SizedBox(height: 14),
+          StudioTextField(
+            label: 'District / Area',
+            hint: 'e.g. Hyderabad, Pune, Los Angeles',
+            controller: _district,
+            prefixIcon: Icons.location_on_outlined,
           ),
           const SizedBox(height: 14),
           StudioTextField(
@@ -1540,11 +1720,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      isOperator ? Icons.video_camera_back_outlined : Icons.camera_alt_outlined,
-                      size: 12,
+                      _getRoleIcon(cat),
+                      size: 13,
                       color: isOperator ? AppColors.sky : context.accentColor,
                     ),
-                    const SizedBox(width: 5),
+                    const SizedBox(width: 6),
                     Text(
                       cat,
                       style: GoogleFonts.plusJakartaSans(

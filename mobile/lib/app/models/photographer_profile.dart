@@ -10,6 +10,8 @@ class PhotographerProfile {
     this.ownerName = '',
     this.email = '',
     this.city = '',
+    this.state = '',
+    this.district = '',
     this.address = '',
     this.about = '',
     this.instagram = '',
@@ -29,6 +31,8 @@ class PhotographerProfile {
   final String ownerName;
   final String email;
   final String city;
+  final String state;
+  final String district;
   final String address;
   final String about;
   final String instagram;
@@ -52,6 +56,10 @@ class PhotographerProfile {
       ownerName.trim().isNotEmpty ? ownerName : username;
 
   String get displayLocation {
+    final area = district.trim().isNotEmpty ? district : city;
+    if (state.trim().isNotEmpty && area.trim().isNotEmpty) {
+      return '$area • $state';
+    }
     if (city.trim().isNotEmpty && address.trim().isNotEmpty) {
       return '$city • $address';
     }
@@ -69,6 +77,8 @@ class PhotographerProfile {
       ownerName: json['ownerName'] as String? ?? '',
       email: json['email'] as String? ?? '',
       city: json['city'] as String? ?? '',
+      state: json['state'] as String? ?? '',
+      district: json['district'] as String? ?? '',
       address: json['address'] as String? ?? '',
       about: json['about'] as String? ?? '',
       instagram: json['instagram'] as String? ?? '',
@@ -100,6 +110,8 @@ class PhotographerProfile {
         'ownerName': ownerName,
         'email': email,
         'city': city,
+        'state': state,
+        'district': district,
         'address': address,
         'about': about,
         'instagram': instagram,

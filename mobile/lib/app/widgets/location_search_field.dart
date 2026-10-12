@@ -71,12 +71,14 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
   void dispose() {
     _debounce?.cancel();
     _focusNode.removeListener(_onFocusChanged);
+    _focusNode.unfocus(disposition: UnfocusDisposition.scope);
     _focusNode.dispose();
     widget.controller.removeListener(_onTextChanged);
     super.dispose();
   }
 
   void _onFocusChanged() {
+    if (!mounted) return;
     if (!_focusNode.hasFocus) {
       // User tapped outside; auto-geocode if text exists but coordinates are not yet set
       final text = widget.controller.text.trim();
@@ -88,6 +90,7 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
   }
 
   void _onTextChanged() {
+    if (!mounted) return;
     final query = widget.controller.text.trim();
     if (_hasCoordinates && query != _selectedText) {
       setState(() => _hasCoordinates = false);
@@ -140,6 +143,7 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
   }
 
   void _selectPlace(PlaceLocation place) {
+    if (!mounted) return;
     widget.controller.removeListener(_onTextChanged);
     widget.controller.text = place.displayName;
     widget.controller.addListener(_onTextChanged);
@@ -151,7 +155,7 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
     _selectedText = place.displayName;
 
     _focusNode.unfocus();
-    widget.onLocationSelected(place);
+    if (mounted) widget.onLocationSelected(place);
   }
 
   @override

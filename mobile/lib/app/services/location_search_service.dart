@@ -9,6 +9,8 @@ class PlaceLocation {
     required this.latitude,
     required this.longitude,
     this.city,
+    this.state,
+    this.district,
   });
 
   final String name;
@@ -16,6 +18,8 @@ class PlaceLocation {
   final double latitude;
   final double longitude;
   final String? city;
+  final String? state;
+  final String? district;
 
   factory PlaceLocation.fromPhoton(Map<String, dynamic> feature) {
     final properties = feature['properties'] as Map<String, dynamic>? ?? {};
@@ -34,6 +38,8 @@ class PlaceLocation {
         properties['county'] as String? ??
         properties['state'] as String? ??
         '';
+    final state = properties['state'] as String?;
+    final district = properties['district'] as String? ?? properties['county'] as String?;
 
     final parts = [name, street, locality, city]
         .where((p) => p.trim().isNotEmpty)
@@ -47,6 +53,8 @@ class PlaceLocation {
       latitude: lat,
       longitude: lon,
       city: city.isNotEmpty ? city : null,
+      state: state,
+      district: district,
     );
   }
 

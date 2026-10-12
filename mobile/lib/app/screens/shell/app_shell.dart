@@ -12,6 +12,7 @@ import '../calendar/calendar_screen.dart';
 import '../clients/clients_screen.dart';
 import '../home/home_screen.dart';
 import '../invoice/invoice_screen.dart';
+import '../photographers/nearby_photographers_screen.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -23,11 +24,12 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _index = 0;
 
-  static const _pages = [
+  late final List<Widget> _pages = const [
     HomeScreen(),
     CalendarScreen(),
     InvoiceScreen(),
     ClientsScreen(),
+    NearbyPhotographersScreen(),
   ];
 
   void _switchTab(int newIndex) {
@@ -232,6 +234,14 @@ class _LiquidGlassDock extends StatelessWidget {
                   label: 'Clients',
                   isSelected: currentIndex == 3,
                   onTap: () => onTabSelected(3),
+                  isDark: isDark,
+                ),
+                _DockItem(
+                  icon: Icons.person_search_outlined,
+                  activeIcon: Icons.person_search_rounded,
+                  label: 'Discover',
+                  isSelected: currentIndex == 4,
+                  onTap: () => onTabSelected(4),
                   isDark: isDark,
                 ),
               ],
@@ -449,3 +459,4 @@ class AppShellScope extends InheritedWidget {
   @override
   bool updateShouldNotify(AppShellScope oldWidget) => false;
 }
+

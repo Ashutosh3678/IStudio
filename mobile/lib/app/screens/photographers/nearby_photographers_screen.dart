@@ -13,6 +13,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_motion.dart';
 import '../../utils/app_snackbar.dart';
 import '../../utils/geo_distance_utils.dart';
+import '../../utils/india_locations.dart';
 import '../../utils/launcher_utils.dart';
 import '../../utils/photographer_categories.dart';
 import '../../widgets/shimmer_loading.dart';
@@ -23,10 +24,12 @@ class NearbyPhotographersScreen extends StatefulWidget {
     super.key,
     this.event,
     this.initialLocation,
+    this.service,
   });
 
   final StudioEvent? event;
   final String? initialLocation;
+  final PhotographerService? service;
 
   @override
   State<NearbyPhotographersScreen> createState() =>
@@ -34,24 +37,31 @@ class NearbyPhotographersScreen extends StatefulWidget {
 }
 
 class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
-  final PhotographerService _service = PhotographerService();
+  late final PhotographerService _service;
   late final TextEditingController _searchController;
+  late final TextEditingController _locationSearchController;
   final Set<String> _selectedCategories = {};
   bool _loading = false;
   List<PhotographerProfile> _photographers = [];
   String? _errorMessage;
+  String? _selectedState;
+  String? _selectedDistrict;
+  bool _isBrowsingIndiaLocations = false;
 
   @override
   void initState() {
     super.initState();
+    _service = widget.service ?? PhotographerService();
     final defaultLoc = widget.initialLocation ?? '';
     _searchController = TextEditingController(text: defaultLoc);
+    _locationSearchController = TextEditingController();
     _fetchPhotographers();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _locationSearchController.dispose();
     super.dispose();
   }
 
@@ -80,43 +90,46 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
         token: token,
         location: queryLoc.isNotEmpty ? queryLoc : null,
         query: queryLoc.isNotEmpty ? queryLoc : null,
+        state: widget.event == null ? _selectedState : null,
+        district: widget.event == null ? _selectedDistrict : null,
         categories: _selectedCategories.toList(),
         latitude: widget.event?.latitude,
         longitude: widget.event?.longitude,
       );
 
-      // Sort by proximity to event or reference location
-      final refLoc = _referenceLocation;
       final sortedResults = List<PhotographerProfile>.from(results);
-      sortedResults.sort((a, b) {
-        final distA = GeoDistanceUtils.computeEventDistance(
-          eventLocation: refLoc,
-          eventLat: widget.event?.latitude,
-          eventLng: widget.event?.longitude,
-          photographerCity: a.city,
-          photographerAddress: a.address,
-          photographerLat: a.latitude,
-          photographerLng: a.longitude,
-          precomputedDistanceKm: a.distanceKm,
-        );
-        final distB = GeoDistanceUtils.computeEventDistance(
-          eventLocation: refLoc,
-          eventLat: widget.event?.latitude,
-          eventLng: widget.event?.longitude,
-          photographerCity: b.city,
-          photographerAddress: b.address,
-          photographerLat: b.latitude,
-          photographerLng: b.longitude,
-          precomputedDistanceKm: b.distanceKm,
-        );
+      if (widget.event != null) {
+        final refLoc = _referenceLocation;
+        sortedResults.sort((a, b) {
+          final distA = GeoDistanceUtils.computeEventDistance(
+            eventLocation: refLoc,
+            eventLat: widget.event?.latitude,
+            eventLng: widget.event?.longitude,
+            photographerCity: a.city,
+            photographerAddress: a.address,
+            photographerLat: a.latitude,
+            photographerLng: a.longitude,
+            precomputedDistanceKm: a.distanceKm,
+          );
+          final distB = GeoDistanceUtils.computeEventDistance(
+            eventLocation: refLoc,
+            eventLat: widget.event?.latitude,
+            eventLng: widget.event?.longitude,
+            photographerCity: b.city,
+            photographerAddress: b.address,
+            photographerLat: b.latitude,
+            photographerLng: b.longitude,
+            precomputedDistanceKm: b.distanceKm,
+          );
 
-        if (distA.distanceKm != null && distB.distanceKm != null) {
-          return distA.distanceKm!.compareTo(distB.distanceKm!);
-        }
-        if (distA.distanceKm != null) return -1;
-        if (distB.distanceKm != null) return 1;
-        return 0;
-      });
+          if (distA.distanceKm != null && distB.distanceKm != null) {
+            return distA.distanceKm!.compareTo(distB.distanceKm!);
+          }
+          if (distA.distanceKm != null) return -1;
+          if (distB.distanceKm != null) return 1;
+          return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+        });
+      }
 
       if (!mounted) return;
       setState(() {
@@ -583,8 +596,28 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.isDark;
     final event = widget.event;
+
+    // View modes:
+    // If event != null: Event Collaborators mode (proximity search around event)
+    // If event == null:
+    //    • Default: Global discovery listing with worldwide search & location filter toolbar
+    //    • _isBrowsingIndiaLocations: State / District drill-down picker
+    final bool isStateSelector = event == null && _isBrowsingIndiaLocations && _selectedState == null;
+    final bool isDistrictSelector = event == null && _isBrowsingIndiaLocations && _selectedState != null && _selectedDistrict == null;
+
+    final String appBarSubtitle;
+    if (event != null) {
+      appBarSubtitle = 'Collaborators for "${event.title}"';
+    } else if (isDistrictSelector) {
+      appBarSubtitle = 'Select district in $_selectedState';
+    } else if (isStateSelector) {
+      appBarSubtitle = 'Select Indian State / UT';
+    } else if (_selectedDistrict != null) {
+      appBarSubtitle = '$_selectedDistrict, $_selectedState';
+    } else {
+      appBarSubtitle = 'Explore photographers worldwide';
+    }
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -592,175 +625,831 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
         child: Column(
           children: [
             StudioAppBar(
-              title: 'Nearby Photographers',
-              subtitle: event != null
-                  ? 'Collaborators for "${event.title}"'
-                  : 'Search by location and categories',
-              leading: IconButton(
-                tooltip: 'Back',
-                icon: Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: context.textMain,
-                  size: 20,
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
+              title: event == null ? 'Discover Photographers' : 'Nearby Photographers',
+              subtitle: appBarSubtitle,
+              leading: (event != null || Navigator.of(context).canPop() || _isBrowsingIndiaLocations)
+                  ? IconButton(
+                      tooltip: 'Back',
+                      icon: Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: context.textMain,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        if (isDistrictSelector) {
+                          setState(() {
+                            _selectedState = null;
+                            _locationSearchController.clear();
+                          });
+                        } else if (isStateSelector) {
+                          setState(() {
+                            _isBrowsingIndiaLocations = false;
+                            _locationSearchController.clear();
+                          });
+                        } else if (Navigator.of(context).canPop()) {
+                          Navigator.of(context).pop();
+                        }
+                      },
+                    )
+                  : null,
+              actions: [
+                if (event == null && _isBrowsingIndiaLocations)
+                  IconButton(
+                    tooltip: 'Close Location Filter',
+                    icon: Icon(Icons.close_rounded, color: context.textMuted),
+                    onPressed: () {
+                      setState(() {
+                        _isBrowsingIndiaLocations = false;
+                        _locationSearchController.clear();
+                      });
+                    },
+                  ),
+              ],
             ),
 
-            // Event context banner (if viewing for a specific event)
             if (event != null) _buildEventContextBanner(event),
 
-            // Search Header Box
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Column(
-                children: [
-                  // Search input
-                  Container(
-                    decoration: BoxDecoration(
-                      color: context.cardBg,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: context.cardBorder),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        const SizedBox(width: 14),
-                        const Icon(
-                          Icons.location_on_rounded,
-                          color: AppColors.sky,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 14,
-                              color: context.textMain,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: event != null && event.location.isNotEmpty
-                                  ? 'Search around "${event.location}"...'
-                                  : 'Enter event city or location...',
-                              hintStyle: GoogleFonts.plusJakartaSans(
-                                fontSize: 13,
-                                color: context.textMuted,
-                              ),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            onSubmitted: (_) => _fetchPhotographers(),
-                          ),
-                        ),
-                        if (_searchController.text.isNotEmpty)
-                          IconButton(
-                            icon: Icon(Icons.clear_rounded, size: 18, color: context.textMuted),
-                            onPressed: () {
-                              _searchController.clear();
-                              _fetchPhotographers();
-                            },
-                          ),
-                        IconButton(
-                          tooltip: 'Search',
-                          icon: const Icon(Icons.search_rounded, color: AppColors.sky),
-                          onPressed: _fetchPhotographers,
-                        ),
-                        const SizedBox(width: 4),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Horizontal category chips
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildFilterChip('All'),
-                        ...PhotographerCategories.primaryRoles.map(_buildFilterChip),
-                        ...PhotographerCategories.operatorRoles.map(_buildFilterChip),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Content List
             Expanded(
-              child: _loading
-                  ? ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: 4,
-                      itemBuilder: (_, _) => const Padding(
-                        padding: EdgeInsets.only(bottom: 14),
-                        child: ShimmerBox(
-                          height: 140,
-                          borderRadius: 18,
-                        ),
-                      ),
-                    )
-                  : _errorMessage != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.error_outline_rounded,
-                                  size: 48,
-                                  color: context.textMuted,
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  _errorMessage!,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: context.textMain),
-                                ),
-                                const SizedBox(height: 16),
-                                ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.sky,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  icon: const Icon(Icons.refresh_rounded, size: 18),
-                                  label: const Text('Retry'),
-                                  onPressed: _fetchPhotographers,
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : _photographers.isEmpty
-                          ? _buildEmptyState()
-                          : RefreshIndicator(
-                              onRefresh: _fetchPhotographers,
-                              color: AppColors.sky,
-                              child: ListView.separated(
-                                padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-                                itemCount: _photographers.length,
-                                separatorBuilder: (_, _) =>
-                                    const SizedBox(height: 12),
-                                itemBuilder: (ctx, index) => _buildPhotographerCard(
-                                  _photographers[index],
-                                ),
-                              ),
-                            ),
+              child: isStateSelector
+                  ? _buildStateSelectorView()
+                  : isDistrictSelector
+                      ? _buildDistrictSelectorView()
+                      : _buildPhotographersListingView(),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  /// 1. State Selector View (Searchable Indian States & Union Territories)
+  Widget _buildStateSelectorView() {
+    final query = _locationSearchController.text.trim().toLowerCase();
+    final allStates = IndiaLocations.states;
+    final filteredStates = query.isEmpty
+        ? allStates
+        : allStates.where((s) => s.toLowerCase().contains(query)).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Explore Photographers in India',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: context.textMain,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Select a state or union territory to discover verified local studios and operators.',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12.5,
+                  color: context.textMuted,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Search Bar for States
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Container(
+            decoration: BoxDecoration(
+              color: context.cardBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: context.cardBorder),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: context.isDark ? 0.2 : 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _locationSearchController,
+              onChanged: (_) => setState(() {}),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                color: context.textMain,
+              ),
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.sky, size: 20),
+                hintText: 'Search 36 states & union territories...',
+                hintStyle: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  color: context.textMuted,
+                ),
+                suffixIcon: _locationSearchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear_rounded, size: 18, color: context.textMuted),
+                        onPressed: () {
+                          _locationSearchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+        ),
+
+        // States List
+        Expanded(
+          child: filteredStates.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.search_off_rounded, size: 48, color: context.textMuted),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No states found matching "${_locationSearchController.text}"',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: context.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+                  itemCount: filteredStates.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (ctx, index) {
+                    final stateName = filteredStates[index];
+                    final districtCount = IndiaLocations.districtsByState[stateName]?.length ?? 0;
+
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() {
+                            _selectedState = stateName;
+                            _selectedDistrict = null;
+                            _locationSearchController.clear();
+                            _photographers = [];
+                            _selectedCategories.clear();
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                          decoration: BoxDecoration(
+                            color: context.cardBg,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: context.cardBorder),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.sky.withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.location_on_rounded, size: 16, color: AppColors.sky),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  stateName,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: context.textMain,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: context.isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$districtCount districts',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: context.textMuted,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(Icons.chevron_right_rounded, size: 18, color: context.textMuted),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  /// 2. District Selector View (Searchable Districts for Selected State)
+  Widget _buildDistrictSelectorView() {
+    final state = _selectedState!;
+    final query = _locationSearchController.text.trim().toLowerCase();
+    final allDistricts = IndiaLocations.districtsByState[state] ?? const <String>[];
+    final filteredDistricts = query.isEmpty
+        ? allDistricts
+        : allDistricts.where((d) => d.toLowerCase().contains(query)).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Top breadcrumb / State banner
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: AppColors.sky.withValues(alpha: context.isDark ? 0.14 : 0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.sky.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.map_rounded, size: 18, color: AppColors.sky),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      text: 'State: ',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 12.5, color: context.textMuted),
+                      children: [
+                        TextSpan(
+                          text: state,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: context.textMain,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    foregroundColor: AppColors.sky,
+                  ),
+                  icon: const Icon(Icons.edit_location_alt_rounded, size: 14),
+                  label: const Text('Change State', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    setState(() {
+                      _selectedState = null;
+                      _selectedDistrict = null;
+                      _locationSearchController.clear();
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Subheading
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 4, 18, 6),
+          child: Text(
+            'Select District in $state',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: context.textMain,
+            ),
+          ),
+        ),
+
+        // Search Bar for Districts
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: Container(
+            decoration: BoxDecoration(
+              color: context.cardBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: context.cardBorder),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: context.isDark ? 0.2 : 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _locationSearchController,
+              onChanged: (_) => setState(() {}),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                color: context.textMain,
+              ),
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.sky, size: 20),
+                hintText: 'Search districts in $state...',
+                hintStyle: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  color: context.textMuted,
+                ),
+                suffixIcon: _locationSearchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear_rounded, size: 18, color: context.textMuted),
+                        onPressed: () {
+                          _locationSearchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+        ),
+
+        // Districts List
+        Expanded(
+          child: filteredDistricts.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.search_off_rounded, size: 48, color: context.textMuted),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No districts found matching "${_locationSearchController.text}"',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: context.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+                  itemCount: filteredDistricts.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (ctx, index) {
+                    final districtName = filteredDistricts[index];
+
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() {
+                            _selectedDistrict = districtName;
+                            _isBrowsingIndiaLocations = false;
+                            _selectedCategories.clear();
+                            _searchController.clear();
+                            _locationSearchController.clear();
+                          });
+                          _fetchPhotographers();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                          decoration: BoxDecoration(
+                            color: context.cardBg,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: context.cardBorder),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.location_city_rounded, size: 16, color: Color(0xFF818CF8)),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  districtName,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: context.textMain,
+                                  ),
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.sky),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  /// 3. Photographer Listing & Filter View (Shows Photographers for Selected District / Event / Worldwide)
+  Widget _buildPhotographersListingView() {
+    final isDark = context.isDark;
+    final event = widget.event;
+
+    return Column(
+      children: [
+        // Location filter toolbar for Discover mode (Worldwide vs District Filter)
+        if (event == null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+            child: Row(
+              children: [
+                if (_selectedDistrict != null) ...[
+                  // Active district pill
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: AppColors.sky.withValues(alpha: isDark ? 0.2 : 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.sky.withValues(alpha: 0.35)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.place_rounded, size: 15, color: AppColors.sky),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$_selectedDistrict, $_selectedState',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.sky,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() {
+                              _selectedState = null;
+                              _selectedDistrict = null;
+                            });
+                            _fetchPhotographers();
+                          },
+                          child: const Icon(Icons.close_rounded, size: 16, color: AppColors.sky),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      visualDensity: VisualDensity.compact,
+                      foregroundColor: AppColors.sky,
+                    ),
+                    icon: const Icon(Icons.tune_rounded, size: 14),
+                    label: const Text('Change Location', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      setState(() {
+                        _isBrowsingIndiaLocations = true;
+                      });
+                    },
+                  ),
+                ] else ...[
+                  // Worldwide badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: context.cardBg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: context.cardBorder),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.public_rounded, size: 14, color: AppColors.sky),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Worldwide',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: context.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      side: BorderSide(color: context.cardBorder),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    icon: const Icon(Icons.map_outlined, size: 14, color: AppColors.sky),
+                    label: Text(
+                      'Filter by State & District',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: context.textMain,
+                      ),
+                    ),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      setState(() {
+                        _isBrowsingIndiaLocations = true;
+                      });
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+        // Search Header Box
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: context.cardBg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: context.cardBorder),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 14),
+                          const Icon(
+                            Icons.search_rounded,
+                            color: AppColors.sky,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14,
+                                color: context.textMain,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: event != null && event.location.isNotEmpty
+                                    ? 'Search around "${event.location}"...'
+                                    : (_selectedDistrict != null
+                                        ? 'Search studios in $_selectedDistrict...'
+                                        : 'Search city, country, or studio worldwide...'),
+                                hintStyle: GoogleFonts.plusJakartaSans(
+                                  fontSize: 13,
+                                  color: context.textMuted,
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              onSubmitted: (_) => _fetchPhotographers(),
+                            ),
+                          ),
+                          if (_searchController.text.isNotEmpty)
+                            IconButton(
+                              icon: Icon(Icons.clear_rounded, size: 18, color: context.textMuted),
+                              onPressed: () {
+                                _searchController.clear();
+                                _fetchPhotographers();
+                              },
+                            ),
+                          IconButton(
+                            tooltip: 'Search',
+                            icon: const Icon(Icons.arrow_forward_rounded, color: AppColors.sky),
+                            onPressed: _fetchPhotographers,
+                          ),
+                          const SizedBox(width: 2),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Hamburger / Category Filter button
+                  _buildCategoryFilterButton(),
+                ],
+              ),
+
+              // Active category filters row (only displayed when filters are selected)
+              if (_selectedCategories.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                        child: Text(
+                          'Filtered by:',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: context.textMuted,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      ..._selectedCategories.map((cat) => Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {
+                            setState(() => _selectedCategories.remove(cat));
+                            _fetchPhotographers();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: AppColors.sky.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.sky.withValues(alpha: 0.4)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  cat,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.sky,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.close_rounded, size: 13, color: AppColors.sky),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )),
+                      TextButton(
+                        onPressed: () {
+                          setState(() => _selectedCategories.clear());
+                          _fetchPhotographers();
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'Clear all',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.sky,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+
+        // Result count indicator bar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 2, 18, 6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  _selectedCategories.isEmpty
+                      ? (_selectedDistrict != null
+                          ? '${_photographers.length} photographer${_photographers.length == 1 ? '' : 's'} found in $_selectedDistrict'
+                          : (_searchController.text.trim().isNotEmpty
+                              ? '${_photographers.length} photographer${_photographers.length == 1 ? '' : 's'} matching "${_searchController.text.trim()}"'
+                              : '${_photographers.length} photographer${_photographers.length == 1 ? '' : 's'} discovered worldwide'))
+                      : '${_photographers.length} photographer${_photographers.length == 1 ? '' : 's'} matching ${_selectedCategories.length} selected categor${_selectedCategories.length == 1 ? 'y' : 'ies'}',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: context.textMuted,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (_selectedCategories.isNotEmpty || _selectedDistrict != null || _searchController.text.trim().isNotEmpty)
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      _selectedCategories.clear();
+                      _selectedState = null;
+                      _selectedDistrict = null;
+                      _searchController.clear();
+                    });
+                    _fetchPhotographers();
+                  },
+                  child: Text(
+                    'Clear filters',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.sky,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+
+        // List / Loading / Error / Empty Content
+        Expanded(
+          child: _loading
+              ? ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: 4,
+                  itemBuilder: (_, _) => const Padding(
+                    padding: EdgeInsets.only(bottom: 14),
+                    child: ShimmerBox(
+                      height: 140,
+                      borderRadius: 18,
+                    ),
+                  ),
+                )
+              : _errorMessage != null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.error_outline_rounded, size: 48, color: context.textMuted),
+                            const SizedBox(height: 12),
+                            Text(_errorMessage!, textAlign: TextAlign.center, style: TextStyle(color: context.textMain)),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.sky,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              icon: const Icon(Icons.refresh_rounded, size: 18),
+                              label: const Text('Retry'),
+                              onPressed: _fetchPhotographers,
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : _photographers.isEmpty
+                      ? _buildEmptyState()
+                      : RefreshIndicator(
+                          onRefresh: _fetchPhotographers,
+                          color: AppColors.sky,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+                            itemCount: _photographers.length,
+                            separatorBuilder: (_, _) => const SizedBox(height: 12),
+                            itemBuilder: (ctx, index) => _buildPhotographerCard(_photographers[index]),
+                          ),
+                        ),
+        ),
+      ],
     );
   }
 
@@ -850,43 +1539,337 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label) {
-    final isAll = label == 'All';
-    final isSelected = isAll
-        ? _selectedCategories.isEmpty
-        : _selectedCategories.contains(label);
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        selected: isSelected,
-        label: Text(label),
-        labelStyle: GoogleFonts.plusJakartaSans(
-          fontSize: 12,
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-          color: isSelected ? Colors.white : context.textMain,
+  Widget _buildCategoryFilterButton() {
+    final hasActive = _selectedCategories.isNotEmpty;
+    return Material(
+      color: Colors.transparent,
+      child: Tooltip(
+        message: 'Filter by Category',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: _openCategoryFilterSheet,
+          child: Ink(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: hasActive
+                  ? AppColors.sky.withValues(alpha: context.isDark ? 0.22 : 0.12)
+                  : context.cardBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: hasActive ? AppColors.sky : context.cardBorder,
+                width: hasActive ? 1.5 : 1,
+              ),
+              boxShadow: hasActive
+                  ? [
+                      BoxShadow(
+                        color: AppColors.skyGlow,
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  Icons.tune_rounded,
+                  size: 22,
+                  color: hasActive ? AppColors.sky : context.textMain,
+                ),
+                if (hasActive)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(3.5),
+                      decoration: const BoxDecoration(
+                        color: AppColors.sky,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                      child: Center(
+                        child: Text(
+                          '${_selectedCategories.length}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
-        selectedColor: AppColors.sky,
-        backgroundColor: context.cardBg,
-        side: BorderSide(
-          color: isSelected ? AppColors.sky : context.cardBorder,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        onSelected: (_) {
-          setState(() {
-            if (isAll) {
-              _selectedCategories.clear();
-            } else if (_selectedCategories.contains(label)) {
-              _selectedCategories.remove(label);
-            } else {
-              _selectedCategories.add(label);
-            }
-          });
-          _fetchPhotographers();
-        },
       ),
+    );
+  }
+
+  Future<void> _openCategoryFilterSheet() async {
+    HapticFeedback.lightImpact();
+    final tempSelected = Set<String>.from(_selectedCategories);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.78,
+              ),
+              decoration: BoxDecoration(
+                color: ctx.cardBg,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                border: Border(
+                  top: BorderSide(color: ctx.cardBorder, width: 1),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 30,
+                    offset: const Offset(0, -6),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(top: 10, bottom: 6),
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: ctx.textMuted.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 16, 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: AppColors.sky.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.tune_rounded,
+                            color: AppColors.sky,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Filter by Role & Category',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: ctx.textMain,
+                                ),
+                              ),
+                              Text(
+                                tempSelected.isEmpty
+                                    ? 'Showing all roles worldwide'
+                                    : '${tempSelected.length} role${tempSelected.length == 1 ? '' : 's'} selected',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  color: ctx.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (tempSelected.isNotEmpty)
+                          TextButton(
+                            onPressed: () {
+                              setSheetState(() => tempSelected.clear());
+                            },
+                            child: Text(
+                              'Reset',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.sky,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Flexible(
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+                      shrinkWrap: true,
+                      children: [
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            FilterChip(
+                              selected: tempSelected.isEmpty,
+                              label: const Text('All Roles'),
+                              labelStyle: GoogleFonts.plusJakartaSans(
+                                fontSize: 12.5,
+                                fontWeight: tempSelected.isEmpty
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: tempSelected.isEmpty
+                                    ? Colors.white
+                                    : ctx.textMain,
+                              ),
+                              selectedColor: AppColors.sky,
+                              backgroundColor: ctx.innerBg,
+                              side: BorderSide(
+                                color: tempSelected.isEmpty
+                                    ? AppColors.sky
+                                    : ctx.cardBorder,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              onSelected: (_) {
+                                setSheetState(() => tempSelected.clear());
+                              },
+                            ),
+                            ...PhotographerCategories.all.map((cat) {
+                              final isSelected = tempSelected.contains(cat);
+                              return FilterChip(
+                                selected: isSelected,
+                                label: Text(cat),
+                                labelStyle: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12.5,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : ctx.textMain,
+                                ),
+                                selectedColor: AppColors.sky,
+                                backgroundColor: ctx.innerBg,
+                                side: BorderSide(
+                                  color: isSelected
+                                      ? AppColors.sky
+                                      : ctx.cardBorder,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                onSelected: (_) {
+                                  setSheetState(() {
+                                    if (isSelected) {
+                                      tempSelected.remove(cat);
+                                    } else {
+                                      tempSelected.add(cat);
+                                    }
+                                  });
+                                },
+                              );
+                            }),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      18,
+                      12,
+                      18,
+                      12 + MediaQuery.paddingOf(context).bottom,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: Text(
+                              'Cancel',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: ctx.textMuted,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: ctx.ctaGradient,
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.sky.withValues(alpha: 0.28),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.of(ctx).pop();
+                                setState(() {
+                                  _selectedCategories.clear();
+                                  _selectedCategories.addAll(tempSelected);
+                                });
+                                _fetchPhotographers();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: Text(
+                                tempSelected.isEmpty
+                                    ? 'Show All Photographers'
+                                    : 'Apply Filters (${tempSelected.length})',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1117,9 +2100,11 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
                 ],
               ),
 
-              // Distance from event — always shown (exact / approx / same city / unavailable)
-              const SizedBox(height: 10),
-              _buildDistanceBadge(distanceInfo, isCompact: true),
+              // Distance badge: only shown if an event reference exists or actual coordinates exist
+              if (hasEvent || distanceInfo.hasKnownDistance) ...[
+                const SizedBox(height: 10),
+                _buildDistanceBadge(distanceInfo, isCompact: true),
+              ],
 
               // Categories & Roles chips
               if (photographer.categories.isNotEmpty) ...[
@@ -1277,6 +2262,146 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
   }
 
   Widget _buildEmptyState() {
+    final isDiscoverMode = widget.event == null && _selectedDistrict != null;
+
+    if (isDiscoverMode) {
+      final hasCategoryFilter = _selectedCategories.isNotEmpty;
+      final title = hasCategoryFilter
+          ? 'No Photographers Matching Filter'
+          : 'No Studios in $_selectedDistrict Yet';
+      final message = hasCategoryFilter
+          ? 'No photographers registered in $_selectedDistrict match the selected categories (${_selectedCategories.join(', ')}).'
+          : 'We could not find any registered photographers in $_selectedDistrict, $_selectedState. Try exploring an adjacent district or change state.';
+
+      return Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: AppColors.sky.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.person_search_rounded,
+                  size: 40,
+                  color: AppColors.sky,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: context.textMain,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  color: context.textMuted,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                alignment: WrapAlignment.center,
+                children: [
+                  if (hasCategoryFilter)
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.sky,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.clear_all_rounded, size: 18),
+                      label: const Text('Clear Filters'),
+                      onPressed: () {
+                        HapticFeedback.selectionClick();
+                        _searchController.clear();
+                        setState(() => _selectedCategories.clear());
+                        _fetchPhotographers();
+                      },
+                    ),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: BorderSide(color: context.cardBorder),
+                    ),
+                    icon: const Icon(Icons.location_city_rounded, size: 18),
+                    label: const Text('Change District'),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      setState(() {
+                        _selectedDistrict = null;
+                        _isBrowsingIndiaLocations = true;
+                        _locationSearchController.clear();
+                      });
+                    },
+                  ),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: BorderSide(color: context.cardBorder),
+                    ),
+                    icon: const Icon(Icons.map_outlined, size: 18),
+                    label: const Text('Change State'),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      setState(() {
+                        _selectedState = null;
+                        _selectedDistrict = null;
+                        _isBrowsingIndiaLocations = true;
+                        _locationSearchController.clear();
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final hasCategoryFilter = _selectedCategories.isNotEmpty;
+    final queryText = _searchController.text.trim();
+    final hasQuery = queryText.isNotEmpty;
+
+    final String title;
+    final String message;
+
+    if (hasQuery) {
+      title = 'No Photographers Matching "$queryText"';
+      message = 'We could not find any studios matching your search. Try searching for another city, country, or studio name.';
+    } else if (hasCategoryFilter) {
+      title = 'No Photographers Matching Selected Roles';
+      message = 'No registered photographers match the selected categories (${_selectedCategories.join(', ')}).';
+    } else if (widget.event != null) {
+      title = 'No Photographers Found Nearby';
+      message = 'Try adjusting your search location, clearing category filters, or searching for nearby cities.';
+    } else {
+      title = 'No Photographers Discovered Yet';
+      message = 'Registered photographers from around the world will appear here.';
+    }
+
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(28),
@@ -1298,7 +2423,8 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
             ),
             const SizedBox(height: 20),
             Text(
-              'No Photographers Found Nearby',
+              title,
+              textAlign: TextAlign.center,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
@@ -1307,7 +2433,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Try adjusting your search location, clearing category filters, or searching for nearby cities.',
+              message,
               textAlign: TextAlign.center,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
@@ -1316,24 +2442,49 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            Row(
-              mainAxisSize: MainAxisSize.min,
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              alignment: WrapAlignment.center,
               children: [
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                if (hasQuery || hasCategoryFilter)
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.sky,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    side: BorderSide(color: context.cardBorder),
+                    icon: const Icon(Icons.clear_all_rounded, size: 18),
+                    label: const Text('Clear Filters'),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {
+                        _selectedCategories.clear();
+                        _selectedState = null;
+                        _selectedDistrict = null;
+                      });
+                      _fetchPhotographers();
+                    },
                   ),
-                  icon: const Icon(Icons.clear_all_rounded, size: 18),
-                  label: const Text('Clear Filters'),
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() => _selectedCategories.clear());
-                    _fetchPhotographers();
-                  },
-                ),
+                if (widget.event == null)
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: BorderSide(color: context.cardBorder),
+                    ),
+                    icon: const Icon(Icons.map_outlined, size: 18),
+                    label: const Text('Filter by State & District'),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      setState(() {
+                        _isBrowsingIndiaLocations = true;
+                      });
+                    },
+                  ),
               ],
             ),
           ],
