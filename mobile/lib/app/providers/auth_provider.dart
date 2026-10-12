@@ -29,6 +29,7 @@ class AuthProvider extends ChangeNotifier {
   String? _errorMessage;
   bool _isLoading = false;
   bool _isBootstrapping = true;
+  bool _hasSeenFeatureTour = true;
 
   User? get user => _user;
   String? get token => _token;
@@ -36,11 +37,22 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isBootstrapping => _isBootstrapping;
   bool get isLoggedIn => _user != null && _token != null;
+  bool get hasSeenFeatureTour => _hasSeenFeatureTour;
+
+  Future<void> completeFeatureTour() async {
+    _hasSeenFeatureTour = true;
+    notifyListeners();
+    if (_user != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('has_seen_features_tour_${_user!.id}', true);
+    }
+  }
 
   @visibleForTesting
-  void setUserForTesting(User user, [String token = 'test_token']) {
+  void setUserForTesting(User user, [String token = 'test_token', bool hasSeenTour = true]) {
     _user = user;
     _token = token;
+    _hasSeenFeatureTour = hasSeenTour;
     _isBootstrapping = false;
     notifyListeners();
   }
@@ -63,11 +75,14 @@ class AuthProvider extends ChangeNotifier {
         _token = storedToken;
         _user = storedUser;
 
-        if (_user != null && _user!.logoUrl.isEmpty) {
-          final storedLogo = await _vault.readStudioLogo(_user!.id);
-          if (storedLogo != null && storedLogo.isNotEmpty) {
-            _user = _user!.copyWith(logoUrl: storedLogo);
+        if (_user != null) {
+          if (_user!.logoUrl.isEmpty) {
+            final storedLogo = await _vault.readStudioLogo(_user!.id);
+            if (storedLogo != null && storedLogo.isNotEmpty) {
+              _user = _user!.copyWith(logoUrl: storedLogo);
+            }
           }
+          _hasSeenFeatureTour = prefs.getBool('has_seen_features_tour_${_user!.id}') ?? true;
         }
       }
 
@@ -707,6 +722,9 @@ class AuthProvider extends ChangeNotifier {
     if (result.user.logoUrl.isNotEmpty) {
       await _vault.writeStudioLogo(result.user.id, result.user.logoUrl);
     }
+    final prefs = await SharedPreferences.getInstance();
+    _hasSeenFeatureTour =
+        prefs.getBool('has_seen_features_tour_${result.user.id}') ?? false;
     _token = result.token;
     _user = result.user;
   }
@@ -715,6 +733,7 @@ class AuthProvider extends ChangeNotifier {
     await _vault.clearAllSessionData();
     _token = null;
     _user = null;
+    _hasSeenFeatureTour = false;
   }
 
   bool _isTokenExpired(String token) {

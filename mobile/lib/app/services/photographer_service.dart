@@ -10,7 +10,8 @@ class PhotographerService {
     required String token,
     String? location,
     String? query,
-    String? category,
+    /// Pass one or more categories to filter. Empty list means no filter.
+    List<String> categories = const [],
     double? latitude,
     double? longitude,
   }) async {
@@ -21,8 +22,8 @@ class PhotographerService {
     if (query != null && query.trim().isNotEmpty) {
       params['query'] = query.trim();
     }
-    if (category != null && category.trim().isNotEmpty) {
-      params['category'] = category.trim();
+    if (categories.isNotEmpty) {
+      params['category'] = categories.map((c) => c.trim()).join(',');
     }
     if (latitude != null && !latitude.isNaN) {
       params['lat'] = latitude.toString();

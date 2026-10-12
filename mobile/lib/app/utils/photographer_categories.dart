@@ -17,47 +17,55 @@ class PhotographerCategory {
 class PhotographerCategories {
   PhotographerCategories._();
 
-  static const String otherCategory = 'Others';
-
-  static const List<String> primaryRoles = [
-    'Traditional photographer',
-    'Traditional Vidiographer',
-    'Candid photographer',
-    'Cinematic Vidiographer',
-    'Led screens',
+  /// Photography & Videography Services
+  static const List<String> services = [
+    'Traditional Photographer',
+    'Traditional Videographer',
+    'Candid Photographer',
+    'Cinematic Videographer',
+    'LED Screens',
     'Drones',
-    'Internet Live',
-    'Traditional photographer taker',
+    'Internet Live Streaming',
+    'Traditional Photographer Taker',
   ];
 
-  static const List<String> operatorRoles = [
+  /// Operators
+  static const List<String> operators = [
     'Photographer',
-    'Vidiography',
-    'candid photographer',
-    'Candid Vidiographer',
+    'Videography',
+    'Candid Photographer',
+    'Candid Videographer',
   ];
 
-  /// Normalized operator role labels for display and selection
-  static const List<String> formattedOperatorRoles = [
+  /// Backward-compatible aliases
+  static const List<String> primaryRoles = services;
+  static const List<String> operatorRoles = operators;
+  static const List<String> formattedOperatorRoles = operators;
+
+  /// Ordered list of all distinct categories (deduped)
+  static const List<String> all = [
+    'Traditional Photographer',
+    'Traditional Videographer',
+    'Candid Photographer',
+    'Cinematic Videographer',
+    'LED Screens',
+    'Drones',
+    'Internet Live Streaming',
+    'Traditional Photographer Taker',
     'Photographer',
-    'Vidiography',
-    'Candid photographer',
-    'Candid Vidiographer',
-    'Video Editor',
-    'Album Designer',  
+    'Videography',
+    'Candid Videographer',
   ];
 
-  /// Master list of all predefined categories
-  static const List<String> allPredefined = [
-    ...primaryRoles,
-    ...formattedOperatorRoles,
-    otherCategory,
-  ];
+  /// A generic "Other" category for custom roles
+  static const String otherCategory = 'Other';
 
   /// Canonical check whether a category belongs to operators
   static bool isOperatorRole(String category) {
-    final lower = category.toLowerCase();
-    return lower.startsWith('operator') ||
-        operatorRoles.any((r) => r.toLowerCase() == lower);
+    final lower = category.trim().toLowerCase();
+    return lower == 'photographer' ||
+        lower == 'videography' ||
+        lower == 'candid videographer' ||
+        lower.contains('operator');
   }
 }

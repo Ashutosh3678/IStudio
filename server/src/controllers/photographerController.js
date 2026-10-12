@@ -33,7 +33,14 @@ async function searchNearbyPhotographers(req, res) {
   try {
     const location = String(req.query.location || req.query.city || '').trim();
     const query = String(req.query.query || '').trim();
-    const category = String(req.query.category || '').trim();
+    let categoriesParam = req.query.categories !== undefined ? req.query.categories : req.query.category;
+    let categoriesList = [];
+    if (Array.isArray(categoriesParam)) {
+      categoriesList = categoriesParam.map((c) => String(c).trim()).filter(Boolean);
+    } else if (typeof categoriesParam === 'string' && categoriesParam.trim()) {
+      categoriesList = categoriesParam.split(',').map((c) => c.trim()).filter(Boolean);
+    }
+    const category = categoriesList.length === 1 ? categoriesList[0] : '';
     const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
 
     let originLat = req.query.lat !== undefined ? req.query.lat : req.query.latitude;
@@ -56,6 +63,7 @@ async function searchNearbyPhotographers(req, res) {
       location: textFilter,
       query: '',
       category,
+      categories: categoriesList,
       limit,
     });
 

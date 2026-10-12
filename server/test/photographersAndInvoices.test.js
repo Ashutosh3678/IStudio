@@ -102,6 +102,18 @@ describe('Photographer Categories & Search API', () => {
     assert.ok(found.categories.includes('Candid photographer'));
   });
 
+  it('searches photographers matching ANY of multiple selected categories', async () => {
+    const res = await request(app)
+      .get('/api/photographers/search')
+      .set('Authorization', `Bearer ${userToken}`)
+      .query({ location: 'Hyderabad', categories: 'Traditional photographer,Candid photographer' });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.success, true);
+    assert.ok(Array.isArray(res.body.photographers));
+    assert.ok(res.body.photographers.length >= 2);
+  });
+
   it('calculates real lat/lng distance and sorts nearest first', async () => {
     const profileRes = await request(app)
       .patch('/api/auth/profile')

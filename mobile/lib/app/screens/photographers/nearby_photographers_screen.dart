@@ -36,7 +36,7 @@ class NearbyPhotographersScreen extends StatefulWidget {
 class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
   final PhotographerService _service = PhotographerService();
   late final TextEditingController _searchController;
-  String _selectedCategory = 'All';
+  final Set<String> _selectedCategories = {};
   bool _loading = false;
   List<PhotographerProfile> _photographers = [];
   String? _errorMessage;
@@ -75,13 +75,12 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
 
     try {
       final queryLoc = _searchController.text.trim();
-      final cat = _selectedCategory == 'All' ? null : _selectedCategory;
 
       final results = await _service.searchNearby(
         token: token,
         location: queryLoc.isNotEmpty ? queryLoc : null,
         query: queryLoc.isNotEmpty ? queryLoc : null,
-        category: cat,
+        categories: _selectedCategories.toList(),
         latitude: widget.event?.latitude,
         longitude: widget.event?.longitude,
       );
@@ -852,7 +851,10 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
   }
 
   Widget _buildFilterChip(String label) {
-    final isSelected = _selectedCategory == label;
+    final isAll = label == 'All';
+    final isSelected = isAll
+        ? _selectedCategories.isEmpty
+        : _selectedCategories.contains(label);
 
     return Padding(
       padding: const EdgeInsets.only(right: 8),
@@ -873,7 +875,15 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
           borderRadius: BorderRadius.circular(12),
         ),
         onSelected: (_) {
-          setState(() => _selectedCategory = label);
+          setState(() {
+            if (isAll) {
+              _selectedCategories.clear();
+            } else if (_selectedCategories.contains(label)) {
+              _selectedCategories.remove(label);
+            } else {
+              _selectedCategories.add(label);
+            }
+          });
           _fetchPhotographers();
         },
       ),
@@ -1320,7 +1330,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
                   label: const Text('Clear Filters'),
                   onPressed: () {
                     _searchController.clear();
-                    setState(() => _selectedCategory = 'All');
+                    setState(() => _selectedCategories.clear());
                     _fetchPhotographers();
                   },
                 ),

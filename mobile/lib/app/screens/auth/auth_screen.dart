@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
@@ -16,6 +17,7 @@ import '../../widgets/fade_slide_in.dart';
 import '../../widgets/google_sign_in_button.dart';
 import '../../widgets/studio_logo.dart';
 import '../legal/legal_screen.dart';
+import '../onboarding/app_features_showcase_screen.dart';
 import 'login_form.dart';
 import 'set_password_sheet.dart';
 import 'signup_form.dart';
@@ -221,7 +223,33 @@ class _AuthScreenState extends State<AuthScreen>
                                 onSignup: _handleSignup,
                                 onGoogleSignIn: _handleGoogleSignIn,
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
+                              Center(
+                                child: TextButton.icon(
+                                  onPressed: () {
+                                    HapticFeedback.lightImpact();
+                                    Navigator.of(context).push(
+                                      AppFeaturesShowcaseScreen.route(
+                                        isStandalone: true,
+                                      ),
+                                    );
+                                  },
+                                  icon: Icon(
+                                    Icons.auto_awesome_rounded,
+                                    size: 15,
+                                    color: context.accentColor,
+                                  ),
+                                  label: Text(
+                                    'New here? Discover all app features →',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: context.accentColor,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
                               const _LegalFooter(),
                             ],
                           ),

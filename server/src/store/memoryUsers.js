@@ -169,9 +169,12 @@ const memoryUsers = {
     saveUsersToDisk(users);
     return true;
   },
-  searchPhotographers({ userId, location, query, category, limit = 50 }) {
+  searchPhotographers({ userId, location, query, category, categories, limit = 50 }) {
     const locLower = String(location || query || '').toLowerCase().trim();
-    const catLower = String(category || '').toLowerCase().trim();
+    const catList = Array.isArray(categories) && categories.length > 0
+      ? categories.map((c) => String(c).toLowerCase().trim()).filter(Boolean)
+      : (category && String(category).trim() ? [String(category).toLowerCase().trim()] : []);
+
     return users
       .filter((u) => u.id !== userId)
       .filter((u) => {
@@ -182,11 +185,13 @@ const memoryUsers = {
           const matchOwner = (u.ownerName || '').toLowerCase().includes(locLower);
           if (!matchCity && !matchAddress && !matchStudio && !matchOwner) return false;
         }
-        if (catLower) {
-          const cats = Array.isArray(u.categories) ? u.categories : [];
-          const matchCat = cats.some((c) => c.toLowerCase().includes(catLower));
-          const matchSpec = (u.specialties || '').toLowerCase().includes(catLower);
-          if (!matchCat && !matchSpec) return false;
+        if (catList.length > 0) {
+          const userCats = Array.isArray(u.categories) ? u.categories : [];
+          const userSpecs = (u.specialties || '').toLowerCase();
+          const matchesAny = catList.some((catItem) => {
+            return userCats.some((c) => c.toLowerCase().includes(catItem)) || userSpecs.includes(catItem);
+          });
+          if (!matchesAny) return false;
         }
         return true;
       })

@@ -65,8 +65,6 @@ class CategorySelectorSheet extends StatefulWidget {
 
 class _CategorySelectorSheetState extends State<CategorySelectorSheet> {
   late final Set<String> _selected;
-  final TextEditingController _customController = TextEditingController();
-  bool _showCustomInput = false;
 
   @override
   void initState() {
@@ -76,7 +74,6 @@ class _CategorySelectorSheetState extends State<CategorySelectorSheet> {
 
   @override
   void dispose() {
-    _customController.dispose();
     super.dispose();
   }
 
@@ -89,18 +86,6 @@ class _CategorySelectorSheetState extends State<CategorySelectorSheet> {
       }
     });
     widget.onChanged(_selected.toList());
-  }
-
-  void _addCustomCategory() {
-    final text = _customController.text.trim();
-    if (text.isNotEmpty) {
-      setState(() {
-        _selected.add(text);
-        _customController.clear();
-        _showCustomInput = false;
-      });
-      widget.onChanged(_selected.toList());
-    }
   }
 
   @override
@@ -210,88 +195,11 @@ class _CategorySelectorSheetState extends State<CategorySelectorSheet> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: [
-              ...PhotographerCategories.formattedOperatorRoles
-                  .map((role) => _buildChip(role)),
-              ...PhotographerCategories.operatorRoles
-                  .where((op) => !PhotographerCategories.formattedOperatorRoles.contains('Operators: $op'))
-                  .map((role) => _buildChip(role)),
-            ],
+            children: PhotographerCategories.operatorRoles
+                .map((role) => _buildChip(role))
+                .toList(),
           ),
-          const SizedBox(height: 20),
 
-          // Others and Custom
-          _buildSectionHeader('Others & Custom Roles', Icons.more_horiz_rounded),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildChip(PhotographerCategories.otherCategory),
-              // Show any custom tags that were added
-              ..._selected
-                  .where((c) =>
-                      !PhotographerCategories.primaryRoles.contains(c) &&
-                      !PhotographerCategories.formattedOperatorRoles.contains(c) &&
-                      !PhotographerCategories.operatorRoles.contains(c) &&
-                      c != PhotographerCategories.otherCategory)
-                  .map((c) => _buildChip(c, isCustom: true)),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          if (!_showCustomInput)
-            TextButton.icon(
-              onPressed: () => setState(() => _showCustomInput = true),
-              icon: const Icon(Icons.add_rounded, size: 18, color: AppColors.sky),
-              label: Text(
-                'Add custom role or category',
-                style: GoogleFonts.plusJakartaSans(
-                  color: AppColors.sky,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _customController,
-                    decoration: InputDecoration(
-                      hintText: 'e.g. Pre-wedding specialist',
-                      hintStyle: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
-                        color: context.textMuted,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      isDense: true,
-                      filled: true,
-                      fillColor: context.innerBg,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: context.cardBorder),
-                      ),
-                    ),
-                    onSubmitted: (_) => _addCustomCategory(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  tooltip: 'Add',
-                  onPressed: _addCustomCategory,
-                  icon: const Icon(Icons.check_circle_rounded, color: AppColors.sky),
-                ),
-                IconButton(
-                  tooltip: 'Cancel',
-                  onPressed: () => setState(() => _showCustomInput = false),
-                  icon: Icon(Icons.close_rounded, color: context.textMuted),
-                ),
-              ],
-            ),
 
           if (!widget.isEmbedded) ...[
             const SizedBox(height: 24),
@@ -324,7 +232,7 @@ class _CategorySelectorSheetState extends State<CategorySelectorSheet> {
     );
   }
 
-  Widget _buildChip(String label, {bool isCustom = false}) {
+  Widget _buildChip(String label) {
     final isSelected = _selected.contains(label);
     final isDark = context.isDark;
 
@@ -332,9 +240,6 @@ class _CategorySelectorSheetState extends State<CategorySelectorSheet> {
       selected: isSelected,
       showCheckmark: true,
       checkmarkColor: Colors.white,
-      avatar: isCustom
-          ? const Icon(Icons.star_border_rounded, size: 14, color: AppColors.sky)
-          : null,
       label: Text(
         label,
         style: GoogleFonts.plusJakartaSans(

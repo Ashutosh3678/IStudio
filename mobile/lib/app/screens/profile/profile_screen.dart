@@ -25,6 +25,7 @@ import '../../widgets/studio_card.dart';
 import '../../widgets/studio_text_field.dart';
 import '../../widgets/change_password_sheet.dart';
 import '../legal/legal_screen.dart';
+import '../onboarding/app_features_showcase_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, this.initialEditing = false});
@@ -968,9 +969,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         child: Column(
           children: [
-            // Option 1: Change Password
+            // Option 0: App Features & Tour
             InkWell(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.of(context).push(
+                  AppFeaturesShowcaseScreen.route(
+                    isStandalone: true,
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.explore_outlined, color: accent, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'App Features & Tour',
+                            style: TextStyle(
+                              color: textMain,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Explore all studio features, tools & capabilities',
+                            style: TextStyle(
+                              color: textMuted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: textMuted),
+                  ],
+                ),
+              ),
+            ),
+            Divider(height: 1, color: context.cardBorder),
+            // Option 1: Change Password
+            InkWell(
               onTap: _openChangePasswordSheet,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),

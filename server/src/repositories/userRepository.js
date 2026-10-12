@@ -160,15 +160,22 @@ async function searchPhotographers({ userId, location, query, category, limit = 
     });
   }
 
-  const cat = String(category || '').trim();
-  if (cat) {
-    const escapedCat = escapeRegex(cat);
-    conditions.push({
-      $or: [
-        { categories: { $elemMatch: { $regex: escapedCat, $options: 'i' } } },
-        { specialties: { $regex: escapedCat, $options: 'i' } },
-      ],
+  const catList = Array.isArray(categories) && categories.length > 0
+    ? categories.map((c) => String(c).trim()).filter(Boolean)
+    : (category && String(category).trim() ? [String(category).trim()] : []);
+
+  if (catList.length > 0) {
+    const catConditions = catList.map((catItem) => {
+      const escapedCat = escapeRegex(catItem);
+      return {
+        $or: [
+          { categories: { $elemMatch: { $regex: escapedCat, $options: 'i' } } },
+          { specialties: { $regex: escapedCat, $options: 'i' } },
+        ],
+      };
     });
+    // Match any selected category
+    conditions.push({ $or: catConditions });
   }
 
   if (conditions.length > 0) {
