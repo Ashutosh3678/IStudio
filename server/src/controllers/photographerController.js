@@ -60,9 +60,9 @@ async function searchNearbyPhotographers(req, res) {
     // Explicit search keywords in `query` are still honored.
     const textFilter = hasOriginCoords ? (query || '') : (location || query || '');
 
-    // When in Discover mode (no event coords) or when includeSelf is requested,
-    // ensure the current user's studio profile is included so they can discover and verify their studio.
-    const includeSelf = req.query.includeSelf === 'true' || !hasOriginCoords;
+    // Exclude own profile by default in Discover and nearby search.
+    // Own profile is only included if explicitly requested with ?includeSelf=true.
+    const includeSelf = req.query.includeSelf === 'true';
 
     const users = await userRepository.searchPhotographers({
       userId: req.userId,

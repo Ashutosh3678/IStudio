@@ -16,7 +16,7 @@ class PhotographerService {
     List<String> categories = const [],
     double? latitude,
     double? longitude,
-    bool includeSelf = true,
+    bool includeSelf = false,
   }) async {
     final params = <String, String>{};
     if (location != null && location.trim().isNotEmpty) {

@@ -114,13 +114,21 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
         categories: _selectedCategories.toList(),
         latitude: widget.event?.latitude,
         longitude: widget.event?.longitude,
-        includeSelf: true,
+        includeSelf: false,
       );
 
       // Discard this response if a newer query has already been dispatched.
       if (seq != _fetchSeq || !mounted) return;
 
-      final sortedResults = List<PhotographerProfile>.from(results);
+      final currentUser = context.read<AuthProvider>().user;
+      final sortedResults = results.where((p) {
+        if (currentUser == null) return true;
+        final myId = currentUser.id;
+        final myUser = currentUser.username.trim().toLowerCase();
+        if (myId.isNotEmpty && p.id == myId) return false;
+        if (myUser.isNotEmpty && p.username.trim().toLowerCase() == myUser) return false;
+        return true;
+      }).toList();
       if (widget.event != null) {
         final refLoc = _referenceLocation;
         sortedResults.sort((a, b) {
@@ -2029,9 +2037,6 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
     final isDark = context.isDark;
     final hasEvent = widget.event != null;
     final refLoc = _referenceLocation;
-    final currentUser = context.read<AuthProvider>().user;
-    final isMe = currentUser != null &&
-        (photographer.id == currentUser.id || photographer.username == currentUser.username);
 
     // Compute distance from event venue / reference location
     final distanceInfo = GeoDistanceUtils.computeEventDistance(
@@ -2093,25 +2098,6 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            if (isMe) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppColors.sky.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: AppColors.sky.withValues(alpha: 0.4)),
-                                ),
-                                child: Text(
-                                  'You',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.sky,
-                                  ),
-                                ),
-                              ),
-                            ],
                           ],
                         ),
                         if (photographer.displayOwner != photographer.displayName)

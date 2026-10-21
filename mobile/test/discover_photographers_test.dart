@@ -27,7 +27,7 @@ class MockPhotographerService extends PhotographerService {
     List<String> categories = const [],
     double? latitude,
     double? longitude,
-    bool includeSelf = true,
+    bool includeSelf = false,
   }) async {
     lastState = state;
     lastDistrict = district;
