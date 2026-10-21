@@ -60,6 +60,10 @@ async function searchNearbyPhotographers(req, res) {
     // Explicit search keywords in `query` are still honored.
     const textFilter = hasOriginCoords ? (query || '') : (location || query || '');
 
+    // When in Discover mode (no event coords) or when includeSelf is requested,
+    // ensure the current user's studio profile is included so they can discover and verify their studio.
+    const includeSelf = req.query.includeSelf === 'true' || !hasOriginCoords;
+
     const users = await userRepository.searchPhotographers({
       userId: req.userId,
       location: textFilter,
@@ -69,10 +73,11 @@ async function searchNearbyPhotographers(req, res) {
       category,
       categories: categoriesList,
       limit,
+      includeSelf,
     });
 
     let photographers = (users || []).map((u) => {
-      const json = u.toPublicJSON ? u.toPublicJSON() : u;
+      const json = u.toPublicJSON ? u.toPublicJSON() : { ...u };
       const pLat = json.latitude;
       const pLng = json.longitude;
 
@@ -85,8 +90,14 @@ async function searchNearbyPhotographers(req, res) {
       ) {
         distanceKm = calculateDistanceKm(originLat, originLng, pLat, pLng);
       }
+
+      // Strip fields that are private to the account holder and have no
+      // legitimate use in the public Discover payload.  Contact and profile
+      // data needed for collaboration are still present via phone/email/etc.
+      const { googleId: _g, paymentQrUrl: _p, ...publicFields } = json;
+
       return {
-        ...json,
+        ...publicFields,
         latitude: pLat !== undefined ? pLat : null,
         longitude: pLng !== undefined ? pLng : null,
         distanceKm,

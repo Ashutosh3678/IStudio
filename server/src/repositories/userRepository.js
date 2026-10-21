@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const memoryUsers = require('../store/memoryUsers');
 const dataSecurity = require('../services/dataSecurity');
+const fuzzySearch = require('../utils/fuzzySearch');
 
 async function findByPhone(phone, { withPassword = false } = {}) {
   if (memoryUsers.enabled) {
@@ -135,42 +136,47 @@ async function deleteUserAccount(userId) {
   return true;
 }
 
-async function searchPhotographers({ userId, location, query, state, district, category, categories, limit = 50 }) {
+/**
+ * Search for photographer profiles matching a free-text query.
+ *
+ * Strategy:
+ *   1. Build a MongoDB candidate query on NON-encrypted plain-text fields
+ *      (city, district, state, studioName, ownerName, username, specialties,
+ *       about, categories).  The `address` field is AES-256-GCM encrypted with
+ *       a random IV — plaintext regex against ciphertext never matches and is
+ *       intentionally excluded here.
+ *   2. Include per-token typo-tolerant patterns for tokens ≥ 3 chars.
+ *   3. Include category synonym expansion (e.g. "wedding" → Traditional Photographer).
+ *   4. Fallback: if the primary query returns 0 candidates, broaden to all
+ *      users matching any active pre-filters so extreme typos are still caught.
+ *   5. Always run JS fuzzy scoring on every candidate; sort by score descending.
+ *      The JS scorer decrypts `address` in-memory (Mongoose post-init) and
+ *      includes it in scoring so address-only profiles are still ranked.
+ */
+async function searchPhotographers({ userId, location, query, state, district, category, categories, limit = 50, includeSelf = false }) {
   if (memoryUsers.enabled) {
-    return memoryUsers.searchPhotographers({ userId, location, query, state, district, category, categories, limit });
+    return memoryUsers.searchPhotographers({ userId, location, query, state, district, category, categories, limit, includeSelf });
   }
 
   const mongoose = require('mongoose');
-  const filter = {};
-  if (userId && mongoose.Types.ObjectId.isValid(userId)) {
-    filter._id = { $ne: userId };
+  const baseFilter = {};
+  if (!includeSelf && userId && mongoose.Types.ObjectId.isValid(userId)) {
+    baseFilter._id = { $ne: userId };
   }
 
-  const conditions = [];
-  const normalizedState = String(state || '').trim();
+  // ── Structured pre-filters (state / district / explicit categories) ────────
+  const baseConditions = [];
+  const normalizedState    = String(state    || '').trim();
   const normalizedDistrict = String(district || '').trim();
-  if (normalizedState) conditions.push({ state: { $regex: `^${escapeRegex(normalizedState)}$`, $options: 'i' } });
-  if (normalizedDistrict) {
-    conditions.push({
-      $or: [
-        { district: { $regex: `^${escapeRegex(normalizedDistrict)}$`, $options: 'i' } },
-        // Legacy profiles have city but no district; exact city matching is safe backfill.
-        { district: { $in: ['', null] }, city: { $regex: `^${escapeRegex(normalizedDistrict)}$`, $options: 'i' } },
-      ],
-    });
+
+  if (normalizedState) {
+    baseConditions.push({ state: { $regex: escapeRegex(normalizedState), $options: 'i' } });
   }
-  const loc = String(location || query || '').trim();
-  if (loc) {
-    const escaped = escapeRegex(loc);
-    conditions.push({
+  if (normalizedDistrict) {
+    baseConditions.push({
       $or: [
-        { city: { $regex: escaped, $options: 'i' } },
-        { address: { $regex: escaped, $options: 'i' } },
-        { studioName: { $regex: escaped, $options: 'i' } },
-        { ownerName: { $regex: escaped, $options: 'i' } },
-        { state: { $regex: escaped, $options: 'i' } },
-        { district: { $regex: escaped, $options: 'i' } },
-        { username: { $regex: escaped, $options: 'i' } },
+        { district: { $regex: escapeRegex(normalizedDistrict), $options: 'i' } },
+        { district: { $in: ['', null] }, city: { $regex: escapeRegex(normalizedDistrict), $options: 'i' } },
       ],
     });
   }
@@ -189,15 +195,99 @@ async function searchPhotographers({ userId, location, query, state, district, c
         ],
       };
     });
-    // Match any selected category
-    conditions.push({ $or: catConditions });
+    baseConditions.push({ $or: catConditions });
   }
 
-  if (conditions.length > 0) {
-    filter.$and = conditions;
+  const loc = String(location || query || '').trim();
+
+  // ── No free-text query — apply base filters only ──────────────────────────
+  if (!loc) {
+    const filter = { ...baseFilter };
+    if (baseConditions.length > 0) filter.$and = baseConditions;
+    return User.find(filter).limit(Number(limit) || 50);
   }
 
-  return User.find(filter).limit(Number(limit) || 50);
+  // ── Candidate retrieval — plain-text fields only ──────────────────────────
+  const normLoc     = fuzzySearch.normalizeText(loc);
+  const escapedLoc  = escapeRegex(loc);
+  const squashedLoc = escapeRegex(fuzzySearch.squashText(loc));
+
+  // Only tokens ≥ 3 chars generate per-token regex clauses
+  const meaningfulTokens  = normLoc.split(' ').filter((t) => t.length >= 3);
+  const relatedCategories = fuzzySearch.getRelatedCategoriesForQuery(loc);
+
+  // All plain-text fields to run the full-phrase query against
+  const TEXT_FIELDS     = ['city', 'studioName', 'ownerName', 'state', 'district', 'username', 'specialties', 'about'];
+  // Subset used for per-token / squash / alias clauses (highest signal fields)
+  const LOCATION_FIELDS = ['city', 'studioName', 'district', 'ownerName', 'username'];
+
+  const locOrClauses = [
+    // Full-phrase match on all text fields (no `address` — encrypted)
+    ...TEXT_FIELDS.map((f) => ({ [f]: { $regex: escapedLoc, $options: 'i' } })),
+    { categories: { $elemMatch: { $regex: escapedLoc, $options: 'i' } } },
+  ];
+
+  // Squashed phrase variant (e.g. "thilaknagar" → matches "thilak nagar")
+  if (squashedLoc && squashedLoc !== escapedLoc) {
+    LOCATION_FIELDS.forEach((f) => {
+      locOrClauses.push({ [f]: { $regex: squashedLoc, $options: 'i' } });
+    });
+  }
+
+  // Per-token with typo patterns
+  for (const token of meaningfulTokens) {
+    const escapedToken = escapeRegex(token);
+    const typoPattern  = fuzzySearch.buildTypoRegex(token);
+
+    LOCATION_FIELDS.forEach((f) => {
+      locOrClauses.push({ [f]: { $regex: escapedToken, $options: 'i' } });
+      if (typoPattern !== escapedToken) {
+        locOrClauses.push({ [f]: { $regex: typoPattern, $options: 'i' } });
+      }
+    });
+
+    // City alias expansion
+    const alias = fuzzySearch.CITY_ALIASES[token.toLowerCase()];
+    if (alias) {
+      const escapedAlias = escapeRegex(alias);
+      ['city', 'district'].forEach((f) => {
+        locOrClauses.push({ [f]: { $regex: escapedAlias, $options: 'i' } });
+      });
+    }
+  }
+
+  // Category synonym expansion
+  for (const relCat of relatedCategories) {
+    const escapedRel = escapeRegex(relCat);
+    locOrClauses.push(
+      { categories: { $elemMatch: { $regex: escapedRel, $options: 'i' } } },
+      { specialties: { $regex: escapedRel, $options: 'i' } },
+    );
+  }
+
+  const candidateFetchLimit = Math.max(Number(limit) * 4, 150);
+  const candidateFilter = { ...baseFilter, $and: [...baseConditions, { $or: locOrClauses }] };
+
+  let candidates = await User.find(candidateFilter).limit(candidateFetchLimit);
+
+  // ── Fallback: broaden scope for extreme typos or address-only profiles ────
+  if (candidates.length === 0) {
+    const fallbackFilter = { ...baseFilter };
+    if (baseConditions.length > 0) fallbackFilter.$and = baseConditions;
+    candidates = await User.find(fallbackFilter).limit(Math.max(candidateFetchLimit, 200));
+  }
+
+  // ── JS fuzzy scoring — always run on every candidate ─────────────────────
+  // The scorer decrypts `address` in-memory and uses it for scoring, so
+  // users whose only location info is in the encrypted address are still found.
+  const scored = [];
+  for (const doc of candidates) {
+    const score = fuzzySearch.scorePhotographerMatch(doc, loc);
+    if (score > 0) scored.push({ doc, score });
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, Number(limit) || 50).map((item) => item.doc);
 }
 
 module.exports = {

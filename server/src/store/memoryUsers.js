@@ -4,6 +4,7 @@ const { randomUUID } = require('crypto');
 const logger = require('../config/logger');
 
 const dataSecurity = require('../services/dataSecurity');
+const fuzzySearch = require('../utils/fuzzySearch');
 
 const dataDir = path.join(__dirname, '..', '..', 'data');
 const dataFile = path.join(dataDir, 'users.json');
@@ -135,8 +136,10 @@ const memoryUsers = {
     return user ? toDoc(user, withPassword) : null;
   },
   create(data) {
+    const id = data.id || data._id || randomUUID();
     const user = {
-      id: randomUUID(),
+      id,
+      _id: id,
       username: data.username,
       phone: data.phone || '',
       password: data.password || '',
@@ -175,40 +178,59 @@ const memoryUsers = {
     saveUsersToDisk(users);
     return true;
   },
-  searchPhotographers({ userId, location, query, state, district, category, categories, limit = 50 }) {
-    const locLower = String(location || query || '').toLowerCase().trim();
+  searchPhotographers({ userId, location, query, state, district, category, categories, limit = 50, includeSelf = false }) {
+    const loc = String(location || query || '').trim();
     const catList = Array.isArray(categories) && categories.length > 0
       ? categories.map((c) => String(c).toLowerCase().trim()).filter(Boolean)
       : (category && String(category).trim() ? [String(category).toLowerCase().trim()] : []);
 
-    return users
-      .filter((u) => u.id !== userId)
+    const uid = userId ? String(userId) : null;
+    const filtered = users
+      .filter((u) => includeSelf || !uid || (String(u.id) !== uid && String(u._id) !== uid))
       .filter((u) => {
         const normalized = (value) => String(value || '').trim().toLowerCase();
-        if (state && normalized(u.state) !== normalized(state)) return false;
-        if (district && normalized(u.district || u.city) !== normalized(district)) return false;
-        if (locLower) {
-          const matchCity = normalized(u.city).includes(locLower);
-          const matchAddress = normalized(u.address).includes(locLower);
-          const matchStudio = normalized(u.studioName).includes(locLower);
-          const matchOwner = normalized(u.ownerName).includes(locLower);
-          const matchState = normalized(u.state).includes(locLower);
-          const matchDistrict = normalized(u.district).includes(locLower);
-          const matchUsername = normalized(u.username).includes(locLower);
-          if (!matchCity && !matchAddress && !matchStudio && !matchOwner && !matchState && !matchDistrict && !matchUsername) return false;
+        if (state) {
+          const uState = normalized(u.state);
+          const qState = normalized(state);
+          if (uState !== qState && !fuzzySearch.tokenFuzzyMatch(qState, uState)) {
+            return false;
+          }
+        }
+        if (district) {
+          const uDist = normalized(u.district || u.city);
+          const qDist = normalized(district);
+          if (uDist !== qDist && !fuzzySearch.tokenFuzzyMatch(qDist, uDist)) {
+            return false;
+          }
         }
         if (catList.length > 0) {
           const userCats = Array.isArray(u.categories) ? u.categories : [];
           const userSpecs = (u.specialties || '').toLowerCase();
           const matchesAny = catList.some((catItem) => {
-            return userCats.some((c) => c.toLowerCase().includes(catItem)) || userSpecs.includes(catItem);
+            return userCats.some((c) => c.toLowerCase().includes(catItem) || fuzzySearch.tokenFuzzyMatch(catItem, c.toLowerCase())) ||
+                   userSpecs.includes(catItem) ||
+                   fuzzySearch.tokenFuzzyMatch(catItem, userSpecs);
           });
           if (!matchesAny) return false;
         }
         return true;
-      })
-      .slice(0, limit)
-      .map((u) => toDoc(u));
+      });
+
+    if (!loc) {
+      return filtered.slice(0, limit).map((u) => toDoc(u));
+    }
+
+    // Score and rank using fuzzy search
+    const scored = [];
+    for (const u of filtered) {
+      const score = fuzzySearch.scorePhotographerMatch(u, loc);
+      if (score > 0) {
+        scored.push({ user: u, score });
+      }
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, limit).map((item) => toDoc(item.user));
   },
 };
 

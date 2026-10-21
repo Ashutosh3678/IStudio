@@ -85,7 +85,7 @@ userSchema.statics.migrateIndexes = async function migrateIndexes() {
 
 userSchema.plugin(dataSecurity.encryptedFieldsPlugin, {
   deterministicFields: [],
-  fields: ['address'],
+  fields: [],
 });
 
 userSchema.methods.toPublicJSON = function toPublicJSON() {

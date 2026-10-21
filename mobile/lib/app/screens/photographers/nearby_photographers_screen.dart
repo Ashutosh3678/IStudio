@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,6 +13,7 @@ import '../../services/photographer_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_motion.dart';
 import '../../utils/app_snackbar.dart';
+import '../../utils/fuzzy_search_utils.dart';
 import '../../utils/geo_distance_utils.dart';
 import '../../utils/india_locations.dart';
 import '../../utils/launcher_utils.dart';
@@ -47,6 +49,9 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
   String? _selectedState;
   String? _selectedDistrict;
   bool _isBrowsingIndiaLocations = false;
+  Timer? _debounceTimer;
+  /// Monotonically increasing counter used to discard stale async responses.
+  int _fetchSeq = 0;
 
   @override
   void initState() {
@@ -60,9 +65,19 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchController.dispose();
     _locationSearchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String text) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+      if (mounted) {
+        _fetchPhotographers();
+      }
+    });
   }
 
   String get _referenceLocation {
@@ -77,6 +92,10 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
   Future<void> _fetchPhotographers() async {
     final token = context.read<AuthProvider>().token;
     if (token == null || token.isEmpty) return;
+
+    // Capture the current sequence number before any await.
+    // If a newer call starts before this one resolves, we discard stale results.
+    final seq = ++_fetchSeq;
 
     setState(() {
       _loading = true;
@@ -95,7 +114,11 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
         categories: _selectedCategories.toList(),
         latitude: widget.event?.latitude,
         longitude: widget.event?.longitude,
+        includeSelf: true,
       );
+
+      // Discard this response if a newer query has already been dispatched.
+      if (seq != _fetchSeq || !mounted) return;
 
       final sortedResults = List<PhotographerProfile>.from(results);
       if (widget.event != null) {
@@ -129,15 +152,23 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
           if (distB.distanceKm != null) return 1;
           return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
         });
+      } else if (queryLoc.isNotEmpty) {
+        sortedResults.sort((a, b) {
+          final scoreA = FuzzySearchUtils.scorePhotographer(a, queryLoc);
+          final scoreB = FuzzySearchUtils.scorePhotographer(b, queryLoc);
+          if (scoreA != scoreB) {
+            return scoreB.compareTo(scoreA); // Highest fuzzy relevance first
+          }
+          return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+        });
       }
 
-      if (!mounted) return;
       setState(() {
         _photographers = sortedResults;
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (seq != _fetchSeq || !mounted) return;
       setState(() {
         _loading = false;
         _errorMessage = 'Unable to load photographers near this location.';
@@ -688,7 +719,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
     final allStates = IndiaLocations.states;
     final filteredStates = query.isEmpty
         ? allStates
-        : allStates.where((s) => s.toLowerCase().contains(query)).toList();
+        : allStates.where((s) => FuzzySearchUtils.matchesLocation(s, query)).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -871,7 +902,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
     final allDistricts = IndiaLocations.districtsByState[state] ?? const <String>[];
     final filteredDistricts = query.isEmpty
         ? allDistricts
-        : allDistricts.where((d) => d.toLowerCase().contains(query)).toList();
+        : allDistricts.where((d) => FuzzySearchUtils.matchesLocation(d, query)).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1225,6 +1256,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
                           Expanded(
                             child: TextField(
                               controller: _searchController,
+                              onChanged: _onSearchChanged,
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 14,
                                 color: context.textMain,
@@ -1234,7 +1266,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
                                     ? 'Search around "${event.location}"...'
                                     : (_selectedDistrict != null
                                         ? 'Search studios in $_selectedDistrict...'
-                                        : 'Search city, country, or studio worldwide...'),
+                                        : 'Search city, area, category, or studio...'),
                                 hintStyle: GoogleFonts.plusJakartaSans(
                                   fontSize: 13,
                                   color: context.textMuted,
@@ -1242,13 +1274,17 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
                                 border: InputBorder.none,
                                 contentPadding: const EdgeInsets.symmetric(vertical: 14),
                               ),
-                              onSubmitted: (_) => _fetchPhotographers(),
+                              onSubmitted: (_) {
+                                _debounceTimer?.cancel();
+                                _fetchPhotographers();
+                              },
                             ),
                           ),
                           if (_searchController.text.isNotEmpty)
                             IconButton(
                               icon: Icon(Icons.clear_rounded, size: 18, color: context.textMuted),
                               onPressed: () {
+                                _debounceTimer?.cancel();
                                 _searchController.clear();
                                 _fetchPhotographers();
                               },
@@ -1993,6 +2029,9 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
     final isDark = context.isDark;
     final hasEvent = widget.event != null;
     final refLoc = _referenceLocation;
+    final currentUser = context.read<AuthProvider>().user;
+    final isMe = currentUser != null &&
+        (photographer.id == currentUser.id || photographer.username == currentUser.username);
 
     // Compute distance from event venue / reference location
     final distanceInfo = GeoDistanceUtils.computeEventDistance(
@@ -2054,6 +2093,25 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            if (isMe) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.sky.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: AppColors.sky.withValues(alpha: 0.4)),
+                                ),
+                                child: Text(
+                                  'You',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.sky,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                         if (photographer.displayOwner != photographer.displayName)
@@ -2256,6 +2314,11 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
           _shareEventDetails(photographer);
         } else if (photographer.phone.isNotEmpty) {
           LauncherUtils.openWhatsApp(context, photographer.phone);
+        } else {
+          AppSnackBar.info(
+            context,
+            'No contact number available for ${photographer.displayName}.',
+          );
         }
       },
     );

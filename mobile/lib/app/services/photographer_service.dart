@@ -16,6 +16,7 @@ class PhotographerService {
     List<String> categories = const [],
     double? latitude,
     double? longitude,
+    bool includeSelf = true,
   }) async {
     final params = <String, String>{};
     if (location != null && location.trim().isNotEmpty) {
@@ -34,6 +35,9 @@ class PhotographerService {
     }
     if (longitude != null && !longitude.isNaN) {
       params['lng'] = longitude.toString();
+    }
+    if (includeSelf) {
+      params['includeSelf'] = 'true';
     }
 
     final queryParams = params.entries
