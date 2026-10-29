@@ -65,6 +65,10 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
   final _totalAmountController = TextEditingController();
   final _advanceController = TextEditingController();
   final _customEventTypeController = TextEditingController();
+  final List<TextEditingController> _receiptItemControllers = [
+    TextEditingController()
+  ];
+  final List<FocusNode> _receiptItemFocusNodes = [FocusNode()];
 
   String _eventType = 'Wedding';
   DateTime _startDate = DateTime.now().add(const Duration(days: 3));
@@ -153,6 +157,12 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
     _advanceController.dispose();
     _advanceRefController.dispose();
     _customEventTypeController.dispose();
+    for (final c in _receiptItemControllers) {
+      c.dispose();
+    }
+    for (final f in _receiptItemFocusNodes) {
+      f.dispose();
+    }
     _scrollController.dispose();
     super.dispose();
   }
@@ -178,6 +188,35 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
       _totalAmount = double.tryParse(_totalAmountController.text.trim()) ?? 0;
       _advanceReceived = double.tryParse(_advanceController.text.trim()) ?? 0;
     });
+  }
+
+  void _addReceiptItemRow() {
+    setState(() {
+      _receiptItemControllers.add(TextEditingController());
+      _receiptItemFocusNodes.add(FocusNode());
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_receiptItemFocusNodes.isNotEmpty) {
+        _receiptItemFocusNodes.last.requestFocus();
+      }
+    });
+  }
+
+  void _removeReceiptItemRow(int index) {
+    if (_receiptItemControllers.length <= 1) return;
+    setState(() {
+      _receiptItemControllers[index].dispose();
+      _receiptItemFocusNodes[index].dispose();
+      _receiptItemControllers.removeAt(index);
+      _receiptItemFocusNodes.removeAt(index);
+    });
+  }
+
+  List<String> _getReceiptItems() {
+    return _receiptItemControllers
+        .map((c) => c.text.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
   }
 
   double get _remainingAmount =>
@@ -460,6 +499,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
         totalAmount: _totalAmount,
         payments: payments,
         notes: _notesController.text.trim(),
+        receiptItems: _getReceiptItems(),
         deliverables: const [
           DeliverableTask(
             id: 't-1',
@@ -1124,6 +1164,10 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                   ),
                   const SizedBox(height: 24),
 
+                  // SECTION: Deliverables (for Receipt)
+                  _buildDeliverablesSectionForReceipt(context, accent, textMain, textMuted),
+                  const SizedBox(height: 24),
+
                   // SECTION 2: Financial Information
                   _buildSectionHeader(context, 'Financial Information'),
                   const SizedBox(height: 12),
@@ -1292,11 +1336,16 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
     String estTime;
 
     if (distanceKm != null) {
-      if (distanceKm < 0.5) {
+      if (distanceKm < 0.05) {
         tierLabel = 'At Studio';
         tierColor = AppColors.pastelMint;
         tierIcon = Icons.home_work_rounded;
         estTime = 'Zero travel required';
+      } else if (distanceKm < 1.0) {
+        tierLabel = 'Very Close (< 1 km)';
+        tierColor = AppColors.pastelMint;
+        tierIcon = Icons.directions_walk_rounded;
+        estTime = '~2–5 mins travel';
       } else if (distanceKm < 2.5) {
         tierLabel = 'Same Locality (< 2.5 km)';
         tierColor = AppColors.pastelMint;
@@ -1368,9 +1417,11 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                       Row(
                         children: [
                           Text(
-                            distanceKm < 0.5
+                            distanceKm < 0.05
                                 ? 'In-Studio Shoot'
-                                : '${distanceKm.toStringAsFixed(1)} km',
+                                : distanceKm < 1.0
+                                    ? '${(distanceKm * 1000).round()} m'
+                                    : '${distanceKm.toStringAsFixed(1)} km',
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -1400,8 +1451,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        distanceKm < 0.5
-                            ? 'Location matches your studio coordinates'
+                        distanceKm < 0.05 ? 'Location matches your studio coordinates'
                             : 'Distance from $studioName • $estTime',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 11.5,
@@ -2034,4 +2084,114 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
       ),
     );
   }
+  Widget _buildDeliverablesSectionForReceipt(
+    BuildContext context,
+    Color accent,
+    Color textMain,
+    Color textMuted,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Deliverables (for Receipt)',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: textMain,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'These items appear on the auto-generated receipt.',
+                    style: TextStyle(color: textMuted, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Add deliverable row',
+              onPressed: _addReceiptItemRow,
+              style: IconButton.styleFrom(
+                backgroundColor: accent.withValues(alpha: 0.12),
+                foregroundColor: accent,
+              ),
+              icon: const Icon(Icons.add_rounded, size: 20),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ...List.generate(_receiptItemControllers.length, (index) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _receiptItemControllers[index],
+                    focusNode: _receiptItemFocusNodes[index],
+                    textInputAction: TextInputAction.next,
+                    onFieldSubmitted: (_) => _addReceiptItemRow(),
+                    style: TextStyle(color: textMain),
+                    decoration: InputDecoration(
+                      hintText: index == 0
+                          ? 'e.g. Photography, Videography…'
+                          : 'Another deliverable…',
+                      hintStyle: TextStyle(
+                        color: textMuted.withValues(alpha: 0.5),
+                        fontSize: 14,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.fiber_manual_record_rounded,
+                        size: 10,
+                        color: accent,
+                      ),
+                      filled: true,
+                      fillColor: context.cardBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: context.cardBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: context.cardBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide:
+                            BorderSide(color: accent, width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                  ),
+                ),
+                if (_receiptItemControllers.length > 1) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    tooltip: 'Remove',
+                    onPressed: () => _removeReceiptItemRow(index),
+                    icon: Icon(
+                      Icons.remove_circle_outline_rounded,
+                      color: textMuted.withValues(alpha: 0.6),
+                      size: 22,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
 }

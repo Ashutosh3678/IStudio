@@ -92,8 +92,33 @@ class InvoicesProvider extends ChangeNotifier {
     Client? client,
   }) async {
     final existing = getInvoicesForEvent(event.id, eventName: event.title);
+    final receiptItems = event.receiptItems;
+    final targetDeliverables = receiptItems.isNotEmpty
+        ? receiptItems.asMap().entries.map((entry) => InvoiceDeliverable(
+              id: 'item_${entry.key}',
+              name: entry.value,
+              cost: entry.key == 0 ? event.totalAmount : 0.0,
+            )).toList()
+        : [
+            InvoiceDeliverable(
+              id: 'item_1',
+              name: '${event.title} (${event.eventType})',
+              cost: event.totalAmount,
+            ),
+          ];
+
     if (existing.isNotEmpty) {
-      return existing.first;
+      final current = existing.first;
+      final hasGenericDeliverable = current.deliverables.isEmpty ||
+          (current.deliverables.length == 1 &&
+              current.deliverables.first.name.startsWith(event.title)) ||
+          current.deliverables.length != receiptItems.length;
+      if (receiptItems.isNotEmpty && hasGenericDeliverable) {
+        final updated = current.copyWith(deliverables: targetDeliverables);
+        await updateInvoice(updated);
+        return updated;
+      }
+      return current;
     }
 
     if (_useApi && _token != null) {
@@ -102,38 +127,31 @@ class InvoicesProvider extends ChangeNotifier {
           token: _token!,
           eventId: event.id,
         );
-        final index = _invoices.indexWhere((i) => i.id == auto.id);
+        var effectiveAuto = auto;
+        if (receiptItems.isNotEmpty) {
+          final autoNames = auto.deliverables.map((d) => d.name).toList();
+          final autoHasGeneric = autoNames.isEmpty ||
+              (autoNames.length == 1 && autoNames.first.startsWith(event.title)) ||
+              autoNames.length != receiptItems.length;
+          if (autoHasGeneric) {
+            effectiveAuto = auto.copyWith(deliverables: targetDeliverables);
+            await updateInvoice(effectiveAuto);
+          }
+        }
+        final index = _invoices.indexWhere((i) => i.id == effectiveAuto.id);
         if (index == -1) {
-          _invoices.insert(0, auto);
+          _invoices.insert(0, effectiveAuto);
         } else {
-          _invoices[index] = auto;
+          _invoices[index] = effectiveAuto;
         }
         notifyListeners();
-        return auto;
+        return effectiveAuto;
       } catch (_) {
         // Fallback to local invoice creation below
       }
     }
 
-    final deliverables = event.deliverables.isNotEmpty
-        ? event.deliverables
-            .map(
-              (d) => InvoiceDeliverable(
-                id: d.id,
-                name: d.title,
-                cost: event.deliverables.isNotEmpty
-                    ? (event.totalAmount / event.deliverables.length)
-                    : event.totalAmount,
-              ),
-            )
-            .toList()
-        : [
-            InvoiceDeliverable(
-              id: 'item_1',
-              name: '${event.title} (${event.eventType})',
-              cost: event.totalAmount,
-            ),
-          ];
+    final deliverables = targetDeliverables;
 
     final newInvoice = Invoice(
       id: 'inv_${DateTime.now().millisecondsSinceEpoch}',

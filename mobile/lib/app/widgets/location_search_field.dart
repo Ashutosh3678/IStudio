@@ -179,11 +179,11 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
       return;
     }
 
-    if (!GoogleMapsLocationParser.isGoogleMapsUrl(clean)) {
+    if (!GoogleMapsLocationParser.isGoogleMapsUrlOrCoords(clean)) {
       if (mounted) {
         AppSnackBar.error(
           context,
-          'Invalid link. Please paste a valid Google Maps link (e.g. maps.app.goo.gl/...).',
+          'Invalid link or coordinates. Please paste a valid Google Maps link or coordinates.',
         );
       }
       return;
@@ -263,7 +263,7 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text?.trim() ?? '';
     if (text.isNotEmpty) {
-      if (!GoogleMapsLocationParser.isGoogleMapsUrl(text)) {
+      if (!GoogleMapsLocationParser.isGoogleMapsUrlOrCoords(text)) {
         if (mounted) {
           AppSnackBar.error(
             context,
@@ -690,7 +690,7 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
                   ),
                   onChanged: (text) {
                     final query = text.trim();
-                    if (GoogleMapsLocationParser.isGoogleMapsUrl(query)) {
+                    if (GoogleMapsLocationParser.isGoogleMapsUrlOrCoords(query)) {
                       _debounce?.cancel();
                       _debounce =
                           Timer(const Duration(milliseconds: 300), () {
@@ -701,10 +701,10 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
                   onFieldSubmitted: (v) {
                     final text = v.trim();
                     if (text.isEmpty) return;
-                    if (!GoogleMapsLocationParser.isGoogleMapsUrl(text)) {
+                    if (!GoogleMapsLocationParser.isGoogleMapsUrlOrCoords(text)) {
                       AppSnackBar.error(
                         context,
-                        'Please paste a valid Google Maps link (e.g. maps.app.goo.gl/...).',
+                        'Please paste a valid Google Maps link or coordinates.',
                       );
                     } else {
                       _resolvePastedLink(text);

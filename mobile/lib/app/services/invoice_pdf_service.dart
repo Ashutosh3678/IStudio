@@ -500,21 +500,25 @@ class InvoicePdfService {
   }
 
   static List<pw.Widget> _tableRows(Invoice invoice) {
-    final items = invoice.deliverables;
-    if (items.isEmpty) {
-      return [
-        _tableRow(index: '-', name: 'No items added', amount: _money.format(0)),
-      ];
-    }
+  final items = invoice.deliverables;
+
+  if (items.isEmpty) {
     return [
-      for (var i = 0; i < items.length; i++)
-        _tableRow(
-          index: '${i + 1}',
-          name: items[i].name,
-          amount: _money.format(items[i].cost),
-        ),
+      _tableRow(index: '-', name: 'No items added', amount: '-'),
     ];
   }
+
+  return [
+    for (var i = 0; i < items.length; i++)
+      _tableRow(
+        index: '${i + 1}',
+        name: items[i].name,
+        amount: items[i].cost > 0
+            ? _money.format(items[i].cost)
+            : '',
+      ),
+  ];
+}
 
   static pw.Widget _tableRow({
     required String index,

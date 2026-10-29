@@ -87,6 +87,30 @@ async function updateEvent(req, res) {
   }
   const event = await repository.updateEvent(req.params.id, req.userId, body);
   if (!event) return res.status(404).json({ success: false, message: 'Event not found.' });
+
+  if (body.receiptItems !== undefined && Array.isArray(body.receiptItems)) {
+    try {
+      const invoiceRepo = require('../repositories/invoiceRepository');
+      const existingInvoices = await invoiceRepo.listByEvent(event._id.toString(), req.userId);
+      if (existingInvoices && existingInvoices.length > 0) {
+        const updatedDeliverables = body.receiptItems.length > 0
+          ? body.receiptItems.map((name, index) => ({
+              name,
+              cost: index === 0 ? (event.totalAmount || 0) : 0,
+            }))
+          : [{ name: `${event.title} (${event.eventType})`, cost: event.totalAmount || 0 }];
+        for (const inv of existingInvoices) {
+          await invoiceRepo.updateInvoice(inv._id.toString(), req.userId, {
+            deliverables: updatedDeliverables,
+            eventName: event.title,
+            address: event.location,
+            dueDate: event.startsAt,
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
   return res.json({ success: true, event });
 }
 async function deleteEvent(req, res) {
@@ -140,9 +164,9 @@ function nestedCreate(kind, fieldsList, req, res) {
             const user = await userRepo.findById(req.userId);
             const userPhone = user && user.phone ? user.phone : '9999999999';
 
-            const eventDeliverables = await repository.listDeliverables(event._id, req.userId);
-            const deliverables = (eventDeliverables && eventDeliverables.length > 0)
-              ? eventDeliverables.map((d) => ({ name: d.title, cost: Math.max(1, Math.round(event.totalAmount / eventDeliverables.length)) }))
+            const receiptItems = (event.receiptItems && event.receiptItems.length > 0) ? event.receiptItems : null;
+            const deliverables = receiptItems
+              ? receiptItems.map((name, index) => ({ name, cost: index === 0 ? (event.totalAmount || item.amount || 0) : 0 }))
               : [{ name: `${event.title} (${event.eventType})`, cost: event.totalAmount || item.amount || 1 }];
 
             generatedInvoice = await invoiceRepo.createInvoice({
@@ -266,10 +290,31 @@ async function autoGenerateInvoice(req, res) {
     const invoiceRepo = require('../repositories/invoiceRepository');
     const existing = await invoiceRepo.listByEvent(event._id.toString(), req.userId);
     if (existing && existing.length > 0) {
+      const inv = existing[0];
+      const receiptItems = (event.receiptItems && event.receiptItems.length > 0) ? event.receiptItems : null;
+      if (receiptItems && receiptItems.length > 0) {
+        const currentDeliverables = inv.deliverables || [];
+        const needsUpdate = currentDeliverables.length === 0 ||
+          (currentDeliverables.length === 1 && currentDeliverables[0].name.startsWith(event.title)) ||
+          currentDeliverables.length !== receiptItems.length;
+        if (needsUpdate) {
+          const updatedDeliverables = receiptItems.map((name, index) => ({
+            name,
+            cost: index === 0 ? (event.totalAmount || inv.total || 0) : 0,
+          }));
+          await invoiceRepo.updateInvoice(inv._id.toString(), req.userId, {
+            deliverables: updatedDeliverables,
+            eventName: event.title,
+            address: event.location,
+            dueDate: event.startsAt,
+          });
+          inv.deliverables = updatedDeliverables;
+        }
+      }
       return res.json({
         success: true,
-        invoice: existing[0].toPublicJSON(),
-        invoices: existing.map((i) => i.toPublicJSON()),
+        invoice: inv.toPublicJSON ? inv.toPublicJSON() : inv,
+        invoices: existing.map((i) => (i.toPublicJSON ? i.toPublicJSON() : i)),
         isNew: false,
       });
     }

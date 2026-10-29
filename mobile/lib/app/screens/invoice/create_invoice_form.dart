@@ -167,17 +167,23 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
   }
 
   Future<void> _addOrEditDeliverable([InvoiceDeliverable? existing]) async {
-    final result = await AddDeliverableSheet.show(context, existing: existing);
-    if (result == null || !mounted) return;
-    final index = _deliverables.indexWhere((item) => item.id == result.id);
+    final results = await AddDeliverableSheet.show(context, existing: existing);
+    if (results == null || !mounted) return;
     setState(() {
-      if (index >= 0) {
-        _deliverables[index] = result;
+      if (existing != null) {
+        // Remove old item, insert new ones at same position
+        final index = _deliverables.indexWhere((item) => item.id == existing.id);
+        if (index >= 0) {
+          _deliverables.removeAt(index);
+          _deliverables.insertAll(index, results);
+        } else {
+          _deliverables.addAll(results);
+        }
       } else {
-        _deliverables.add(result);
+        _deliverables.addAll(results);
       }
     });
-    AppSnackBar.success(context, index >= 0 ? 'Item updated.' : 'Item added.');
+    AppSnackBar.success(context, existing != null ? 'Items updated.' : '${results.length} item(s) added.');
   }
 
   Future<void> _pickDueDate() async {
@@ -404,14 +410,6 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
                             color: textMain,
                             fontWeight: FontWeight.w600,
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _money.format(item.cost),
-                        style: TextStyle(
-                          color: textMain,
-                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       IconButton(

@@ -87,7 +87,7 @@ class _GoogleMapsLocationSheetState extends State<GoogleMapsLocationSheet> {
     }
 
     // Only parse if it's a valid Google Maps URL
-    if (GoogleMapsLocationParser.isGoogleMapsUrl(text)) {
+    if (GoogleMapsLocationParser.isGoogleMapsUrlOrCoords(text)) {
       final syncRes = GoogleMapsLocationParser.parseSync(text);
       if (syncRes != null) {
         setState(() {
@@ -107,10 +107,10 @@ class _GoogleMapsLocationSheetState extends State<GoogleMapsLocationSheet> {
       return;
     }
 
-    if (!GoogleMapsLocationParser.isGoogleMapsUrl(rawText)) {
+    if (!GoogleMapsLocationParser.isGoogleMapsUrlOrCoords(rawText)) {
       AppSnackBar.error(
         context,
-        'Invalid link. Please paste a valid Google Maps link (e.g. maps.app.goo.gl/...).',
+        'Invalid link or coordinates. Please paste a valid Google Maps link or coordinates.',
       );
       return;
     }
@@ -161,7 +161,7 @@ class _GoogleMapsLocationSheetState extends State<GoogleMapsLocationSheet> {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text?.trim() ?? '';
     if (text.isNotEmpty) {
-      if (!GoogleMapsLocationParser.isGoogleMapsUrl(text)) {
+      if (!GoogleMapsLocationParser.isGoogleMapsUrlOrCoords(text)) {
         if (mounted) {
           AppSnackBar.error(
             context,

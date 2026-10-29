@@ -232,6 +232,7 @@ class StudioEvent {
     this.expenses = const [],
     this.deliverables = const [],
     this.notes = '',
+    this.receiptItems = const [],
   }) : _customAmountReceived = amountReceived;
 
   final String id;
@@ -254,6 +255,7 @@ class StudioEvent {
   final List<ExpenseRecord> expenses;
   final List<DeliverableTask> deliverables;
   final String notes;
+  final List<String> receiptItems;
 
 
   /// Effective end date. If endsAt is null, falls back to startsAt (single-day event).
@@ -493,6 +495,7 @@ class StudioEvent {
     List<ExpenseRecord>? expenses,
     List<DeliverableTask>? deliverables,
     String? notes,
+    List<String>? receiptItems,
   }) {
     return StudioEvent(
       id: id ?? this.id,
@@ -514,6 +517,7 @@ class StudioEvent {
       expenses: expenses ?? this.expenses,
       deliverables: deliverables ?? this.deliverables,
       notes: notes ?? this.notes,
+      receiptItems: receiptItems ?? this.receiptItems,
     );
   }
 
@@ -537,6 +541,7 @@ class StudioEvent {
     'expenses': expenses.map((item) => item.toJson()).toList(),
     'deliverables': deliverables.map((item) => item.toJson()).toList(),
     'notes': notes,
+    'receiptItems': receiptItems,
   };
 
   factory StudioEvent.fromJson(Map<String, dynamic> json) {
@@ -585,6 +590,7 @@ class StudioEvent {
       expenses: expenses,
       deliverables: deliverables,
       notes: json['notes'] as String? ?? '',
+      receiptItems: List<String>.from(json['receiptItems'] as List<dynamic>? ?? []),
     );
   }
 }

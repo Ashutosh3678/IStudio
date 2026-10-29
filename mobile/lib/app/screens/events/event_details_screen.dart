@@ -276,6 +276,10 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                   _entrance(_anim5, _buildWorkProgress(context, event)),
                   const SizedBox(height: 16),
 
+                  // E2. Deliverables (for Receipt)
+                  _entrance(_anim5, _buildClientDeliverablesSection(context, event)),
+                  const SizedBox(height: 16),
+
                   // F. Event Notes
                   _entrance(_anim6, _buildNotesSection(context, event)),
                   const SizedBox(height: 16),
@@ -614,9 +618,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                                     ),
                                   ),
                                   child: Text(
-                                    distFromStudioKm < 0.5
+                                    distFromStudioKm < 0.05
                                         ? 'At Studio (0 km)'
-                                        : '${distFromStudioKm.toStringAsFixed(1)} km from studio',
+                                        : distFromStudioKm < 1.0
+                                            ? '${(distFromStudioKm * 1000).round()} m from studio'
+                                            : '${distFromStudioKm.toStringAsFixed(1)} km from studio',
                                     style: TextStyle(
                                       color: distFromStudioKm < 25
                                           ? AppColors.pastelMint
@@ -2711,7 +2717,125 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
   }
 
   // ================= F. Notes =================
-  Widget _buildNotesSection(BuildContext context, StudioEvent event) {
+  
+  // ================= E2. Event Deliverables (Client-Facing) =================
+  Widget _buildClientDeliverablesSection(BuildContext context, StudioEvent event) {
+    final accent = context.accentColor;
+    final textMain = context.textMain;
+    final textMuted = context.textMuted;
+    final items = event.receiptItems;
+
+    return StudioCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.card_giftcard_rounded,
+                  color: accent,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Deliverables',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: textMain,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      'Items & services agreed for client receipt',
+                      style: TextStyle(color: textMuted, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: accent.withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  '${items.length} items',
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (items.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: context.innerBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: context.cardBorder),
+              ),
+              child: Text(
+                'No deliverables added yet. Edit event to specify items.',
+                style: TextStyle(color: textMuted, fontSize: 13),
+              ),
+            )
+          else
+            ...items.asMap().entries.map((entry) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: context.innerBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: context.cardBorder),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle_outline_rounded,
+                      size: 18,
+                      color: accent,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        entry.value,
+                        style: TextStyle(
+                          color: textMain,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+Widget _buildNotesSection(BuildContext context, StudioEvent event) {
     return StudioCard(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -2751,7 +2875,25 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
       eventName: event.title,
     );
     // The most recent (first) invoice represents the latest payment state.
-    final invoice = invoices.isNotEmpty ? invoices.first : null;
+    var invoice = invoices.isNotEmpty ? invoices.first : null;
+
+    if (invoice != null && event.receiptItems.isNotEmpty) {
+      final currentNames = invoice.deliverables.map((d) => d.name).toList();
+      final hasGeneric = currentNames.isEmpty ||
+          (currentNames.length == 1 && currentNames.first.startsWith(event.title)) ||
+          currentNames.length != event.receiptItems.length;
+      if (hasGeneric) {
+        final newDeliverables = event.receiptItems.asMap().entries.map((entry) => InvoiceDeliverable(
+          id: 'item_${entry.key}',
+          name: entry.value,
+          cost: entry.key == 0 ? (invoice!.total > 0 ? invoice.total : event.totalAmount) : 0.0,
+        )).toList();
+        invoice = invoice.copyWith(deliverables: newDeliverables);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          invoicesProvider.updateInvoice(invoice!).ignore();
+        });
+      }
+    }
 
     final accent = context.accentColor;
     final textMain = context.textMain;
@@ -3089,7 +3231,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _shareInvoice(context, invoice),
+                    onPressed: () => _shareInvoice(context, invoice!),
                     icon: Icon(
                       Icons.ios_share_rounded,
                       size: 16,
@@ -3115,7 +3257,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                 const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _previewInvoice(context, invoice),
+                    onPressed: () => _previewInvoice(context, invoice!),
                     icon: Icon(
                       Icons.visibility_outlined,
                       size: 16,
@@ -3229,10 +3371,36 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
     }
   }
 
+  Invoice _syncInvoiceWithEvent(BuildContext context, Invoice invoice) {
+    final eventsProvider = context.read<EventsProvider?>();
+    final event = eventsProvider?.findById(invoice.eventId);
+    if (event != null && event.receiptItems.isNotEmpty) {
+      final currentNames = invoice.deliverables.map((d) => d.name).toList();
+      final hasGeneric = currentNames.isEmpty ||
+          (currentNames.length == 1 && currentNames.first.startsWith(event.title)) ||
+          currentNames.length != event.receiptItems.length;
+      if (hasGeneric) {
+        final newDeliverables = event.receiptItems.asMap().entries.map((entry) => InvoiceDeliverable(
+          id: 'item_${entry.key}',
+          name: entry.value,
+          cost: entry.key == 0 ? (invoice.total > 0 ? invoice.total : event.totalAmount) : 0.0,
+        )).toList();
+        final updated = invoice.copyWith(deliverables: newDeliverables);
+        final invProv = context.read<InvoicesProvider?>();
+        if (invProv != null) {
+          invProv.updateInvoice(updated).ignore();
+        }
+        return updated;
+      }
+    }
+    return invoice;
+  }
+
   Future<void> _shareInvoice(BuildContext context, Invoice invoice) async {
     try {
+      final effInvoice = _syncInvoiceWithEvent(context, invoice);
       final studio = context.read<AuthProvider?>()?.user;
-      await InvoicePdfService.shareInvoice(invoice: invoice, studio: studio);
+      await InvoicePdfService.shareInvoice(invoice: effInvoice, studio: studio);
     } catch (_) {
       if (!context.mounted) return;
       AppSnackBar.error(context, 'Could not share invoice PDF.');
@@ -3240,8 +3408,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
   }
 
   void _previewInvoice(BuildContext context, Invoice invoice) {
+    final effInvoice = _syncInvoiceWithEvent(context, invoice);
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => InvoicePreviewScreen(invoice: invoice)),
+      MaterialPageRoute(builder: (_) => InvoicePreviewScreen(invoice: effInvoice)),
     );
   }
 

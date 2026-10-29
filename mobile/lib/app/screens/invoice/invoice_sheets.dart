@@ -15,11 +15,11 @@ class AddDeliverableSheet extends StatefulWidget {
 
   final InvoiceDeliverable? existing;
 
-  static Future<InvoiceDeliverable?> show(
+  static Future<List<InvoiceDeliverable>?> show(
     BuildContext context, {
     InvoiceDeliverable? existing,
   }) {
-    return showModalBottomSheet<InvoiceDeliverable>(
+    return showModalBottomSheet<List<InvoiceDeliverable>>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -35,47 +35,93 @@ class AddDeliverableSheet extends StatefulWidget {
 
 class _AddDeliverableSheetState extends State<AddDeliverableSheet> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _nameController;
+  final List<TextEditingController> _nameControllers = [];
+  final List<FocusNode> _focusNodes = [];
   late final TextEditingController _costController;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.existing?.name ?? '');
-    _costController = TextEditingController(
-      text: widget.existing == null
-          ? ''
-          : widget.existing!.cost.toStringAsFixed(
-              widget.existing!.cost.truncateToDouble() == widget.existing!.cost
-                  ? 0
-                  : 2,
-            ),
-    );
+    if (widget.existing != null) {
+      _nameControllers.add(
+        TextEditingController(text: widget.existing!.name),
+      );
+      _focusNodes.add(FocusNode());
+      _costController = TextEditingController(
+        text: widget.existing!.cost.toStringAsFixed(
+          widget.existing!.cost.truncateToDouble() == widget.existing!.cost
+              ? 0
+              : 2,
+        ),
+      );
+    } else {
+      _nameControllers.add(TextEditingController());
+      _focusNodes.add(FocusNode());
+      _costController = TextEditingController();
+    }
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
+    for (final c in _nameControllers) {
+      c.dispose();
+    }
+    for (final f in _focusNodes) {
+      f.dispose();
+    }
     _costController.dispose();
     super.dispose();
   }
 
+  void _addRow() {
+    setState(() {
+      _nameControllers.add(TextEditingController());
+      _focusNodes.add(FocusNode());
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_focusNodes.isNotEmpty) {
+        _focusNodes.last.requestFocus();
+      }
+    });
+  }
+
+  void _removeRow(int index) {
+    setState(() {
+      _nameControllers[index].dispose();
+      _focusNodes[index].dispose();
+      _nameControllers.removeAt(index);
+      _focusNodes.removeAt(index);
+    });
+  }
+
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    Navigator.of(context).pop(
-      InvoiceDeliverable(
-        id: widget.existing?.id ??
-            'del-${DateTime.now().millisecondsSinceEpoch}',
-        name: _nameController.text.trim(),
-        cost: double.parse(_costController.text.trim()),
-      ),
-    );
+
+    final nonEmptyNames = _nameControllers
+        .map((c) => c.text.trim())
+        .where((name) => name.isNotEmpty)
+        .toList();
+
+    if (nonEmptyNames.isEmpty) return;
+
+    final totalCost = double.tryParse(_costController.text.trim()) ?? 0.0;
+
+    final results = nonEmptyNames.asMap().entries.map((entry) {
+      return InvoiceDeliverable(
+        id: entry.key == 0 && widget.existing != null
+            ? widget.existing!.id
+            : 'del-${DateTime.now().millisecondsSinceEpoch}-${entry.key}',
+        name: entry.value,
+        cost: entry.key == 0 ? totalCost : 0.0,
+      );
+    }).toList();
+
+    Navigator.of(context).pop(results);
   }
 
   @override
   Widget build(BuildContext context) {
     final textMuted = context.textMuted;
-    final isEdit = widget.existing != null;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -101,7 +147,7 @@ class _AddDeliverableSheetState extends State<AddDeliverableSheet> {
                 ),
               ),
               Text(
-                isEdit ? 'Edit item' : 'Add item',
+                'Add Items',
                 style: GoogleFonts.plusJakartaSans(
                   color: context.textMain,
                   fontSize: 22,
@@ -110,23 +156,64 @@ class _AddDeliverableSheetState extends State<AddDeliverableSheet> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Name the item or service and set the cost.',
+                'Enter each service or item on its own line.',
                 style: TextStyle(color: textMuted, fontSize: 13),
               ),
               const SizedBox(height: 18),
-              StudioTextField(
-                label: 'Item name',
-                controller: _nameController,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Enter an item name';
-                  }
-                  return null;
-                },
+              ...List.generate(_nameControllers.length, (index) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _nameControllers[index],
+                          focusNode: _focusNodes[index],
+                          textInputAction: TextInputAction.next,
+                          onFieldSubmitted: (_) => _addRow(),
+                          decoration: InputDecoration(
+                            labelText: 'Item ${index + 1}',
+                            hintText: 'e.g. Photography, Videography...',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                          ),
+                          validator: (value) {
+                            if (index == 0 &&
+                                (value == null || value.trim().isEmpty)) {
+                              return 'Enter at least one item name';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      if (_nameControllers.length > 1) ...[
+                        const SizedBox(width: 6),
+                        IconButton(
+                          tooltip: 'Remove item',
+                          icon: Icon(
+                            Icons.delete_outline_rounded,
+                            color: textMuted,
+                          ),
+                          onPressed: () => _removeRow(index),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              }),
+              TextButton.icon(
+                onPressed: _addRow,
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Add another item'),
               ),
               const SizedBox(height: 14),
               StudioTextField(
-                label: 'Cost (₹)',
+                label: 'Total Amount (₹)',
                 controller: _costController,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
@@ -138,14 +225,20 @@ class _AddDeliverableSheetState extends State<AddDeliverableSheet> {
                 onFieldSubmitted: (_) => _submit(),
                 validator: (value) {
                   final parsed = double.tryParse(value?.trim() ?? '');
-                  if (parsed == null) return 'Enter a valid amount';
-                  if (parsed <= 0) return 'Cost must be greater than 0';
+                  if (value != null &&
+                      value.trim().isNotEmpty &&
+                      parsed == null) {
+                    return 'Enter a valid amount';
+                  }
+                  if (parsed != null && parsed < 0) {
+                    return 'Amount cannot be negative';
+                  }
                   return null;
                 },
               ),
               const SizedBox(height: 22),
               StudioButton(
-                label: isEdit ? 'Save item' : 'Add item',
+                label: 'Add Items',
                 onPressed: _submit,
               ),
             ],

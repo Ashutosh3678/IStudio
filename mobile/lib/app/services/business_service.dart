@@ -165,6 +165,7 @@ class BusinessService {
     'status': event.status.name,
     'totalAmount': event.totalAmount,
     'notes': event.notes,
+    'receiptItems': event.receiptItems,
   };
 
   Map<String, dynamic> _paymentPayload(PaymentRecord payment) => {
@@ -222,6 +223,7 @@ class BusinessService {
       expenses: expenses,
       deliverables: deliverables,
       notes: json['notes'] as String? ?? '',
+      receiptItems: List<String>.from(json['receiptItems'] as List<dynamic>? ?? []),
     );
   }
 

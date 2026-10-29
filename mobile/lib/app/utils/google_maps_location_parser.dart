@@ -34,14 +34,23 @@ class GoogleMapsLocationParser {
     r'''(\d+)[°\s]+(\d+)['\s]+([\d.]+)"?\s*([NSns])[,\s]+(\d+)[°\s]+(\d+)['\s]+([\d.]+)"?\s*([EWew])''',
   );
 
-  /// Regex for @lat,lng in Google Maps URLs: .../@17.372605,78.459720,17z...
-  static final _atCoordsRegex = RegExp(
-    r'@([-+]?\d{1,2}\.\d+),([-+]?\d{1,3}\.\d+)',
+  /// Exact place pin in Google Maps URLs (Protobuf): !3d(lat)!4d(lng) or !3d(lat)!2d(lng)
+  static final _pbLatThenLng4d = RegExp(
+    r'!3d([-+]?\d{1,2}\.\d+)!4d([-+]?\d{1,3}\.\d+)',
+  );
+  static final _pbLatThenLng2d = RegExp(
+    r'!3d([-+]?\d{1,2}\.\d+)!2d([-+]?\d{1,3}\.\d+)',
+  );
+  static final _pbLngThenLat4d = RegExp(
+    r'!4d([-+]?\d{1,3}\.\d+)!3d([-+]?\d{1,2}\.\d+)',
+  );
+  static final _pbLngThenLat2d = RegExp(
+    r'!2d([-+]?\d{1,3}\.\d+)!3d([-+]?\d{1,2}\.\d+)',
   );
 
-  /// Regex for ?q=lat,lng or &q=lat,lng or &ll=lat,lng
+  /// Regex for ?q=lat,lng or &q=lat,lng or &ll=lat,lng or destination=lat,lng
   static final _queryCoordsRegex = RegExp(
-    r'[?&](?:q|ll|query|saddr|daddr)=([-+]?\d{1,2}\.\d+)[,+ ]([-+]?\d{1,3}\.\d+)',
+    r'[?&](?:q|ll|query|saddr|daddr|destination)=([-+]?\d{1,2}\.\d+)[,+ ]([-+]?\d{1,3}\.\d+)',
   );
 
   /// Regex for /search/lat,lng
@@ -49,17 +58,15 @@ class GoogleMapsLocationParser {
     r'/search/([-+]?\d{1,2}\.\d+)[,+ ]([-+]?\d{1,3}\.\d+)',
   );
 
+  /// Regex for @lat,lng in Google Maps URLs: .../@17.372605,78.459720,17z...
+  /// Note: @lat,lng is camera viewport, so exact pin (!3d!4d or ?q=) is prioritized first.
+  static final _atCoordsRegex = RegExp(
+    r'@([-+]?\d{1,2}\.\d+),([-+]?\d{1,3}\.\d+)',
+  );
+
   /// Regex for staticmap / metadata: center=lat%2Clng or center=lat,lng
   static final _centerCoordsRegex = RegExp(
     r'center=([-+]?\d{1,2}\.\d+)(?:%2C|%2c|,)([-+]?\d{1,3}\.\d+)',
-  );
-
-  /// Regex for protobuf parameters in HTML: !3d(lat)!2d(lng) or !2d(lng)!3d(lat)
-  static final _pbLatThenLngRegex = RegExp(
-    r'!3d([-+]?\d{1,2}\.\d+)!2d([-+]?\d{1,3}\.\d+)',
-  );
-  static final _pbLngThenLatRegex = RegExp(
-    r'!2d([-+]?\d{1,3}\.\d+)!3d([-+]?\d{1,2}\.\d+)',
   );
 
   /// Regex for /place/Place+Name/...
@@ -77,7 +84,16 @@ class GoogleMapsLocationParser {
         text.contains('maps.google.com');
   }
 
-  /// Normalizes user input (handles missing https://, trims spaces, extracts URL if surrounded by text)
+  /// Checks if input is either a Google Maps URL OR raw decimal/DMS coordinates.
+  static bool isGoogleMapsUrlOrCoords(String input) {
+    final text = input.trim();
+    if (text.isEmpty) return false;
+    if (isGoogleMapsUrl(text)) return true;
+    final parsed = parseSync(text);
+    return parsed != null;
+  }
+
+  /// Normalizes user input (handles missing https://, trims spaces, extracts URL or coords)
   static String normalizeInput(String input) {
     var text = input.trim();
     if (text.isEmpty) return '';
@@ -100,11 +116,77 @@ class GoogleMapsLocationParser {
   }
 
   /// Tries to parse coordinates synchronously without network calls.
+  /// Prioritizes EXACT place pins (!3d!4d, ?q=) over generic viewport (@lat,lng).
   static ParsedCoordinates? parseSync(String input) {
     final text = normalizeInput(input);
     if (text.isEmpty) return null;
 
-    // 1. Try DMS coordinates
+    final placeName = _extractPlaceName(text);
+
+    // 1. Exact Pin Protobuf: !3d(lat)!4d(lng) (Primary place coordinates in Google Maps)
+    final pbMatch = _pbLatThenLng4d.firstMatch(text) ?? _pbLatThenLng2d.firstMatch(text);
+    if (pbMatch != null) {
+      final lat = double.tryParse(pbMatch.group(1)!);
+      final lng = double.tryParse(pbMatch.group(2)!);
+      if (lat != null && lng != null && _isValidLat(lat) && _isValidLng(lng)) {
+        return ParsedCoordinates(
+          latitude: lat,
+          longitude: lng,
+          placeName: placeName,
+          source: 'google_pin_protobuf',
+        );
+      }
+    }
+
+    final pbRev = _pbLngThenLat4d.firstMatch(text) ?? _pbLngThenLat2d.firstMatch(text);
+    if (pbRev != null) {
+      final lng = double.tryParse(pbRev.group(1)!);
+      final lat = double.tryParse(pbRev.group(2)!);
+      if (lat != null && lng != null && _isValidLat(lat) && _isValidLng(lng)) {
+        return ParsedCoordinates(
+          latitude: lat,
+          longitude: lng,
+          placeName: placeName,
+          source: 'google_pin_protobuf',
+        );
+      }
+    }
+
+    // 2. Exact Query Coordinates: ?q=lat,lng or &ll=lat,lng
+    final queryMatch = _queryCoordsRegex.firstMatch(text);
+    if (queryMatch != null) {
+      final lat = double.tryParse(queryMatch.group(1)!);
+      final lng = double.tryParse(queryMatch.group(2)!);
+      if (lat != null && lng != null && _isValidLat(lat) && _isValidLng(lng)) {
+        return ParsedCoordinates(
+          latitude: lat,
+          longitude: lng,
+          placeName: placeName,
+          source: 'google_maps_query',
+        );
+      }
+    }
+
+    // 3. Plain decimal coordinates (e.g. 17.372605, 78.459720 or 17.372605 78.459720)
+    if (!text.startsWith('http://') && !text.startsWith('https://')) {
+      final rawMatch = _rawCoordsRegex.firstMatch(text);
+      if (rawMatch != null) {
+        final lat = double.tryParse(rawMatch.group(1)!);
+        final lng = double.tryParse(rawMatch.group(2)!);
+        if (lat != null &&
+            lng != null &&
+            _isValidLat(lat) &&
+            _isValidLng(lng)) {
+          return ParsedCoordinates(
+            latitude: lat,
+            longitude: lng,
+            source: 'raw_coordinates',
+          );
+        }
+      }
+    }
+
+    // 4. DMS coordinates: 17°22'21.4"N 78°27'35.0"E
     final dmsMatch = _dmsRegex.firstMatch(text);
     if (dmsMatch != null) {
       final latDeg = double.tryParse(dmsMatch.group(1)!) ?? 0;
@@ -132,37 +214,7 @@ class GoogleMapsLocationParser {
       }
     }
 
-    // 2. Try URL coordinates (@lat,lng)
-    final atMatch = _atCoordsRegex.firstMatch(text);
-    if (atMatch != null) {
-      final lat = double.tryParse(atMatch.group(1)!);
-      final lng = double.tryParse(atMatch.group(2)!);
-      if (lat != null && lng != null && _isValidLat(lat) && _isValidLng(lng)) {
-        return ParsedCoordinates(
-          latitude: lat,
-          longitude: lng,
-          placeName: _extractPlaceName(text),
-          source: 'google_maps_url',
-        );
-      }
-    }
-
-    // 3. Try URL query coordinates (?q=lat,lng)
-    final queryMatch = _queryCoordsRegex.firstMatch(text);
-    if (queryMatch != null) {
-      final lat = double.tryParse(queryMatch.group(1)!);
-      final lng = double.tryParse(queryMatch.group(2)!);
-      if (lat != null && lng != null && _isValidLat(lat) && _isValidLng(lng)) {
-        return ParsedCoordinates(
-          latitude: lat,
-          longitude: lng,
-          placeName: _extractPlaceName(text),
-          source: 'google_maps_url',
-        );
-      }
-    }
-
-    // 4. Try URL /search/lat,lng
+    // 5. Search path: /search/lat,lng
     final searchMatch = _searchCoordsRegex.firstMatch(text);
     if (searchMatch != null) {
       final lat = double.tryParse(searchMatch.group(1)!);
@@ -171,27 +223,24 @@ class GoogleMapsLocationParser {
         return ParsedCoordinates(
           latitude: lat,
           longitude: lng,
+          placeName: placeName,
           source: 'google_maps_url',
         );
       }
     }
 
-    // 5. Try plain decimal coordinates (e.g. 17.372605, 78.459720)
-    if (!text.startsWith('http://') && !text.startsWith('https://')) {
-      final rawMatch = _rawCoordsRegex.firstMatch(text);
-      if (rawMatch != null) {
-        final lat = double.tryParse(rawMatch.group(1)!);
-        final lng = double.tryParse(rawMatch.group(2)!);
-        if (lat != null &&
-            lng != null &&
-            _isValidLat(lat) &&
-            _isValidLng(lng)) {
-          return ParsedCoordinates(
-            latitude: lat,
-            longitude: lng,
-            source: 'raw_coordinates',
-          );
-        }
+    // 6. Viewport Coordinates (@lat,lng) — used as fallback when no exact pin is present
+    final atMatch = _atCoordsRegex.firstMatch(text);
+    if (atMatch != null) {
+      final lat = double.tryParse(atMatch.group(1)!);
+      final lng = double.tryParse(atMatch.group(2)!);
+      if (lat != null && lng != null && _isValidLat(lat) && _isValidLng(lng)) {
+        return ParsedCoordinates(
+          latitude: lat,
+          longitude: lng,
+          placeName: placeName,
+          source: 'google_maps_viewport',
+        );
       }
     }
 
@@ -203,7 +252,7 @@ class GoogleMapsLocationParser {
     final clean = normalizeInput(input);
     if (clean.isEmpty) return null;
 
-    // 1. Try sync parse first
+    // 1. Try sync parse first (direct coords or URL with embedded coords)
     final syncResult = parseSync(clean);
     if (syncResult != null) return syncResult;
 
@@ -223,12 +272,11 @@ class GoogleMapsLocationParser {
     try {
       final uri = Uri.parse(initialUrl);
 
-      // Follow redirects up to 3 hops
       var currentUri = uri;
       String? destinationUrl;
       String? placeNameFromUrl;
 
-      for (int i = 0; i < 3; i++) {
+      for (int i = 0; i < 4; i++) {
         final req = http.Request('GET', currentUri)..followRedirects = false;
         req.headers['User-Agent'] =
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -241,37 +289,23 @@ class GoogleMapsLocationParser {
           final syncCheck = parseSync(loc);
           if (syncCheck != null) return syncCheck;
 
-          // Check if place name is in redirect URL
           placeNameFromUrl ??= _extractPlaceName(loc);
-
           currentUri = Uri.parse(loc);
           continue;
         }
 
-        // We reached the final destination page (200 OK)
+        // Final destination page (200 OK)
         destinationUrl = currentUri.toString();
+        final syncCheck = parseSync(destinationUrl);
+        if (syncCheck != null) return syncCheck;
+
         placeNameFromUrl ??= _extractPlaceName(destinationUrl);
 
         final response = await http.Response.fromStream(streamed);
         final body = response.body;
 
-        // 1. Check center=lat%2Clng in staticmap / og:image meta tags
-        final centerMatch = _centerCoordsRegex.firstMatch(body);
-        if (centerMatch != null) {
-          final lat = double.tryParse(centerMatch.group(1)!);
-          final lng = double.tryParse(centerMatch.group(2)!);
-          if (lat != null && lng != null && _isValidLat(lat) && _isValidLng(lng)) {
-            return ParsedCoordinates(
-              latitude: lat,
-              longitude: lng,
-              placeName: placeNameFromUrl,
-              source: 'google_staticmap_center',
-            );
-          }
-        }
-
-        // 2. Check protobuf !3d(lat)!2d(lng) in HTML
-        final pb1 = _pbLatThenLngRegex.firstMatch(body);
+        // 1. Check exact pin protobuf in HTML body: !3d(lat)!4d(lng)
+        final pb1 = _pbLatThenLng4d.firstMatch(body) ?? _pbLatThenLng2d.firstMatch(body);
         if (pb1 != null) {
           final lat = double.tryParse(pb1.group(1)!);
           final lng = double.tryParse(pb1.group(2)!);
@@ -285,8 +319,7 @@ class GoogleMapsLocationParser {
           }
         }
 
-        // 3. Check protobuf !2d(lng)!3d(lat) in HTML
-        final pb2 = _pbLngThenLatRegex.firstMatch(body);
+        final pb2 = _pbLngThenLat4d.firstMatch(body) ?? _pbLngThenLat2d.firstMatch(body);
         if (pb2 != null) {
           final lng = double.tryParse(pb2.group(1)!);
           final lat = double.tryParse(pb2.group(2)!);
@@ -300,7 +333,15 @@ class GoogleMapsLocationParser {
           }
         }
 
-        // 4. Check @lat,lng in body
+        // 2. Check canonical link in HTML
+        final canonicalMatch = RegExp(r"""<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']""", caseSensitive: false).firstMatch(body);
+        if (canonicalMatch != null) {
+          final cUrl = canonicalMatch.group(1)!;
+          final cParsed = parseSync(cUrl);
+          if (cParsed != null) return cParsed;
+        }
+
+        // 3. Check @lat,lng in body (e.g. within embedded script links)
         final atMatch = _atCoordsRegex.firstMatch(body);
         if (atMatch != null) {
           final lat = double.tryParse(atMatch.group(1)!);
@@ -315,13 +356,43 @@ class GoogleMapsLocationParser {
           }
         }
 
+        // 4. Check staticmap center in body as fallback
+        final bodyCenter = _centerCoordsRegex.firstMatch(body);
+        if (bodyCenter != null) {
+          final lat = double.tryParse(bodyCenter.group(1)!);
+          final lng = double.tryParse(bodyCenter.group(2)!);
+          if (lat != null && lng != null && _isValidLat(lat) && _isValidLng(lng)) {
+            return ParsedCoordinates(
+              latitude: lat,
+              longitude: lng,
+              placeName: placeNameFromUrl,
+              source: 'google_staticmap_center',
+            );
+          }
+        }
+
         break;
       }
 
-      // If coordinates not found in HTML, but we have a place name, fallback to geocoding the place name
+      // 4. Fallback: Geocode place name from URL
       if (placeNameFromUrl != null && placeNameFromUrl.isNotEmpty) {
         final geocoded = await _geocodePlaceName(placeNameFromUrl);
         if (geocoded != null) return geocoded;
+      }
+
+      // 5. Ultimate fallback: staticmap center in body
+      final centerMatch = _centerCoordsRegex.firstMatch(destinationUrl ?? '') ?? _centerCoordsRegex.firstMatch(currentUri.toString());
+      if (centerMatch != null) {
+        final lat = double.tryParse(centerMatch.group(1)!);
+        final lng = double.tryParse(centerMatch.group(2)!);
+        if (lat != null && lng != null && _isValidLat(lat) && _isValidLng(lng)) {
+          return ParsedCoordinates(
+            latitude: lat,
+            longitude: lng,
+            placeName: placeNameFromUrl,
+            source: 'google_staticmap_center',
+          );
+        }
       }
     } catch (_) {}
 

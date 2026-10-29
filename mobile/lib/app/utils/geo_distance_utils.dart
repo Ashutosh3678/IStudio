@@ -39,7 +39,7 @@ class GeoDistanceUtils {
             math.sin(dLon / 2) *
             math.sin(dLon / 2);
     final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    return (earthRadiusKm * c * 10).round() / 10;
+    return (earthRadiusKm * c * 100).round() / 100;
   }
 
   /// Computes the display distance between an event and a photographer using real coordinates.
@@ -106,7 +106,9 @@ class GeoDistanceUtils {
     final suffix = hasEvent ? 'from event' : 'away';
 
     String badgeText;
-    if (distanceKm < 0.5) {
+    if (distanceKm < 0.05) {
+      badgeText = hasEvent ? 'At Venue' : 'At Studio';
+    } else if (distanceKm < 0.5) {
       badgeText = '< 500m $suffix';
     } else if (distanceKm < 1.0) {
       badgeText = '< 1 km $suffix';
