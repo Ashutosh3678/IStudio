@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../providers/language_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_motion.dart';
 
@@ -100,7 +101,7 @@ class _StudioButtonState extends State<StudioButton> {
     return Semantics(
       button: true,
       enabled: enabled,
-      label: widget.label,
+      label: context.tr(widget.label),
       child: RepaintBoundary(
         child: GestureDetector(
           onTapDown: enabled
@@ -174,7 +175,7 @@ class _StudioButtonState extends State<StudioButton> {
                                 ],
                                 Flexible(
                                   child: Text(
-                                    widget.label,
+                                    context.tr(widget.label),
                                     overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.plusJakartaSans(
                                       color: textColor,

@@ -1,3 +1,4 @@
+import '../../providers/language_provider.dart';
 import 'dart:async';
 import 'dart:ui';
 
@@ -992,7 +993,7 @@ class _HomeScreenState extends State<HomeScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Quick actions',
+                context.tr('Quick actions'),
                 style: TextStyle(
                   color: isDark ? AppColors.paper : AppColors.lightTextMain,
                   fontSize: 13.5,
@@ -1077,9 +1078,9 @@ class _HomeScreenState extends State<HomeScreen>
     );
 
     final cards = [
-      ('Received', received, AppColors.pastelMint, Icons.south_west_rounded),
-      ('Due', due, AppColors.sky, Icons.schedule_rounded),
-      ('Expenses', expenses, AppColors.pastelRose, Icons.receipt_long_rounded),
+      (context.tr('Received'), received, AppColors.pastelMint, Icons.south_west_rounded),
+      (context.tr('Due'), due, AppColors.sky, Icons.schedule_rounded),
+      (context.tr('Expenses'), expenses, AppColors.pastelRose, Icons.receipt_long_rounded),
     ];
 
     return Row(
@@ -1446,7 +1447,7 @@ class _HomeScreenState extends State<HomeScreen>
             children: [
               Flexible(
                 child: Text(
-                  title,
+                  context.tr(title),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.outfit(
@@ -1491,7 +1492,7 @@ class _HomeScreenState extends State<HomeScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  actionLabel,
+                  context.tr(actionLabel),
                   style: TextStyle(
                     color: accent,
                     fontSize: 13,
@@ -1672,7 +1673,9 @@ class _HomeScreenState extends State<HomeScreen>
                     TextSpan(
                       children: [
                         TextSpan(
-                          text: dateStr,
+                          text: event.isMultiDay
+                              ? event.dateRangeFormatted('d MMM')
+                              : dateStr,
                           style: TextStyle(
                             color: textMain,
                             fontSize: 12,
@@ -1680,7 +1683,9 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                         ),
                         TextSpan(
-                          text: ' · $dayStr · ${event.location}',
+                          text: event.isMultiDay
+                              ? ' · ${event.location}'
+                              : ' · $dayStr · ${event.location}',
                           style: TextStyle(color: textMuted, fontSize: 11.5),
                         ),
                       ],

@@ -1,3 +1,4 @@
+import '../providers/language_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -108,13 +109,13 @@ class _StudioTextFieldState extends State<StudioTextField> {
           ),
           cursorColor: inputFocusBorder,
           decoration: InputDecoration(
-            hintText: widget.hint.isNotEmpty ? widget.hint : null,
+            hintText: widget.hint.isNotEmpty ? context.tr(widget.hint) : null,
             hintStyle: GoogleFonts.plusJakartaSans(
               color: textMuted,
               fontSize: 14.5,
               fontWeight: FontWeight.w400,
             ),
-            helperText: widget.helperText,
+            helperText: widget.helperText != null ? context.tr(widget.helperText!) : null,
             helperMaxLines: 2,
             helperStyle: GoogleFonts.plusJakartaSans(
               color: textMuted,
@@ -194,7 +195,7 @@ class _StudioTextFieldState extends State<StudioTextField> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              widget.label,
+              context.tr(widget.label),
               style: GoogleFonts.plusJakartaSans(
                 color: textSecondary,
                 fontSize: 13.5,

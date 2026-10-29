@@ -27,14 +27,20 @@ class PhotographerCategories {
     'Drones',
     'Internet Live Streaming',
     'Traditional Photographer Taker',
+    'Album Designer',
+    'Video Editor',
+    'Reels',
+    'Printing Labs',
   ];
 
   /// Operators
   static const List<String> operators = [
-    'Photographer',
-    'Videography',
     'Candid Photographer',
-    'Candid Videographer',
+    'Cinematic Videographer',
+    'Traditional Photo Operator',
+    'Traditional Video Operator',
+    'Candid Photo Operator',
+    'Candid Video Operator',
   ];
 
   /// Backward-compatible aliases
@@ -51,10 +57,15 @@ class PhotographerCategories {
     'LED Screens',
     'Drones',
     'Internet Live Streaming',
-    'Traditional Photographer Taker',
+    'Album Designer',
+    'Video Editor',
+    'Reels',
     'Photographer',
     'Videography',
-    'Candid Videographer',
+    'Traditional Photo Operator',
+    'Traditional Video Operator',
+    'Candid Photo Operator',
+    'Candid Video Operator',
   ];
 
   /// A generic "Other" category for custom roles
@@ -65,7 +76,7 @@ class PhotographerCategories {
     final lower = category.trim().toLowerCase();
     return lower == 'photographer' ||
         lower == 'videography' ||
-        lower == 'candid videographer' ||
-        lower.contains('operator');
+        lower.contains('operator') ||
+        lower.contains('taker');
   }
 }

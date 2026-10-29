@@ -7,7 +7,9 @@ import 'package:provider/provider.dart';
 import '../../models/client.dart';
 import '../../models/studio_event.dart';
 import '../../providers/events_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/validators.dart';
 import '../../widgets/studio_app_bar.dart';
 import '../../widgets/studio_button.dart';
 import '../../widgets/studio_card.dart';
@@ -89,7 +91,7 @@ class _ClientsScreenState extends State<ClientsScreen>
     return Material(
       color: Colors.transparent,
       child: Tooltip(
-        message: 'Filter Clients',
+        message: context.tr('Filter Clients'),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
           onTap: () => _openClientFilterSheet(context, allClients),
@@ -226,7 +228,7 @@ class _ClientsScreenState extends State<ClientsScreen>
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'Filter Clients',
+                    sheetContext.tr('Filter Clients'),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -241,7 +243,7 @@ class _ClientsScreenState extends State<ClientsScreen>
                         Navigator.of(sheetContext).pop();
                       },
                       child: Text(
-                        'Reset',
+                        sheetContext.tr('Reset'),
                         style: TextStyle(
                           color: accent,
                           fontSize: 13,
@@ -299,7 +301,7 @@ class _ClientsScreenState extends State<ClientsScreen>
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
-                                    filter.label,
+                                    sheetContext.tr(filter.label),
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 14,
                                       fontWeight: isSelected
@@ -406,8 +408,8 @@ class _ClientsScreenState extends State<ClientsScreen>
           child: Column(
             children: [
               StudioAppBar(
-                title: 'Clients',
-                subtitle: '${allClients.length} clients',
+                title: context.tr('Clients'),
+                subtitle: "${allClients.length} ${context.tr('clients')}",
                 actions: [
                   IconButton(
                     tooltip: 'Add Client',
@@ -428,7 +430,7 @@ class _ClientsScreenState extends State<ClientsScreen>
                       Expanded(
                         child: UiverseSearchBar(
                           controller: _searchController,
-                          hintText: 'Search by name or phone...',
+                          hintText: context.tr('Search by name or phone...'),
                           onChanged: (_) => setState(() {}),
                         ),
                       ),
@@ -470,7 +472,7 @@ class _ClientsScreenState extends State<ClientsScreen>
                                   ),
                                   const SizedBox(height: 14),
                                   Text(
-                                    'No clients found',
+                                    context.tr('No clients found'),
                                     style: GoogleFonts.plusJakartaSans(
                                       color: textMain,
                                       fontSize: 18,
@@ -479,7 +481,7 @@ class _ClientsScreenState extends State<ClientsScreen>
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    'Adjust your search or clear filters',
+                                    context.tr('Adjust your search or clear filters'),
                                     style: TextStyle(
                                         color: textMuted, fontSize: 13),
                                     textAlign: TextAlign.center,
@@ -713,7 +715,7 @@ class _ClientsScreenState extends State<ClientsScreen>
                                             const SizedBox(width: 5),
                                             Flexible(
                                               child: Text(
-                                                '${events.length} ${events.length == 1 ? 'Event' : 'Events'}'
+                                                "${events.length} ${events.length == 1 ? context.tr('Event') : context.tr('Events')}"
                                                 '${events.isNotEmpty ? ' · ${_currency.format(totalValue)}' : ''}',
                                                 maxLines: 1,
                                                 overflow:
@@ -756,7 +758,7 @@ class _ClientsScreenState extends State<ClientsScreen>
                                             ),
                                           ),
                                           child: Text(
-                                            '${_currency.format(totalRemaining)} Due',
+                                            "${_currency.format(totalRemaining)} ${context.tr('Due')}",
                                             maxLines: 1,
                                             overflow:
                                                 TextOverflow.ellipsis,
@@ -785,7 +787,7 @@ class _ClientsScreenState extends State<ClientsScreen>
                                                     999),
                                           ),
                                           child: Text(
-                                            'All Paid',
+                                            context.tr('All Paid'),
                                             style: TextStyle(
                                               color: accent,
                                               fontSize: 11,
@@ -883,7 +885,7 @@ class _ClientsScreenState extends State<ClientsScreen>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'New Client Profile',
+                                    sheetContext.tr('New Client Profile'),
                                     style: GoogleFonts.plusJakartaSans(
                                       color: textMain,
                                       fontSize: 18,
@@ -893,7 +895,7 @@ class _ClientsScreenState extends State<ClientsScreen>
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    'Inquiry lead, upcoming shoot, or past client',
+                                    sheetContext.tr('Inquiry lead, upcoming shoot, or past client'),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -958,7 +960,7 @@ class _ClientsScreenState extends State<ClientsScreen>
 
                           // Status Selector Section
                           Text(
-                            'Client Stage / Category',
+                            sheetContext.tr('Client Stage / Category'),
                             style: TextStyle(
                               color: textMuted,
                               fontSize: 12.5,
@@ -976,7 +978,7 @@ class _ClientsScreenState extends State<ClientsScreen>
                                 _buildAddClientStatusChip(
                                   sheetContext,
                                   status: ClientStatus.information,
-                                  label: 'Inquiry',
+                                  label: sheetContext.tr('Inquiry'),
                                   icon: Icons.chat_bubble_outline_rounded,
                                   color: const Color(0xFFFBBF24),
                                   isSelected: selectedStatus == ClientStatus.information,
@@ -986,7 +988,7 @@ class _ClientsScreenState extends State<ClientsScreen>
                                 _buildAddClientStatusChip(
                                   sheetContext,
                                   status: ClientStatus.comingUp,
-                                  label: 'Coming Up',
+                                  label: sheetContext.tr('Coming Up'),
                                   icon: Icons.calendar_today_rounded,
                                   color: AppColors.sky,
                                   isSelected: selectedStatus == ClientStatus.comingUp,
@@ -996,7 +998,7 @@ class _ClientsScreenState extends State<ClientsScreen>
                                 _buildAddClientStatusChip(
                                   sheetContext,
                                   status: ClientStatus.completed,
-                                  label: 'Completed',
+                                  label: sheetContext.tr('Completed'),
                                   icon: Icons.task_alt_rounded,
                                   color: const Color(0xFF34D399),
                                   isSelected: selectedStatus == ClientStatus.completed,
@@ -1006,7 +1008,7 @@ class _ClientsScreenState extends State<ClientsScreen>
                                 _buildAddClientStatusChip(
                                   sheetContext,
                                   status: ClientStatus.notResponded,
-                                  label: 'Not Responded',
+                                  label: sheetContext.tr('Not Responded'),
                                   icon: Icons.schedule_send_rounded,
                                   color: const Color(0xFF64748B),
                                   isSelected: selectedStatus == ClientStatus.notResponded,
@@ -1030,6 +1032,11 @@ class _ClientsScreenState extends State<ClientsScreen>
                             prefixIcon: Icons.phone_outlined,
                             controller: phoneController,
                             keyboardType: TextInputType.phone,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(10),
+                            ],
+                            validator: Validators.phone,
                           ),
                           const SizedBox(height: 14),
                           StudioTextField(
@@ -1076,12 +1083,10 @@ class _ClientsScreenState extends State<ClientsScreen>
                       ),
                     ),
                     child: StudioButton(
-                      label: 'Save Client Profile',
+                      label: sheetContext.tr('Save Client Profile'),
                       onPressed: () {
                         final name = nameController.text.trim();
-                        final phone = phoneController.text.trim();
-                        final digitsOnly =
-                            phone.replaceAll(RegExp(r'\D'), '');
+                        final phone = Validators.normalizePhone(phoneController.text);
 
                         if (name.isEmpty) {
                           HapticFeedback.heavyImpact();
@@ -1097,11 +1102,11 @@ class _ClientsScreenState extends State<ClientsScreen>
                           return;
                         }
 
-                        if (digitsOnly.length < 10) {
+                        if (phone.length != 10) {
                           HapticFeedback.heavyImpact();
-                          setSheetState(() => sheetError = 'Phone number must be at least 10 digits');
+                          setSheetState(() => sheetError = 'Phone number must be a valid 10-digit number');
                           AppSnackBar.error(
-                              sheetContext, 'Phone number must be at least 10 digits');
+                              sheetContext, 'Phone number must be a valid 10-digit number');
                           return;
                         }
 
@@ -1216,7 +1221,7 @@ class _ClientsScreenState extends State<ClientsScreen>
           const SizedBox(width: 7),
           Expanded(
             child: Text(
-              'No response after 15 days',
+              context.tr('No response after 15 days'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -1236,8 +1241,8 @@ class _ClientsScreenState extends State<ClientsScreen>
                 color: const Color(0xFF38BDF8).withValues(alpha: 0.35),
               ),
             ),
-            child: const Text(
-              'Follow Up',
+            child: Text(
+              context.tr('Follow Up'),
               style: TextStyle(
                 color: Color(0xFF38BDF8),
                 fontSize: 11,
@@ -1271,7 +1276,7 @@ class _ClientsScreenState extends State<ClientsScreen>
           const SizedBox(width: 7),
           Expanded(
             child: Text(
-              'Inquiry lead · Event not booked yet',
+              context.tr('Inquiry lead · Event not booked yet'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -1289,7 +1294,7 @@ class _ClientsScreenState extends State<ClientsScreen>
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
-              'Active',
+              context.tr('Active'),
               style: TextStyle(
                 color: isDark ? const Color(0xFFFDE68A) : const Color(0xFFB45309),
                 fontSize: 11,
@@ -1315,7 +1320,7 @@ class _ClientsScreenState extends State<ClientsScreen>
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              'No events scheduled yet',
+              context.tr('No events scheduled yet'),
               style: TextStyle(
                 color: context.textMuted,
                 fontSize: 12,

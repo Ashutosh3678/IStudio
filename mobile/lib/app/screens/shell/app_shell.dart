@@ -1,3 +1,4 @@
+import '../../providers/language_provider.dart';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -430,7 +431,7 @@ class _DockItemState extends State<_DockItem>
                               : FontWeight.w500,
                           letterSpacing: 0.2,
                         ),
-                        child: Text(widget.label, maxLines: 1),
+                        child: Text(context.tr(widget.label), maxLines: 1),
                       ),
                     ],
                   ),

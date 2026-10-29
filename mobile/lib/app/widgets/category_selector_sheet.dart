@@ -1,29 +1,34 @@
+import '../providers/language_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
 import '../utils/photographer_categories.dart';
 import 'studio_button.dart';
+import 'studio_text_field.dart';
 
 class CategorySelectorSheet extends StatefulWidget {
   const CategorySelectorSheet({
     super.key,
     required this.selected,
     required this.onChanged,
-    this.title = 'Select Photographer Roles & Categories',
-    this.subtitle = 'Choose multiple roles that define your studio and services',
+    this.title,
+    this.subtitle,
     this.isEmbedded = false,
   });
 
   final List<String> selected;
   final ValueChanged<List<String>> onChanged;
-  final String title;
-  final String subtitle;
+  final String? title;
+  final String? subtitle;
   final bool isEmbedded;
 
   static Future<List<String>?> show(
     BuildContext context, {
     required List<String> initial,
+    String? title,
+    String? subtitle,
   }) {
     List<String> current = List<String>.from(initial);
     return showModalBottomSheet<List<String>>(
@@ -52,6 +57,8 @@ class CategorySelectorSheet extends StatefulWidget {
           ),
           child: CategorySelectorSheet(
             selected: current,
+            title: title,
+            subtitle: subtitle,
             onChanged: (updated) => current = updated,
           ),
         );
@@ -65,19 +72,60 @@ class CategorySelectorSheet extends StatefulWidget {
 
 class _CategorySelectorSheetState extends State<CategorySelectorSheet> {
   late final Set<String> _selected;
+  bool _otherSelected = false;
+  final TextEditingController _customCategoryController = TextEditingController();
+
+  List<String> get _standardCategories => [
+        ...PhotographerCategories.primaryRoles,
+        ...PhotographerCategories.operatorRoles,
+      ];
 
   @override
   void initState() {
     super.initState();
     _selected = Set<String>.from(widget.selected);
+
+    // Check if initial selection contains custom items not in standard roles
+    final customItems = _selected.where((c) => !_standardCategories.contains(c)).toList();
+    if (customItems.isNotEmpty || _selected.contains(PhotographerCategories.otherCategory)) {
+      _otherSelected = true;
+      final customName = customItems.isNotEmpty
+          ? (customItems.first == PhotographerCategories.otherCategory ? '' : customItems.first)
+          : '';
+      _customCategoryController.text = customName;
+    }
   }
 
   @override
   void dispose() {
+    _customCategoryController.dispose();
     super.dispose();
   }
 
-  void _toggle(String category) {
+  void _notifyChange() {
+    final list = _computeResultList();
+    widget.onChanged(list);
+  }
+
+  List<String> _computeResultList() {
+    final result = <String>[];
+    for (final item in _selected) {
+      if (_standardCategories.contains(item)) {
+        result.add(item);
+      }
+    }
+    if (_otherSelected) {
+      final custom = _customCategoryController.text.trim();
+      if (custom.isNotEmpty) {
+        result.add(custom);
+      } else {
+        result.add(PhotographerCategories.otherCategory);
+      }
+    }
+    return result;
+  }
+
+  void _toggleStandard(String category) {
     setState(() {
       if (_selected.contains(category)) {
         _selected.remove(category);
@@ -85,12 +133,43 @@ class _CategorySelectorSheetState extends State<CategorySelectorSheet> {
         _selected.add(category);
       }
     });
-    widget.onChanged(_selected.toList());
+    _notifyChange();
+  }
+
+  void _toggleOther() {
+    setState(() {
+      _otherSelected = !_otherSelected;
+      if (!_otherSelected) {
+        _selected.removeWhere((c) => !_standardCategories.contains(c));
+        _selected.remove(PhotographerCategories.otherCategory);
+      } else {
+        final custom = _customCategoryController.text.trim();
+        _selected.add(custom.isNotEmpty ? custom : PhotographerCategories.otherCategory);
+      }
+    });
+    _notifyChange();
+  }
+
+  void _onCustomCategoryChanged(String val) {
+    setState(() {
+      _selected.removeWhere((c) => !_standardCategories.contains(c));
+      _selected.remove(PhotographerCategories.otherCategory);
+      final trimmed = val.trim();
+      if (_otherSelected) {
+        _selected.add(trimmed.isNotEmpty ? trimmed : PhotographerCategories.otherCategory);
+      }
+    });
+    _notifyChange();
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = context.isDark;
+    final l10n = AppLocalizations.of(context);
+    final titleText = widget.title ?? l10n.photographerRolesAndCategories;
+    final subtitleText = widget.subtitle ?? l10n.chooseMultipleRoles;
+
+    final resultCount = _computeResultList().length;
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(widget.isEmbedded ? 0 : 20),
@@ -117,7 +196,7 @@ class _CategorySelectorSheetState extends State<CategorySelectorSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.title,
+                        titleText,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
@@ -126,7 +205,7 @@ class _CategorySelectorSheetState extends State<CategorySelectorSheet> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        widget.subtitle,
+                        subtitleText,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 13,
                           color: context.textMuted,
@@ -136,9 +215,9 @@ class _CategorySelectorSheetState extends State<CategorySelectorSheet> {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Close',
+                  tooltip: l10n.cancel,
                   icon: Icon(Icons.close_rounded, color: context.textMuted),
-                  onPressed: () => Navigator.of(context).pop(_selected.toList()),
+                  onPressed: () => Navigator.of(context).pop(_computeResultList()),
                 ),
               ],
             ),
@@ -165,7 +244,7 @@ class _CategorySelectorSheetState extends State<CategorySelectorSheet> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  '${_selected.length} Selected (Multiple Allowed)',
+                  '$resultCount ${l10n.selected} (${l10n.multipleAllowed})',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -178,35 +257,57 @@ class _CategorySelectorSheetState extends State<CategorySelectorSheet> {
           const SizedBox(height: 18),
 
           // Primary Roles
-          _buildSectionHeader('Primary Roles', Icons.camera_alt_outlined),
+          _buildSectionHeader(l10n.primaryRoles, Icons.camera_alt_outlined),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: PhotographerCategories.primaryRoles
-                .map((role) => _buildChip(role))
+                .map((role) => _buildChip(role, isSelected: _selected.contains(role), onSelected: () => _toggleStandard(role)))
                 .toList(),
           ),
           const SizedBox(height: 20),
 
           // Operators
-          _buildSectionHeader('Operators', Icons.video_camera_back_outlined),
+          _buildSectionHeader(l10n.operators, Icons.video_camera_back_outlined),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: PhotographerCategories.operatorRoles
-                .map((role) => _buildChip(role))
+                .map((role) => _buildChip(role, isSelected: _selected.contains(role), onSelected: () => _toggleStandard(role)))
                 .toList(),
           ),
+          const SizedBox(height: 20),
 
+          // Other option section
+          _buildSectionHeader(l10n.other, Icons.add_circle_outline_rounded),
+          const SizedBox(height: 10),
+          _buildChip(
+            PhotographerCategories.otherCategory,
+            isSelected: _otherSelected,
+            onSelected: _toggleOther,
+            customAccentColor: const Color(0xFF8B5CF6),
+          ),
+
+          // Placeholder / input field if 'Other' is selected
+          if (_otherSelected) ...[
+            const SizedBox(height: 14),
+            StudioTextField(
+              label: l10n.specifyCustomCategory,
+              hint: l10n.specifyCategoryHint,
+              controller: _customCategoryController,
+              prefixIcon: Icons.edit_note_rounded,
+              onChanged: _onCustomCategoryChanged,
+            ),
+          ],
 
           if (!widget.isEmbedded) ...[
             const SizedBox(height: 24),
             StudioButton(
-              label: 'Done (${_selected.length} Selected)',
+              label: '${l10n.done} ($resultCount ${l10n.selected})',
               icon: Icons.check_rounded,
-              onPressed: () => Navigator.of(context).pop(_selected.toList()),
+              onPressed: () => Navigator.of(context).pop(_computeResultList()),
             ),
           ],
         ],
@@ -220,7 +321,7 @@ class _CategorySelectorSheetState extends State<CategorySelectorSheet> {
         Icon(icon, size: 16, color: context.textMuted),
         const SizedBox(width: 6),
         Text(
-          title,
+          context.tr(title),
           style: GoogleFonts.plusJakartaSans(
             fontSize: 13,
             fontWeight: FontWeight.w700,
@@ -232,38 +333,39 @@ class _CategorySelectorSheetState extends State<CategorySelectorSheet> {
     );
   }
 
-  Widget _buildChip(String label) {
-    final isSelected = _selected.contains(label);
+  Widget _buildChip(
+    String label, {
+    required bool isSelected,
+    required VoidCallback onSelected,
+    Color? customAccentColor,
+  }) {
     final isDark = context.isDark;
+    final activeColor = customAccentColor ?? AppColors.sky;
 
     return FilterChip(
       selected: isSelected,
       showCheckmark: true,
       checkmarkColor: Colors.white,
       label: Text(
-        label,
+        context.tr(label),
         style: GoogleFonts.plusJakartaSans(
           fontSize: 13,
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
           color: isSelected ? Colors.white : context.textMain,
         ),
       ),
-      selectedColor: AppColors.sky,
-      backgroundColor: isDark
-          ? const Color(0xFF1E2433)
-          : const Color(0xFFF1F5F9),
+      selectedColor: activeColor,
+      backgroundColor: isDark ? const Color(0xFF1E2433) : const Color(0xFFF1F5F9),
       side: BorderSide(
         color: isSelected
-            ? AppColors.sky
-            : (isDark
-                ? const Color(0xFF2E384D)
-                : const Color(0xFFE2E8F0)),
+            ? activeColor
+            : (isDark ? const Color(0xFF2E384D) : const Color(0xFFE2E8F0)),
         width: 1,
       ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      onSelected: (_) => _toggle(label),
+      onSelected: (_) => onSelected(),
     );
   }
 }

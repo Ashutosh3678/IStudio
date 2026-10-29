@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
@@ -240,7 +241,7 @@ class _AuthScreenState extends State<AuthScreen>
                                     color: context.accentColor,
                                   ),
                                   label: Text(
-                                    'New here? Discover all app features →',
+                                    context.tr('New here? Discover all app features →'),
                                     style: GoogleFonts.plusJakartaSans(
                                       color: context.accentColor,
                                       fontWeight: FontWeight.w700,
@@ -297,10 +298,10 @@ class _LegalFooter extends StatelessWidget {
         alignment: WrapAlignment.center,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Text('By continuing, you agree to our ', style: baseStyle),
-          link('Terms & Conditions', LegalDocument.terms),
-          Text(' and ', style: baseStyle),
-          link('Privacy Policy', LegalDocument.privacy),
+          Text(context.tr('By continuing, you agree to our '), style: baseStyle),
+          link(context.tr('Terms & Conditions'), LegalDocument.terms),
+          Text(context.tr(' and '), style: baseStyle),
+          link(context.tr('Privacy Policy'), LegalDocument.privacy),
         ],
       ),
     );
@@ -367,7 +368,7 @@ class _AuthCard extends StatelessWidget {
                 spacing: 6,
                 children: [
                   Text(
-                    isLogin ? 'Welcome' : 'Create',
+                    isLogin ? context.tr('Welcome') : context.tr('Create'),
                     style: GoogleFonts.playfairDisplay(
                       color: isDark ? Colors.white : const Color(0xFF0F172A),
                       fontSize: 32,
@@ -392,7 +393,7 @@ class _AuthCard extends StatelessWidget {
                       end: Alignment.bottomRight,
                     ).createShader(bounds),
                     child: Text(
-                      isLogin ? 'back' : 'account',
+                      isLogin ? context.tr('back') : context.tr('account'),
                       style: GoogleFonts.alexBrush(
                         color: Colors.white,
                         fontSize: isLogin ? 44 : 38,
@@ -519,7 +520,7 @@ class _AuthCard extends StatelessWidget {
           const SizedBox(height: 16),
           GoogleSignInButton(
             isLoading: isLoading,
-            label: isLogin ? 'Sign in with Google' : 'Sign up with Google',
+            label: isLogin ? context.tr('Sign in with Google') : context.tr('Sign up with Google'),
             onPressed: isLoading ? null : onGoogleSignIn,
           ),
         ],

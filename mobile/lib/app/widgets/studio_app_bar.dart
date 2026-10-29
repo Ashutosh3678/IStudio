@@ -1,3 +1,4 @@
+import '../providers/language_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -66,7 +67,7 @@ class StudioAppBar extends StatelessWidget implements PreferredSizeWidget {
                         end: Alignment.centerRight,
                       ).createShader(bounds),
                       child: Text(
-                        title,
+                        context.tr(title),
                         maxLines: 1,
                         style: GoogleFonts.outfit(
                           fontSize: 22,
@@ -81,7 +82,7 @@ class StudioAppBar extends StatelessWidget implements PreferredSizeWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
-                        subtitle!,
+                        context.tr(subtitle!),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(

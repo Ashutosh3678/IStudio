@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/studio_event.dart';
 import '../../providers/events_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/countdown_chip.dart';
 import '../../widgets/month_calendar.dart';
@@ -71,38 +72,39 @@ class _CalendarScreenState extends State<CalendarScreen>
     final accent = context.accentColor;
 
     final dayEvents = allEvents.where((event) {
-      final date = event.startsAt;
-      return date.year == _selected.year &&
-          date.month == _selected.month &&
-          date.day == _selected.day;
+      return event.isOccurringOn(_selected);
     }).toList()
       ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
 
     final upcomingEvents = allEvents
         .where((event) {
-          final eventDay = _dateOnly(event.startsAt);
+          final eventEndDay = _dateOnly(event.effectiveEndsAt);
           final hasUpcomingStatus = event.status == EventStatus.upcoming ||
               event.status == EventStatus.inProgress;
-          return hasUpcomingStatus && !eventDay.isBefore(today);
+          return hasUpcomingStatus && !eventEndDay.isBefore(today);
         })
         .toList()
       ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
 
-    final marked = allEvents
-        .map(
-          (event) => DateTime(
-            event.startsAt.year,
-            event.startsAt.month,
-            event.startsAt.day,
-          ),
-        )
-        .toSet();
+    final marked = <DateTime>{};
+    for (final event in allEvents) {
+      marked.addAll(event.eventDays.map(_dateOnly));
+    }
 
-    final upcomingDays =
-        upcomingEvents.map((event) => _dateOnly(event.startsAt)).toSet();
+    final upcomingDays = <DateTime>{};
+    for (final event in upcomingEvents) {
+      upcomingDays.addAll(event.eventDays.map(_dateOnly));
+    }
     final nearestUpcomingDay = upcomingEvents.isEmpty
         ? null
         : _dateOnly(upcomingEvents.first.startsAt);
+
+    final eventRanges = allEvents
+        .map((e) => (
+              start: DateTime(e.startsAt.year, e.startsAt.month, e.startsAt.day),
+              end: DateTime(e.effectiveEndsAt.year, e.effectiveEndsAt.month, e.effectiveEndsAt.day),
+            ))
+        .toList();
 
     return SafeArea(
       child: Center(
@@ -111,8 +113,8 @@ class _CalendarScreenState extends State<CalendarScreen>
           child: Column(
             children: [
               StudioAppBar(
-                title: 'Calendar',
-                subtitle: 'Booked sessions',
+                title: context.tr('Calendar'),
+                subtitle: context.tr('Booked sessions'),
                 actions: [
                   IconButton(
                     tooltip: 'Jump to Date',
@@ -168,6 +170,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                             markedDays: marked,
                             upcomingDays: upcomingDays,
                             nearestUpcomingDay: nearestUpcomingDay,
+                            eventRanges: eventRanges,
                             onMonthChanged: (value) =>
                                 setState(() => _month = value),
                             onDaySelected: (value) =>
@@ -206,7 +209,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Monthly Earnings',
+                                      context.tr('Monthly Earnings'),
                                       style: TextStyle(
                                         color: textMain,
                                         fontSize: 13.5,
@@ -215,7 +218,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      'Income, expenses & profit for ${DateFormat('MMMM yyyy').format(_month)}',
+                                      "${context.tr('Income, expenses & profit for')} ${DateFormat('MMMM yyyy').format(_month)}",
                                       style: TextStyle(
                                         color: textMuted,
                                         fontSize: 11.5,
@@ -262,7 +265,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                                   color: accent.withValues(alpha: 0.28)),
                             ),
                             child: Text(
-                              '${dayEvents.length} ${dayEvents.length == 1 ? 'Shoot' : 'Shoots'}',
+                              "${dayEvents.length} ${dayEvents.length == 1 ? context.tr('Shoot') : context.tr('Shoots')}",
                               style: TextStyle(
                                 color: accent,
                                 fontSize: 11,
@@ -305,7 +308,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                                         ),
                                         const SizedBox(height: 10),
                                         Text(
-                                          'No events on this day',
+                                          context.tr('No events on this day'),
                                           style: Theme.of(context)
                                               .textTheme
                                               .bodyMedium
@@ -339,6 +342,12 @@ class _CalendarScreenState extends State<CalendarScreen>
     );
   }
 
+  int _currentShootDayNumber(StudioEvent event, DateTime day) {
+    final start = _dateOnly(event.startsAt);
+    final current = _dateOnly(day);
+    final diff = current.difference(start).inDays;
+    return (diff >= 0 && diff < event.durationInDays) ? diff + 1 : 1;
+  }
   void _openEventDetails(BuildContext context, StudioEvent event) {
     Navigator.of(context).push(
       SmoothPageRoute(
@@ -350,7 +359,7 @@ class _CalendarScreenState extends State<CalendarScreen>
   Widget _buildEventCard(BuildContext context, StudioEvent event) {
     final amountDue = event.remainingAmount;
     final amountText =
-        amountDue > 0 ? _currency.format(amountDue) : 'Paid in Full';
+        amountDue > 0 ? _currency.format(amountDue) : context.tr('Paid in Full');
     final accent = context.accentColor;
     final textMain = context.textMain;
     final textMuted = context.textMuted;
@@ -409,7 +418,9 @@ class _CalendarScreenState extends State<CalendarScreen>
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '${event.clientName} · ${event.eventType}',
+                      event.isMultiDay
+                          ? '${event.clientName} · ${event.eventType} · ${event.dateRangeFormatted('d MMM')}'
+                          : '${event.clientName} · ${event.eventType}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -462,7 +473,9 @@ class _CalendarScreenState extends State<CalendarScreen>
                 Icon(Icons.schedule_rounded, size: 14, color: accent),
                 const SizedBox(width: 6),
                 Text(
-                  '${event.startTime} – ${event.endTime}',
+                  event.isMultiDay
+                      ? 'Day ${_currentShootDayNumber(event, _selected)}/${event.durationInDays} · ${event.startTime} – ${event.endTime}'
+                      : '${event.startTime} – ${event.endTime}',
                   style: TextStyle(
                       color: textMain,
                       fontSize: 12,
@@ -488,7 +501,7 @@ class _CalendarScreenState extends State<CalendarScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Balance: $amountText',
+                "${context.tr('Balance')}: $amountText",
                 style: TextStyle(
                   color: amountDue > 0
                       ? AppColors.urgencyWarning(context)
@@ -501,7 +514,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Details',
+                    context.tr('Details'),
                     style: TextStyle(
                       color: accent,
                       fontSize: 12,

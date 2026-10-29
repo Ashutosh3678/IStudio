@@ -97,7 +97,7 @@ function renderDeleteDataPage({ submitted = false, error = '' } = {}) {
         <label for="email">Account email</label>
         <input id="email" name="email" type="email" autocomplete="email" maxlength="254" required>
         <label for="phone">Account phone number</label>
-        <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" placeholder="10-digit number" required>
+        <input id="phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="10" pattern="[0-9]{10}" placeholder="10-digit number" required>
         <div class="trap" aria-hidden="true"><label for="company">Leave this field empty</label><input id="company" name="company" tabindex="-1" autocomplete="off"></div>
         <button type="submit">Submit deletion request</button>
       </form>`;

@@ -1,3 +1,4 @@
+import '../../providers/language_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,6 +12,7 @@ import '../../utils/photographer_categories.dart';
 import '../../utils/validators.dart';
 import '../../widgets/avatar_crop_screen.dart';
 import '../../widgets/category_selector_sheet.dart';
+import '../../widgets/location_dropdowns.dart';
 import '../../widgets/location_search_field.dart';
 import '../../widgets/profile_avatar.dart';
 import '../../widgets/studio_button.dart';
@@ -54,7 +56,7 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
     _studioName = TextEditingController(text: user?.studioName ?? '');
     _ownerName = TextEditingController(text: user?.ownerName ?? '');
     _username = TextEditingController(text: user?.username ?? '');
-    _phone = TextEditingController(text: user?.phone ?? '');
+    _phone = TextEditingController(text: Validators.normalizePhone(user?.phone ?? ''));
     _email = TextEditingController(text: user?.email ?? '');
     _city = TextEditingController(text: user?.city ?? '');
     _state = TextEditingController(text: user?.state ?? '');
@@ -234,11 +236,11 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
                     child: TextButton.icon(
                       onPressed: busy ? null : auth.logout,
                       icon: const Icon(Icons.logout_rounded, size: 16),
-                      label: const Text('Sign out'),
+                      label: Text(context.tr('Sign out')),
                     ),
                   ),
                   Text(
-                    'Set up your studio',
+                    context.tr('Set up your studio'),
                     style: GoogleFonts.playfairDisplay(
                       color: context.textMain,
                       fontSize: 28,
@@ -247,7 +249,7 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Tell us about your photography studio. These details appear on your receipts and profile.',
+                    context.tr('Tell us about your photography studio. These details appear on your receipts and profile.'),
                     style: GoogleFonts.plusJakartaSans(
                       color: context.textMuted,
                       fontSize: 13.5,
@@ -300,7 +302,7 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
                   const SizedBox(height: 8),
                   Center(
                     child: Text(
-                      'Studio logo (optional)',
+                      context.tr('Studio logo (optional)'),
                       style: TextStyle(color: context.textMuted, fontSize: 12),
                     ),
                   ),
@@ -375,7 +377,7 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
                       children: [
                         StudioTextField(
                           label: 'Mobile number *',
-                          hint: '10-digit mobile number',
+                          hint: '9876543210',
                           controller: _phone,
                           keyboardType: TextInputType.phone,
                           prefixIcon: Icons.phone_outlined,
@@ -424,28 +426,12 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
                           },
                         ),
                         const SizedBox(height: 14),
-                        StudioTextField(
-                          label: 'City *',
-                          hint: 'e.g. Mumbai, New York, London',
-                          controller: _city,
-                          prefixIcon: Icons.location_city_outlined,
-                          validator: (v) => _required(v, 'Enter your city'),
-                        ),
-                        const SizedBox(height: 14),
-                        StudioTextField(
-                          label: 'State / Region *',
-                          hint: 'e.g. Telangana, California, Ontario',
-                          controller: _state,
-                          prefixIcon: Icons.map_outlined,
-                          validator: (v) => _required(v, 'Enter your state or region'),
-                        ),
-                        const SizedBox(height: 14),
-                        StudioTextField(
-                          label: 'District / Area *',
-                          hint: 'e.g. Hyderabad, Manhattan, Westminster',
-                          controller: _district,
-                          prefixIcon: Icons.location_city_outlined,
-                          validator: (v) => _required(v, 'Enter your district or area'),
+                        LocationDropdowns(
+                          stateController: _state,
+                          districtController: _district,
+                          cityController: _city,
+                          stateValidator: (v) => _required(v, 'Enter or select your state / region'),
+                          districtValidator: (v) => _required(v, 'Enter or select your district / city'),
                         ),
                         const SizedBox(height: 14),
                         StudioTextField(
@@ -639,7 +625,7 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 10),
       child: Text(
-        title,
+        context.tr(title),
         style: GoogleFonts.plusJakartaSans(
           color: context.textMain,
           fontSize: 15,

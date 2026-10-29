@@ -5,6 +5,9 @@ import 'package:intl/intl.dart';
 
 import '../theme/app_colors.dart';
 
+/// Describes a continuous date range for an event.
+typedef EventRange = ({DateTime start, DateTime end});
+
 class MonthCalendar extends StatelessWidget {
   const MonthCalendar({
     super.key,
@@ -15,6 +18,7 @@ class MonthCalendar extends StatelessWidget {
     required this.onDaySelected,
     this.upcomingDays = const {},
     this.nearestUpcomingDay,
+    this.eventRanges = const [],
   });
 
   final DateTime visibleMonth;
@@ -28,6 +32,9 @@ class MonthCalendar extends StatelessWidget {
 
   /// The single nearest upcoming event date (gets strongest highlight).
   final DateTime? nearestUpcomingDay;
+
+  /// Full date ranges for events — used to draw continuous multi-day shoot cards & banners.
+  final List<EventRange> eventRanges;
 
   final ValueChanged<DateTime> onMonthChanged;
   final ValueChanged<DateTime> onDaySelected;
@@ -48,9 +55,35 @@ class MonthCalendar extends StatelessWidget {
     final nearestNorm =
         nearestUpcomingDay != null ? _dateOnly(nearestUpcomingDay!) : null;
 
+    final normRanges = eventRanges
+        .map((r) => (start: _dateOnly(r.start), end: _dateOnly(r.end)))
+        .where((r) => r.start != r.end) // Only multi-day events
+        .toList();
+
     final textMain = context.textMain;
     final textMuted = context.textMuted;
     final accent = context.accentColor;
+
+    // Group month days into 7-day weeks
+    final List<List<DateTime?>> weeks = [];
+    List<DateTime?> currentWeek = [];
+
+    for (int i = 0; i < leading; i++) {
+      currentWeek.add(null);
+    }
+    for (int day = 1; day <= daysInMonth; day++) {
+      currentWeek.add(DateTime(visibleMonth.year, visibleMonth.month, day));
+      if (currentWeek.length == 7) {
+        weeks.add(currentWeek);
+        currentWeek = [];
+      }
+    }
+    if (currentWeek.isNotEmpty) {
+      while (currentWeek.length < 7) {
+        currentWeek.add(null);
+      }
+      weeks.add(currentWeek);
+    }
 
     return Column(
       children: [
@@ -148,8 +181,8 @@ class MonthCalendar extends StatelessWidget {
           ],
         ),
 
-        // Weekday labels
-        const SizedBox(height: 4),
+        // Weekday labels (S M T W T F S)
+        const SizedBox(height: 6),
         const Row(
           children: [
             _WeekLabel('S'),
@@ -161,63 +194,170 @@ class MonthCalendar extends StatelessWidget {
             _WeekLabel('S'),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
 
-        // Day grid
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: leading + daysInMonth,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 7,
-            mainAxisSpacing: 4,
-            crossAxisSpacing: 4,
-            childAspectRatio: 0.85,
-          ),
-          itemBuilder: (context, index) {
-            if (index < leading) return const SizedBox.shrink();
+        // Weeks List
+        ...weeks.map((week) {
+          // Identify multi-day ranges that intersect with this week
+          final weekValidDays = week.whereType<DateTime>().toList();
+          final segmentsInWeek = <({int startCol, int endCol, int totalDays})>[];
 
-            final day = DateTime(
-              visibleMonth.year,
-              visibleMonth.month,
-              index - leading + 1,
-            );
+          if (weekValidDays.isNotEmpty) {
+            for (final r in normRanges) {
+              int startCol = -1;
+              int endCol = -1;
+              for (int col = 0; col < 7; col++) {
+                final d = week[col];
+                if (d != null && !d.isBefore(r.start) && !d.isAfter(r.end)) {
+                  if (startCol == -1) startCol = col;
+                  endCol = col;
+                }
+              }
+              if (startCol != -1 && endCol != -1) {
+                final totalDays = r.end.difference(r.start).inDays + 1;
+                segmentsInWeek.add((
+                  startCol: startCol,
+                  endCol: endCol,
+                  totalDays: totalDays,
+                ));
+              }
+            }
+          }
 
-            final isSelected = _dateOnly(selectedDay) == day;
-            final isToday = today == day;
-            final isNearest = nearestNorm != null && nearestNorm == day;
-            final isUpcoming = upcomingNorm.contains(day);
-            final isPastMarked =
-                markedNorm.contains(day) && day.isBefore(today);
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Row of 7 day cells
+              Row(
+                children: List.generate(7, (col) {
+                  final day = week[col];
+                  if (day == null) {
+                    return const Expanded(child: SizedBox(height: 50));
+                  }
 
-            return Semantics(
-              button: true,
-              selected: isSelected,
-              label: DateFormat('EEEE d MMMM').format(day),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  onDaySelected(day);
-                },
-                child: _DayCell(
-                  day: day,
-                  isSelected: isSelected,
-                  isToday: isToday,
-                  isNearest: isNearest,
-                  isUpcoming: isUpcoming,
-                  isPastMarked: isPastMarked,
-                ),
+                  final isSelected = _dateOnly(selectedDay) == day;
+                  final isToday = today == day;
+                  final isNearest = nearestNorm != null && nearestNorm == day;
+                  final isUpcoming = upcomingNorm.contains(day);
+                  final isPastMarked =
+                      markedNorm.contains(day) && day.isBefore(today);
+
+                  // Check if day is part of a multi-day range
+                  EventRange? matchedRange;
+                  for (final r in normRanges) {
+                    if (!day.isBefore(r.start) && !day.isAfter(r.end)) {
+                      matchedRange = r;
+                      break;
+                    }
+                  }
+
+                  return Expanded(
+                    child: Semantics(
+                      button: true,
+                      selected: isSelected,
+                      label: DateFormat('EEEE d MMMM').format(day),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          onDaySelected(day);
+                        },
+                        child: _DayCell(
+                          day: day,
+                          isSelected: isSelected,
+                          isToday: isToday,
+                          isNearest: isNearest,
+                          isUpcoming: isUpcoming,
+                          isPastMarked: isPastMarked,
+                          range: matchedRange,
+                          isFirstCol: col == 0,
+                          isLastCol: col == 6,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
               ),
-            );
-          },
-        ),
+
+              // Multi-day shoot subtitle indicator below the week: ─── 📅 5-day shoot ───
+              ...segmentsInWeek.map((seg) {
+                return Padding(
+                  padding: const EdgeInsets.only(top: 2, bottom: 6),
+                  child: Row(
+                    children: [
+                      if (seg.startCol > 0) Spacer(flex: seg.startCol),
+                      Expanded(
+                        flex: seg.endCol - seg.startCol + 1,
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: Divider(
+                                  color: accent.withValues(alpha: 0.35),
+                                  thickness: 1,
+                                  endIndent: 6,
+                                ),
+                              ),
+                              Icon(
+                                Icons.calendar_month_outlined,
+                                size: 11,
+                                color: accent,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${seg.totalDays}-day shoot',
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: accent,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              Expanded(
+                                child: Divider(
+                                  color: accent.withValues(alpha: 0.35),
+                                  thickness: 1,
+                                  indent: 6,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (seg.endCol < 6) Spacer(flex: 6 - seg.endCol),
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 2),
+            ],
+          );
+        }),
 
         // Legend
         const SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Container(
+              width: 18,
+              height: 7,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.24),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              'Event range',
+              style: TextStyle(
+                color: textMuted,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 14),
             Container(
               width: 6,
               height: 6,
@@ -231,7 +371,7 @@ class MonthCalendar extends StatelessWidget {
               'Upcoming event',
               style: TextStyle(
                 color: textMuted,
-                fontSize: 10,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -251,6 +391,9 @@ class _DayCell extends StatelessWidget {
     required this.isNearest,
     required this.isUpcoming,
     required this.isPastMarked,
+    required this.range,
+    required this.isFirstCol,
+    required this.isLastCol,
   });
 
   final DateTime day;
@@ -259,34 +402,161 @@ class _DayCell extends StatelessWidget {
   final bool isNearest;
   final bool isUpcoming;
   final bool isPastMarked;
+  final EventRange? range;
+  final bool isFirstCol;
+  final bool isLastCol;
+
+  static DateTime _dateOnly(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
 
   @override
   Widget build(BuildContext context) {
     final accent = context.accentColor;
     final textMain = context.textMain;
     final textMuted = context.textMuted;
+    final isDark = context.isDark;
 
-    Color bgColor = Colors.transparent;
-    Border border = Border.all(color: Colors.transparent, width: 1.5);
-    List<BoxShadow>? shadows;
+    // ─────────────────────────────────────────────────────────────────────────
+    // CASE A: Day is part of a Multi-Day Event Range (renders like user mockup)
+    // ─────────────────────────────────────────────────────────────────────────
+    if (range != null) {
+      final rangeStart = _dateOnly(range!.start);
+      final rangeEnd = _dateOnly(range!.end);
+      final isStart = day == rangeStart;
+      final isEnd = day == rangeEnd;
+
+      // Card styling for multi-day range
+      Color cardBg;
+      Color numColor;
+      Color subColor;
+      List<BoxShadow>? shadows;
+
+      if (isStart || isEnd || isSelected) {
+        // Solid accent for boundary dates or when actively selected
+        cardBg = accent;
+        numColor = Colors.white;
+        subColor = Colors.white.withValues(alpha: 0.88);
+        shadows = [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.35),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ];
+      } else {
+        // Soft accent background for middle days
+        cardBg = accent.withValues(alpha: isDark ? 0.20 : 0.10);
+        numColor = textMain;
+        subColor = accent;
+      }
+
+      final weekdayName = DateFormat('E').format(day); // 'Sun', 'Mon', etc.
+
+      // Connecting track behind cards
+      final leftRadius = (isStart || isFirstCol) ? const Radius.circular(12) : Radius.zero;
+      final rightRadius = (isEnd || isLastCol) ? const Radius.circular(12) : Radius.zero;
+
+      return Container(
+        height: 52,
+        alignment: Alignment.center,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Track uniting the range segment
+            Positioned(
+              left: (isStart || isFirstCol) ? 2 : 0,
+              right: (isEnd || isLastCol) ? 2 : 0,
+              top: 2,
+              bottom: 2,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: isDark ? 0.10 : 0.05),
+                  borderRadius: BorderRadius.only(
+                    topLeft: leftRadius,
+                    bottomLeft: leftRadius,
+                    topRight: rightRadius,
+                    bottomRight: rightRadius,
+                  ),
+                ),
+              ),
+            ),
+
+            // Day card with Date number on top & Weekday name below
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: shadows,
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '${day.day}',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: numColor,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      weekdayName,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: subColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 9.5,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CASE B: Standard Day Cell — STRICTLY USES A PERFECT CIRCLE (never oval)
+    // ─────────────────────────────────────────────────────────────────────────
+    Color circleBg = Colors.transparent;
+    Border circleBorder = Border.all(color: Colors.transparent, width: 1.5);
+    List<BoxShadow>? circleShadows;
 
     if (isSelected) {
-      bgColor = accent;
-    } else if (isNearest) {
-      bgColor = accent.withValues(alpha: 0.25);
-      border = Border.all(color: accent, width: 1.5);
-      shadows = [
+      circleBg = accent;
+      circleShadows = [
         BoxShadow(
-          color: accent.withValues(alpha: 0.25),
-          blurRadius: 8,
-          spreadRadius: 1,
+          color: accent.withValues(alpha: 0.35),
+          blurRadius: 6,
+          offset: const Offset(0, 2),
+        ),
+      ];
+    } else if (isNearest) {
+      circleBg = accent.withValues(alpha: 0.20);
+      circleBorder = Border.all(color: accent, width: 1.5);
+      circleShadows = [
+        BoxShadow(
+          color: accent.withValues(alpha: 0.20),
+          blurRadius: 6,
+          spreadRadius: 0.5,
         ),
       ];
     } else if (isToday) {
-      bgColor = accent.withValues(alpha: 0.14);
-      border = Border.all(color: accent.withValues(alpha: 0.50), width: 1.5);
+      circleBg = accent.withValues(alpha: 0.12);
+      circleBorder = Border.all(
+        color: accent.withValues(alpha: 0.65),
+        width: 1.5,
+      );
     } else if (isUpcoming) {
-      bgColor = accent.withValues(alpha: 0.10);
+      circleBg = accent.withValues(alpha: 0.10);
     }
 
     Color textColor;
@@ -317,36 +587,45 @@ class _DayCell extends StatelessWidget {
       dotColor = textMuted.withValues(alpha: 0.50);
     }
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutCubic,
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(10),
-        border: border,
-        boxShadow: shadows,
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            '${day.day}',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+    return Container(
+      height: 52,
+      alignment: Alignment.center,
+      child: Center(
+        // Explicit 36x36 with BoxShape.circle guarantees a mathematical CIRCLE
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: circleBg,
+            shape: BoxShape.circle,
+            border: circleBorder,
+            boxShadow: circleShadows,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '${day.day}',
+                style: GoogleFonts.plusJakartaSans(
                   color: textColor,
                   fontWeight: textWeight,
                   fontSize: 13,
                 ),
+              ),
+              const SizedBox(height: 1),
+              Container(
+                width: 3.5,
+                height: 3.5,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: dotColor,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 2),
-          Container(
-            width: 4,
-            height: 4,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: dotColor,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

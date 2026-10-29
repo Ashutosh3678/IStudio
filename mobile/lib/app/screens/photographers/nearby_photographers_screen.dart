@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../models/photographer_profile.dart';
 import '../../models/studio_event.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../services/photographer_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_motion.dart';
@@ -336,7 +337,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
                         const Icon(Icons.event_note_rounded, size: 16, color: AppColors.sky),
                         const SizedBox(width: 6),
                         Text(
-                          'Event Summary',
+                          ctx.tr('Event Summary'),
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -376,7 +377,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
                   ),
                   icon: const Icon(Icons.chat_rounded, size: 20),
                   label: Text(
-                    'Send via WhatsApp',
+                    ctx.tr('Send via WhatsApp'),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -408,7 +409,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
                   ),
                   icon: Icon(Icons.share_outlined, color: ctx.textMain, size: 18),
                   label: Text(
-                    'More Sharing Options',
+                    ctx.tr('More Sharing Options'),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -532,7 +533,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
               if (photographer.about.trim().isNotEmpty) ...[
                 const SizedBox(height: 14),
                 Text(
-                  'About',
+                  ctx.tr('About'),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -553,7 +554,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
               if (photographer.categories.isNotEmpty) ...[
                 const SizedBox(height: 14),
                 Text(
-                  'Categories & Services',
+                  ctx.tr('Categories & Services'),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -664,7 +665,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
         child: Column(
           children: [
             StudioAppBar(
-              title: event == null ? 'Discover Photographers' : 'Nearby Photographers',
+              title: event == null ? context.tr('Discover Photographers') : context.tr('Nearby Photographers'),
               subtitle: appBarSubtitle,
               leading: (event != null || Navigator.of(context).canPop() || _isBrowsingIndiaLocations)
                   ? IconButton(
@@ -738,7 +739,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Explore Photographers in India',
+                context.tr('Explore Photographers in India'),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -747,7 +748,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Select a state or union territory to discover verified local studios and operators.',
+                context.tr('Select a state or union territory to discover verified local studios and operators.'),
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12.5,
                   color: context.textMuted,
@@ -783,7 +784,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
               ),
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search_rounded, color: AppColors.sky, size: 20),
-                hintText: 'Search 36 states & union territories...',
+                hintText: context.tr('Search 36 states & union territories...'),
                 hintStyle: GoogleFonts.plusJakartaSans(
                   fontSize: 13,
                   color: context.textMuted,
@@ -881,7 +882,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
-                                  '$districtCount districts',
+                                  '$districtCount ${context.tr('districts')}',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w500,
@@ -932,7 +933,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
                 Expanded(
                   child: RichText(
                     text: TextSpan(
-                      text: 'State: ',
+                      text: '${context.tr('State')}: ',
                       style: GoogleFonts.plusJakartaSans(fontSize: 12.5, color: context.textMuted),
                       children: [
                         TextSpan(
@@ -954,7 +955,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
                     foregroundColor: AppColors.sky,
                   ),
                   icon: const Icon(Icons.edit_location_alt_rounded, size: 14),
-                  label: const Text('Change State', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  label: Text(context.tr('Change State'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                   onPressed: () {
                     HapticFeedback.lightImpact();
                     setState(() {
@@ -973,7 +974,7 @@ class _NearbyPhotographersScreenState extends State<NearbyPhotographersScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(18, 4, 18, 6),
           child: Text(
-            'Select District in $state',
+            '${context.tr('Select District in')} $state',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 16,
               fontWeight: FontWeight.w800,

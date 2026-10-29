@@ -1,3 +1,4 @@
+import '../../providers/language_provider.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,6 +16,7 @@ import '../../services/location_search_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/app_snackbar.dart';
 import '../../utils/geo_distance_utils.dart';
+import '../../utils/validators.dart';
 import '../../widgets/location_search_field.dart';
 import '../../widgets/studio_button.dart';
 import '../../widgets/studio_text_field.dart';
@@ -65,7 +67,14 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
   final _customEventTypeController = TextEditingController();
 
   String _eventType = 'Wedding';
-  DateTime _selectedDate = DateTime.now().add(const Duration(days: 3));
+  DateTime _startDate = DateTime.now().add(const Duration(days: 3));
+  DateTime _endDate = DateTime.now().add(const Duration(days: 3));
+  int get _durationInDays {
+    final start = DateTime(_startDate.year, _startDate.month, _startDate.day);
+    final end = DateTime(_endDate.year, _endDate.month, _endDate.day);
+    final diff = end.difference(start).inDays;
+    return diff >= 0 ? diff + 1 : 1;
+  }
   TimeOfDay _startTime = const TimeOfDay(hour: 10, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 18, minute: 0);
 
@@ -123,7 +132,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
     if (widget.initialClient != null) {
       _selectedClient = widget.initialClient;
       _clientController.text = widget.initialClient!.name;
-      _phoneController.text = widget.initialClient!.phone;
+      _phoneController.text = Validators.normalizePhone(widget.initialClient!.phone);
     }
     _totalAmountController.addListener(_onAmountChanged);
     _advanceController.addListener(_onAmountChanged);
@@ -159,7 +168,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
       if (match.id.isNotEmpty &&
           match.phone.isNotEmpty &&
           _phoneController.text.isEmpty) {
-        _phoneController.text = match.phone;
+        _phoneController.text = Validators.normalizePhone(match.phone);
       }
     }
   }
@@ -174,13 +183,44 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
   double get _remainingAmount =>
       (_totalAmount - _advanceReceived).clamp(0.0, double.infinity);
 
-  Future<void> _pickDate() async {
+  void _checkConflicts() {
+    if (!mounted) return;
+    final allEvents = context.read<EventsProvider>().events;
+    final conflicting = allEvents.where((e) {
+      for (int i = 0; i < _durationInDays; i++) {
+        final day = DateTime(
+          _startDate.year,
+          _startDate.month,
+          _startDate.day,
+        ).add(Duration(days: i));
+        if (e.isOccurringOn(day)) return true;
+      }
+      return false;
+    }).toList();
+
+    if (conflicting.isNotEmpty && mounted) {
+      final names =
+          conflicting.take(2).map((e) => '"${e.title}"').join(' & ');
+      final extra = conflicting.length > 2
+          ? ' +${conflicting.length - 2} more'
+          : '';
+      AppSnackBar.info(
+        context,
+        '$names$extra already booked on this date. Would you like to add another shoot on the same day?',
+        duration: const Duration(seconds: 5),
+        icon: Icons.event_busy_rounded,
+      );
+    }
+  }
+
+  Future<void> _pickStartDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
+      initialDate: _startDate,
       firstDate: now.subtract(const Duration(days: 365)),
       lastDate: now.add(const Duration(days: 365 * 3)),
+      helpText: 'SELECT SHOOT START DATE',
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -195,7 +235,42 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
       },
     );
     if (picked != null) {
-      setState(() => _selectedDate = picked);
+      setState(() {
+        final span = _endDate.difference(_startDate).inDays;
+        _startDate = picked;
+        if (_endDate.isBefore(_startDate)) {
+          _endDate = _startDate;
+        } else if (span > 0) {
+          _endDate = _startDate.add(Duration(days: span));
+        }
+      });
+      _checkConflicts();
+    }
+  }
+
+  Future<void> _pickEndDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate.isBefore(_startDate) ? _startDate : _endDate,
+      firstDate: _startDate,
+      lastDate: _startDate.add(const Duration(days: 365 * 2)),
+      helpText: 'SELECT SHOOT END DATE',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: context.accentColor,
+              surface: context.cardBg,
+              onSurface: context.textMain,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() => _endDate = picked);
+      _checkConflicts();
     }
   }
 
@@ -266,11 +341,18 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
 
     try {
       final startsAt = DateTime(
-        _selectedDate.year,
-        _selectedDate.month,
-        _selectedDate.day,
+        _startDate.year,
+        _startDate.month,
+        _startDate.day,
         _startTime.hour,
         _startTime.minute,
+      );
+      final endsAt = DateTime(
+        _endDate.year,
+        _endDate.month,
+        _endDate.day,
+        _endTime.hour,
+        _endTime.minute,
       );
       final formattedStartTime = _startTime.format(context);
       final formattedEndTime = _endTime.format(context);
@@ -372,6 +454,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
         latitude: lat,
         longitude: lng,
         startsAt: startsAt,
+        endsAt: endsAt,
         startTime: formattedStartTime,
         endTime: formattedEndTime,
         totalAmount: _totalAmount,
@@ -455,6 +538,116 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  Widget _buildEventCategoryDropdown(
+    BuildContext context,
+    Color accent,
+    bool isDark,
+    Color textMain,
+    Color textMuted,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF141926) : const Color(0xFFFAFBFD),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? const Color(0xFF2A3245) : const Color(0xFFE2E8F0),
+          width: 1.4,
+        ),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: ButtonTheme(
+          alignedDropdown: true,
+          child: DropdownButton<String>(
+            value: _eventTypes.contains(_eventType) ? _eventType : _eventTypes.first,
+            isExpanded: true,
+            icon: Icon(Icons.keyboard_arrow_down_rounded, color: accent, size: 22),
+            dropdownColor: isDark ? const Color(0xFF1A2035) : Colors.white,
+            style: GoogleFonts.plusJakartaSans(
+              color: textMain,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+            selectedItemBuilder: (ctx) => _eventTypes.map((type) {
+              final icon = _getCategoryIcon(type);
+              return Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: isDark ? 0.2 : 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(icon, size: 16, color: accent),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        context.tr(type),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: textMain,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+            items: _eventTypes.map((type) {
+              final icon = _getCategoryIcon(type);
+              final isSelected = _eventType == type;
+              return DropdownMenuItem<String>(
+                value: type,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? accent.withValues(alpha: 0.18)
+                            : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        icon,
+                        size: 16,
+                        color: isSelected ? accent : textMuted,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        context.tr(type),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13.5,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          color: isSelected ? accent : textMain,
+                        ),
+                      ),
+                    ),
+                    if (isSelected)
+                      Icon(Icons.check_rounded, size: 18, color: accent),
+                  ],
+                ),
+              );
+            }).toList(),
+            onChanged: (val) {
+              if (val != null) {
+                HapticFeedback.lightImpact();
+                setState(() => _eventType = val);
+              }
+            },
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -549,7 +742,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Create New Event',
+                        context.tr('Create New Event'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.plusJakartaSans(
@@ -599,7 +792,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    'Event Category',
+                    context.tr('Event Category'),
                     style: TextStyle(
                       color: textMuted,
                       fontSize: 13,
@@ -608,89 +801,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  SizedBox(
-                    height: 48,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: _eventTypes.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 8),
-                      itemBuilder: (context, index) {
-                        final type = _eventTypes[index];
-                        final selected = _eventType == type;
-                        final icon = _getCategoryIcon(type);
-
-                        return Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(999),
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              setState(() => _eventType = type);
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: selected
-                                    ? accent.withValues(
-                                        alpha: context.isDark ? 0.24 : 0.14)
-                                    : (context.isDark
-                                        ? const Color(0xFF1E293B)
-                                            .withValues(alpha: 0.6)
-                                        : const Color(0xFFF1F5F9)),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: selected
-                                      ? accent
-                                      : (context.isDark
-                                          ? const Color(0xFF334155)
-                                              .withValues(alpha: 0.6)
-                                          : const Color(0xFFE2E8F0)),
-                                  width: selected ? 1.6 : 1.0,
-                                ),
-                                boxShadow: selected
-                                    ? [
-                                        BoxShadow(
-                                          color: accent.withValues(alpha: 0.28),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    icon,
-                                    size: 16,
-                                    color: selected ? accent : textMuted,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    type,
-                                    style: TextStyle(
-                                      color: selected
-                                          ? (context.isDark
-                                              ? Colors.white
-                                              : accent)
-                                          : textMain,
-                                      fontWeight: selected
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+                  _buildEventCategoryDropdown(context, accent, isDark, textMain, textMuted),
                   if (_eventType == 'Others') ...[
                     const SizedBox(height: 10),
                     StudioTextField(
@@ -815,47 +926,104 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                       label: 'Client Phone Number *',
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
-                      validator: (val) {
-                        if (val == null || val.trim().isEmpty) {
-                          return 'Please enter client phone number';
-                        }
-                        final digitsOnly = val.replaceAll(RegExp(r'\D'), '');
-                        if (digitsOnly.length < 10) {
-                          return 'Phone number must be at least 10 digits';
-                        }
-                        return null;
-                      },
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
+                      validator: Validators.phone,
                     ),
                   ],
                   const SizedBox(height: 14),
-                  // Date & Time selection row
+                  // Shoot Schedule Header with Multi-Day Indicator
+                  Row(
+                    children: [
+                      Text(
+                        context.tr('Shoot Schedule'),
+                        style: TextStyle(
+                          color: context.textMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: context.accentColor.withValues(alpha: _durationInDays > 1 ? 0.18 : 0.09),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: context.accentColor.withValues(alpha: _durationInDays > 1 ? 0.45 : 0.22),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _durationInDays > 1 ? Icons.date_range_rounded : Icons.today_rounded,
+                              size: 13,
+                              color: context.accentColor,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              _durationInDays == 1
+                                  ? '1 Day Shoot'
+                                  : '$_durationInDays Days Shoot',
+                              style: TextStyle(
+                                color: context.accentColor,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Row 1: Start Date & End Date
                   Row(
                     children: [
                       Expanded(
                         child: _buildPickerTile(
                           context,
-                          icon: Icons.calendar_month_outlined,
-                          title: 'Date',
-                          value: DateFormat('d MMM yyyy').format(_selectedDate),
-                          onTap: _pickDate,
+                          icon: Icons.calendar_today_rounded,
+                          title: context.tr('Start Date'),
+                          value: DateFormat('d MMM yyyy').format(_startDate),
+                          onTap: _pickStartDate,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildPickerTile(
+                          context,
+                          icon: Icons.event_available_rounded,
+                          title: context.tr('End Date'),
+                          value: DateFormat('d MMM yyyy').format(_endDate),
+                          onTap: _pickEndDate,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // Row 2: Daily Start Time & Daily End Time
+                  Row(
+                    children: [
                       Expanded(
                         child: _buildPickerTile(
                           context,
                           icon: Icons.access_time_rounded,
-                          title: 'Start',
+                          title: context.tr('Start Time'),
                           value: _startTime.format(context),
                           onTap: _pickStartTime,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: _buildPickerTile(
                           context,
-                          icon: Icons.access_time_rounded,
-                          title: 'End',
+                          icon: Icons.access_time_filled_rounded,
+                          title: context.tr('End Time'),
                           value: _endTime.format(context),
                           onTap: _pickEndTime,
                         ),
@@ -1502,7 +1670,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                                   setState(() {
                                     _selectedClient = client;
                                     _clientController.text = client.name;
-                                    _phoneController.text = client.phone;
+                                    _phoneController.text = Validators.normalizePhone(client.phone);
                                   });
                                   Navigator.of(pickerContext).pop();
                                 },

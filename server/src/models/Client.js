@@ -4,7 +4,12 @@ const dataSecurity = require('../services/dataSecurity');
 const clientSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   name: { type: String, required: true, trim: true, maxlength: 160 },
-  phone: { type: String, required: true, trim: true, maxlength: 256 },
+  phone: {
+    type: String,
+    required: true,
+    trim: true,
+    match: [/^\d{10}$/, 'Phone number must be a valid 10-digit number'],
+  },
   email: { type: String, default: '', trim: true, maxlength: 256 },
   address: { type: String, default: '', trim: true, maxlength: 1000 },
   notes: { type: String, default: '', trim: true, maxlength: 2000 },

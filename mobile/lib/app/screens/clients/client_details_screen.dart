@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -18,6 +19,7 @@ import '../events/create_event_sheet.dart';
 import '../../routes/smooth_page_route.dart';
 import '../../utils/app_snackbar.dart';
 import '../../utils/launcher_utils.dart';
+import '../../utils/validators.dart';
 
 class ClientDetailsScreen extends StatelessWidget {
   const ClientDetailsScreen({
@@ -1388,6 +1390,11 @@ class ClientDetailsScreen extends StatelessWidget {
                       label: 'Phone Number *',
                       controller: phoneController,
                       keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
+                      validator: Validators.phone,
                     ),
                     const SizedBox(height: 14),
                     StudioTextField(
@@ -1411,16 +1418,16 @@ class ClientDetailsScreen extends StatelessWidget {
                       label: 'Save Profile',
                       onPressed: () {
                         final name = nameController.text.trim();
-                        final phone = phoneController.text.trim();
+                        final phone = Validators.normalizePhone(phoneController.text);
 
                         if (name.isEmpty) {
                           setSheetState(() => formError = 'Full name is required.');
                           AppSnackBar.error(sheetCtx, 'Full name is required.');
                           return;
                         }
-                        if (phone.isEmpty) {
+                        if (phone.length != 10) {
                           setSheetState(() => formError = 'Phone number is required.');
-                          AppSnackBar.error(sheetCtx, 'Phone number is required.');
+                          AppSnackBar.error(sheetCtx, 'Enter a valid 10-digit phone number.');
                           return;
                         }
 

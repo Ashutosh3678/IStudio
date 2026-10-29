@@ -156,6 +156,7 @@ class BusinessService {
     'title': event.title,
     'eventType': event.eventType,
     'startsAt': event.startsAt.toIso8601String(),
+    if (event.endsAt != null) 'endsAt': event.endsAt!.toIso8601String(),
     'startTime': event.startTime,
     'endTime': event.endTime,
     'location': event.location,
@@ -200,6 +201,9 @@ class BusinessService {
       title: json['title'] as String? ?? '',
       clientName: json['clientName'] as String? ?? '',
       eventType: json['eventType'] as String? ?? '',
+      endsAt: json['endsAt'] != null
+          ? DateTime.tryParse(json['endsAt'] as String? ?? '')
+          : null,
       startsAt:
           DateTime.tryParse(json['startsAt'] as String? ?? '') ??
           DateTime.now(),

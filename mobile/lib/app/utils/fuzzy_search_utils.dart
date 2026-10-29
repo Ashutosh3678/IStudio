@@ -116,11 +116,11 @@ class FuzzySearchUtils {
     'reception':      ['Traditional Photographer', 'Candid Photographer', 'Traditional Videographer', 'Cinematic Videographer'],
     'engagement':     ['Traditional Photographer', 'Candid Photographer', 'Traditional Videographer', 'Cinematic Videographer'],
     'pelli':          ['Traditional Photographer', 'Candid Photographer', 'Traditional Videographer', 'Cinematic Videographer'],
-    'candid':         ['Candid Photographer', 'Candid Videographer'],
-    'candids':        ['Candid Photographer', 'Candid Videographer'],
+    'candid':         ['Candid Photographer', 'Candid Videographer', 'Candid Photo Operator', 'Candid Video Operator'],
+    'candids':        ['Candid Photographer', 'Candid Videographer', 'Candid Photo Operator', 'Candid Video Operator'],
     'portrait':       ['Candid Photographer'],
     'portraits':      ['Candid Photographer'],
-    'traditional':    ['Traditional Photographer', 'Traditional Videographer'],
+    'traditional':    ['Traditional Photographer', 'Traditional Videographer', 'Traditional Photo Operator', 'Traditional Video Operator'],
     'drone':          ['Drones'],
     'drones':         ['Drones'],
     'aerial':         ['Drones'],
@@ -131,15 +131,39 @@ class FuzzySearchUtils {
     'cinematographer':['Cinematic Videographer'],
     'cinema':         ['Cinematic Videographer'],
     'film':           ['Cinematic Videographer'],
-    'reels':          ['Cinematic Videographer', 'Candid Videographer'],
-    'video':          ['Traditional Videographer', 'Cinematic Videographer', 'Videography', 'Candid Videographer'],
-    'videographer':   ['Traditional Videographer', 'Cinematic Videographer', 'Videography', 'Candid Videographer'],
-    'videography':    ['Traditional Videographer', 'Cinematic Videographer', 'Videography', 'Candid Videographer'],
-    'vidiographer':   ['Traditional Videographer', 'Cinematic Videographer', 'Videography', 'Candid Videographer'],
-    'photo':          ['Traditional Photographer', 'Candid Photographer', 'Photographer'],
-    'photographer':   ['Traditional Photographer', 'Candid Photographer', 'Photographer'],
-    'photography':    ['Traditional Photographer', 'Candid Photographer', 'Photographer'],
-    'fotographer':    ['Traditional Photographer', 'Candid Photographer', 'Photographer'],
+    'reels':          ['Reels', 'Cinematic Videographer', 'Candid Video Operator'],
+    'reel':           ['Reels'],
+    'shorts':         ['Reels'],
+    'instagram':      ['Reels'],
+    'album':          ['Album Designer'],
+    'albums':         ['Album Designer'],
+    'design':         ['Album Designer'],
+    'designer':       ['Album Designer'],
+    'designing':      ['Album Designer'],
+    'album designer': ['Album Designer'],
+    'album design':   ['Album Designer'],
+    'editor':         ['Video Editor'],
+    'editer':         ['Video Editor'],
+    'editing':        ['Video Editor'],
+    'edit':           ['Video Editor'],
+    'video editor':   ['Video Editor'],
+    'video editer':   ['Video Editor'],
+    'operator':       ['Traditional Photo Operator', 'Traditional Video Operator', 'Candid Photo Operator', 'Candid Video Operator'],
+    'operators':      ['Traditional Photo Operator', 'Traditional Video Operator', 'Candid Photo Operator', 'Candid Video Operator'],
+    'photo operator': ['Traditional Photo Operator', 'Candid Photo Operator'],
+    'video operator': ['Traditional Video Operator', 'Candid Video Operator'],
+    'traditional photo operator': ['Traditional Photo Operator', 'Traditional Photographer'],
+    'traditional video operator': ['Traditional Video Operator', 'Traditional Videographer'],
+    'candid video operator':      ['Candid Video Operator', 'Cinematic Videographer'],
+    'candid photo operator':      ['Candid Photo Operator', 'Candid Photographer'],
+    'video':          ['Traditional Videographer', 'Cinematic Videographer', 'Videography', 'Video Editor', 'Traditional Video Operator', 'Candid Video Operator'],
+    'videographer':   ['Traditional Videographer', 'Cinematic Videographer', 'Videography', 'Traditional Video Operator', 'Candid Video Operator'],
+    'videography':    ['Traditional Videographer', 'Cinematic Videographer', 'Videography', 'Traditional Video Operator', 'Candid Video Operator'],
+    'vidiographer':   ['Traditional Videographer', 'Cinematic Videographer', 'Videography', 'Traditional Video Operator', 'Candid Video Operator'],
+    'photo':          ['Traditional Photographer', 'Candid Photographer', 'Photographer', 'Traditional Photo Operator', 'Candid Photo Operator'],
+    'photographer':   ['Traditional Photographer', 'Candid Photographer', 'Photographer', 'Traditional Photo Operator', 'Candid Photo Operator'],
+    'photography':    ['Traditional Photographer', 'Candid Photographer', 'Photographer', 'Traditional Photo Operator', 'Candid Photo Operator'],
+    'fotographer':    ['Traditional Photographer', 'Candid Photographer', 'Photographer', 'Traditional Photo Operator', 'Candid Photo Operator'],
     'led':            ['LED Screens'],
     'screen':         ['LED Screens'],
     'screens':        ['LED Screens'],
@@ -233,9 +257,14 @@ class FuzzySearchUtils {
 
   static List<String> _relatedCategories(String query) {
     final norm  = normalize(query);
-    final words = norm.split(' ').where((w) => w.length >= 3).toList();
     final result = <String>{};
 
+    // Check full query phrase
+    if (categorySynonyms.containsKey(norm)) {
+      result.addAll(categorySynonyms[norm]!);
+    }
+
+    final words = norm.split(' ').where((w) => w.length >= 3).toList();
     for (final w in words) {
       // Exact key
       final exact = categorySynonyms[w];

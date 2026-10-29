@@ -531,7 +531,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen>
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '$dateStr ($dayStr) · ${event.startTime} - ${event.endTime}',
+                        event.isMultiDay
+                            ? '${event.dateRangeFormatted('d MMMM yyyy')} · ${event.startTime} - ${event.endTime}'
+                            : '$dateStr ($dayStr) · ${event.startTime} - ${event.endTime}',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

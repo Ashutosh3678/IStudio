@@ -15,6 +15,9 @@ class Validators {
     if (digits.startsWith('0') && digits.length == 11) {
       digits = digits.substring(1);
     }
+    if (digits.length > 10) {
+      digits = digits.substring(0, 10);
+    }
     return digits;
   }
 

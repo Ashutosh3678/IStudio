@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../theme/app_colors.dart';
 
@@ -218,6 +219,7 @@ class StudioEvent {
     required this.clientName,
     required this.eventType,
     required this.startsAt,
+    this.endsAt,
     this.startTime = '10:00 AM',
     this.endTime = '04:00 PM',
     required this.location,
@@ -239,6 +241,7 @@ class StudioEvent {
   final String
   eventType; // Wedding, Maternity, Commercial, Newborn, Portrait, etc.
   final DateTime startsAt;
+  final DateTime? endsAt;
   final String startTime;
   final String endTime;
   final String location;
@@ -251,6 +254,47 @@ class StudioEvent {
   final List<ExpenseRecord> expenses;
   final List<DeliverableTask> deliverables;
   final String notes;
+
+
+  /// Effective end date. If endsAt is null, falls back to startsAt (single-day event).
+  DateTime get effectiveEndsAt => endsAt ?? startsAt;
+
+  /// Duration of the event in days (inclusive: a 1-day event returns 1, 5-day returns 5).
+  int get durationInDays {
+    final start = DateTime(startsAt.year, startsAt.month, startsAt.day);
+    final end = DateTime(effectiveEndsAt.year, effectiveEndsAt.month, effectiveEndsAt.day);
+    final diff = end.difference(start).inDays;
+    return diff >= 0 ? diff + 1 : 1;
+  }
+
+  /// Whether this shoot spans more than 1 day.
+  bool get isMultiDay => durationInDays > 1;
+
+  /// Returns every distinct calendar day in the event's date range.
+  List<DateTime> get eventDays {
+    final start = DateTime(startsAt.year, startsAt.month, startsAt.day);
+    final days = <DateTime>[];
+    for (int i = 0; i < durationInDays; i++) {
+      days.add(start.add(Duration(days: i)));
+    }
+    return days;
+  }
+
+  /// Checks if [day] falls within this event's date range (inclusive).
+  bool isOccurringOn(DateTime day) {
+    final target = DateTime(day.year, day.month, day.day);
+    final start = DateTime(startsAt.year, startsAt.month, startsAt.day);
+    final end = DateTime(effectiveEndsAt.year, effectiveEndsAt.month, effectiveEndsAt.day);
+    return !target.isBefore(start) && !target.isAfter(end);
+  }
+
+  /// Formatted date range: e.g. "1 Nov 2026 - 5 Nov 2026 (5 Days)" or "1 Nov 2026".
+  String dateRangeFormatted([String format = 'd MMM yyyy']) {
+    final startStr = DateFormat(format).format(startsAt);
+    if (!isMultiDay) return startStr;
+    final endStr = DateFormat(format).format(effectiveEndsAt);
+    return '$startStr - $endStr ($durationInDays Days)';
+  }
 
   /// Amount received is calculated dynamically from payments if present,
   /// otherwise falling back to explicit amountReceived or 0.
@@ -372,13 +416,14 @@ class StudioEvent {
 
     final now = relativeTo ?? DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final eventDay = DateTime(startsAt.year, startsAt.month, startsAt.day);
+    final eventStart = DateTime(startsAt.year, startsAt.month, startsAt.day);
+    final eventEnd = DateTime(effectiveEndsAt.year, effectiveEndsAt.month, effectiveEndsAt.day);
 
-    if (eventDay.isAfter(today)) {
+    if (eventStart.isAfter(today)) {
       return 'Upcoming';
     }
 
-    if (eventDay.isAtSameMomentAs(today)) {
+    if (!today.isBefore(eventStart) && !today.isAfter(eventEnd)) {
       return 'Today';
     }
 
@@ -424,7 +469,7 @@ class StudioEvent {
 
   bool get isPast =>
       status == EventStatus.completed ||
-      startsAt.isBefore(DateTime.now().subtract(const Duration(days: 1)));
+      effectiveEndsAt.isBefore(DateTime.now().subtract(const Duration(days: 1)));
 
   StudioEvent copyWith({
     String? id,
@@ -433,6 +478,8 @@ class StudioEvent {
     String? clientName,
     String? eventType,
     DateTime? startsAt,
+    DateTime? endsAt,
+    bool clearEndsAt = false,
     String? startTime,
     String? endTime,
     String? location,
@@ -454,6 +501,7 @@ class StudioEvent {
       clientName: clientName ?? this.clientName,
       eventType: eventType ?? this.eventType,
       startsAt: startsAt ?? this.startsAt,
+      endsAt: clearEndsAt ? null : endsAt ?? this.endsAt,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
       location: location ?? this.location,
@@ -476,6 +524,7 @@ class StudioEvent {
     'clientName': clientName,
     'eventType': eventType,
     'startsAt': startsAt.toIso8601String(),
+    'endsAt': endsAt?.toIso8601String(),
     'startTime': startTime,
     'endTime': endTime,
     'location': location,
@@ -523,6 +572,7 @@ class StudioEvent {
       startsAt:
           DateTime.tryParse(json['startsAt'] as String? ?? '') ??
           DateTime.now(),
+      endsAt: json['endsAt'] != null ? DateTime.tryParse(json['endsAt'] as String? ?? '') : null,
       startTime: json['startTime'] as String? ?? '10:00 AM',
       endTime: json['endTime'] as String? ?? '04:00 PM',
       location: json['location'] as String? ?? '',

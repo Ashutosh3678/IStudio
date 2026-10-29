@@ -8,6 +8,7 @@ import '../../models/client.dart';
 import '../../models/studio_event.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/events_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/app_snackbar.dart';
@@ -54,6 +55,14 @@ class _EditEventScreenState extends State<EditEventScreen> {
 
   late String _eventType;
   late DateTime _date;
+  late DateTime _endDate;
+
+  int get _durationInDays {
+    final start = DateTime(_date.year, _date.month, _date.day);
+    final end = DateTime(_endDate.year, _endDate.month, _endDate.day);
+    final diff = end.difference(start).inDays;
+    return diff >= 0 ? diff + 1 : 1;
+  }
   late TimeOfDay _startTime;
   late TimeOfDay _endTime;
   late EventStatus _status;
@@ -88,6 +97,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
     );
 
     _date = DateTime(e.startsAt.year, e.startsAt.month, e.startsAt.day);
+    _endDate = DateTime(e.effectiveEndsAt.year, e.effectiveEndsAt.month, e.effectiveEndsAt.day);
     _startTime = _parseTime(e.startTime, const TimeOfDay(hour: 10, minute: 0));
     _endTime = _parseTime(e.endTime, const TimeOfDay(hour: 16, minute: 0));
     _status = e.status;
@@ -132,6 +142,37 @@ class _EditEventScreenState extends State<EditEventScreen> {
     );
   }
 
+  void _checkConflicts() {
+    if (!mounted) return;
+    final allEvents = context.read<EventsProvider>().events;
+    final conflicting = allEvents.where((e) {
+      if (e.id == widget.event.id) return false;
+      for (int i = 0; i < _durationInDays; i++) {
+        final day = DateTime(
+          _date.year,
+          _date.month,
+          _date.day,
+        ).add(Duration(days: i));
+        if (e.isOccurringOn(day)) return true;
+      }
+      return false;
+    }).toList();
+
+    if (conflicting.isNotEmpty && mounted) {
+      final names =
+          conflicting.take(2).map((e) => '"${e.title}"').join(' & ');
+      final extra = conflicting.length > 2
+          ? ' +${conflicting.length - 2} more'
+          : '';
+      AppSnackBar.info(
+        context,
+        '$names$extra already booked on this date. Would you like to keep another shoot on the same day?',
+        duration: const Duration(seconds: 5),
+        icon: Icons.event_busy_rounded,
+      );
+    }
+  }
+
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final first = DateTime(now.year - 5);
@@ -142,7 +183,32 @@ class _EditEventScreenState extends State<EditEventScreen> {
       lastDate: DateTime(now.year + 5),
       builder: _pickerTheme,
     );
-    if (picked != null) setState(() => _date = picked);
+    if (picked != null) {
+      setState(() {
+        final span = _endDate.difference(_date).inDays;
+        _date = picked;
+        if (_endDate.isBefore(_date)) {
+          _endDate = _date;
+        } else if (span > 0) {
+          _endDate = _date.add(Duration(days: span));
+        }
+      });
+      _checkConflicts();
+    }
+  }
+
+  Future<void> _pickEndDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate.isBefore(_date) ? _date : _endDate,
+      firstDate: _date,
+      lastDate: DateTime(_date.year + 5),
+      builder: _pickerTheme,
+    );
+    if (picked != null) {
+      setState(() => _endDate = picked);
+      _checkConflicts();
+    }
   }
 
   Future<void> _pickTime({required bool start}) async {
@@ -179,6 +245,13 @@ class _EditEventScreenState extends State<EditEventScreen> {
         _date.day,
         _startTime.hour,
         _startTime.minute,
+      ),
+      endsAt: DateTime(
+        _endDate.year,
+        _endDate.month,
+        _endDate.day,
+        _endTime.hour,
+        _endTime.minute,
       ),
       startTime: _startTime.format(context),
       endTime: _endTime.format(context),
@@ -301,10 +374,45 @@ class _EditEventScreenState extends State<EditEventScreen> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
+                        Text(
+                          context.tr('Shoot Schedule'),
+                          style: TextStyle(
+                            color: context.textMuted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: context.accentColor.withValues(alpha: _durationInDays > 1 ? 0.18 : 0.09),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: context.accentColor.withValues(alpha: _durationInDays > 1 ? 0.45 : 0.22),
+                            ),
+                          ),
+                          child: Text(
+                            _durationInDays == 1
+                                ? '1 Day Shoot'
+                                : '$_durationInDays Days Shoot',
+                            style: TextStyle(
+                              color: context.accentColor,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
                         Expanded(
                           child: _pickerTile(
-                            icon: Icons.calendar_month_outlined,
-                            title: 'Date',
+                            icon: Icons.calendar_today_rounded,
+                            title: context.tr('Start Date'),
                             value: DateFormat('d MMM yyyy').format(_date),
                             onTap: _pickDate,
                           ),
@@ -312,8 +420,21 @@ class _EditEventScreenState extends State<EditEventScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: _pickerTile(
+                            icon: Icons.event_available_rounded,
+                            title: context.tr('End Date'),
+                            value: DateFormat('d MMM yyyy').format(_endDate),
+                            onTap: _pickEndDate,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _pickerTile(
                             icon: Icons.access_time_rounded,
-                            title: 'Start',
+                            title: context.tr('Start Time'),
                             value: _startTime.format(context),
                             onTap: () => _pickTime(start: true),
                           ),
@@ -322,7 +443,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
                         Expanded(
                           child: _pickerTile(
                             icon: Icons.access_time_filled_rounded,
-                            title: 'End',
+                            title: context.tr('End Time'),
                             value: _endTime.format(context),
                             onTap: () => _pickTime(start: false),
                           ),

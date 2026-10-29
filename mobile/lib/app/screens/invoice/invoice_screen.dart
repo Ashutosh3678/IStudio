@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../providers/language_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/monthly_financial_summary_sheet.dart';
 import '../../widgets/studio_app_bar.dart';
@@ -26,10 +27,10 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
           child: Column(
             children: [
               StudioAppBar(
-                title: 'Receipt',
+                title: context.tr('Receipt'),
                 subtitle: _isCreate
-                    ? 'Make a bill'
-                    : 'All bills',
+                    ? context.tr('Make a bill')
+                    : context.tr('All bills'),
                 actions: [
                   IconButton(
                     tooltip: 'Summary',
@@ -135,12 +136,12 @@ class _InvoiceModeToggle extends StatelessWidget {
                 Row(
                   children: [
                     _Tab(
-                      label: 'New',
+                      label: context.tr('New'),
                       selected: isCreate,
                       onTap: () => onChanged(true),
                     ),
                     _Tab(
-                      label: 'Past',
+                      label: context.tr('Past'),
                       selected: !isCreate,
                       onTap: () => onChanged(false),
                     ),

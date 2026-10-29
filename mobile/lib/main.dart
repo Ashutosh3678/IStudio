@@ -8,6 +8,9 @@ import 'app/providers/auth_provider.dart';
 import 'app/providers/events_provider.dart';
 import 'app/providers/invoices_provider.dart';
 import 'app/providers/notifications_provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'app/l10n/app_localizations.dart';
+import 'app/providers/language_provider.dart';
 import 'app/providers/theme_provider.dart';
 import 'app/screens/auth/auth_screen.dart';
 import 'app/screens/onboarding/app_features_showcase_screen.dart';
@@ -71,6 +74,7 @@ class IStudioApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()..bootstrap()),
+        ChangeNotifierProvider(create: (_) => LanguageProvider()..bootstrap()),
         ChangeNotifierProvider(create: (_) => AuthProvider()..bootstrap()),
         ChangeNotifierProxyProvider<AuthProvider, EventsProvider>(
           create: (_) => EventsProvider(),
@@ -97,8 +101,8 @@ class IStudioApp extends StatelessWidget {
           },
         ),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, child) {
+      child: Consumer2<ThemeProvider, LanguageProvider>(
+        builder: (context, themeProvider, languageProvider, child) {
           return MaterialApp(
             navigatorKey: rootNavigatorKey,
             title: 'Clients Hub',
@@ -106,6 +110,14 @@ class IStudioApp extends StatelessWidget {
             theme: AppTheme.light,
             darkTheme: AppTheme.dark,
             themeMode: themeProvider.themeMode,
+            locale: languageProvider.locale,
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
             scrollBehavior: const FluidScrollBehavior(),
             home: const _AuthGate(),
           );
