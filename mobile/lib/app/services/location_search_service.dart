@@ -138,17 +138,80 @@ class LocationSearchService {
   }
 
   /// Geocodes a location text into coordinates.
+  /// If the full query with commas fails, automatically tries candidate sub-queries
+  /// (e.g. stripping pillar/flat/plot numbers, trying venue + locality + city).
   Future<PlaceLocation?> geocodeLocation(
     String query, {
     double? latitude,
     double? longitude,
   }) async {
+    final clean = query.trim();
+    if (clean.isEmpty) return null;
+
     final results = await searchPlaces(
-      query,
+      clean,
       latitude: latitude,
       longitude: longitude,
     );
     if (results.isNotEmpty) return results.first;
+
+    // Fallback: If full address failed, try candidate sub-parts (e.g. Venue, Locality, City)
+    final parts = clean
+        .split(',')
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (parts.length > 1) {
+      // Filter out room / pillar / flat / floor / plot / h.no prefixes
+      final meaningfulParts = parts.where((p) {
+        final lower = p.toLowerCase();
+        return !lower.startsWith('pillar') &&
+            !lower.startsWith('flat') &&
+            !lower.startsWith('plot') &&
+            !lower.startsWith('h.no') &&
+            !lower.startsWith('d.no') &&
+            !lower.startsWith('door') &&
+            !lower.startsWith('beside') &&
+            !lower.startsWith('opposite') &&
+            !lower.startsWith('near') &&
+            !lower.startsWith('room');
+      }).toList();
+
+      if (meaningfulParts.isNotEmpty && meaningfulParts.length != parts.length) {
+        final subResults = await searchPlaces(
+          meaningfulParts.join(', '),
+          latitude: latitude,
+          longitude: longitude,
+        );
+        if (subResults.isNotEmpty) return subResults.first;
+      }
+
+      // Try venue name + last 2 parts (usually locality + city)
+      if (meaningfulParts.length >= 3) {
+        final venueAndCity = [
+          meaningfulParts.first,
+          meaningfulParts[meaningfulParts.length - 2],
+          meaningfulParts.last,
+        ].join(', ');
+        final subResults = await searchPlaces(
+          venueAndCity,
+          latitude: latitude,
+          longitude: longitude,
+        );
+        if (subResults.isNotEmpty) return subResults.first;
+      }
+
+      // Try just venue name
+      if (meaningfulParts.isNotEmpty) {
+        final subResults = await searchPlaces(
+          meaningfulParts.first,
+          latitude: latitude,
+          longitude: longitude,
+        );
+        if (subResults.isNotEmpty) return subResults.first;
+      }
+    }
+
     return null;
   }
 }

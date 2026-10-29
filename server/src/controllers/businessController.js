@@ -3,6 +3,7 @@ const path = require('path');
 const repository = require('../repositories/businessRepository');
 const { uploadToCloudinary } = require('../config/cloudinary');
 const logger = require('../config/logger');
+const { geocodeAddress } = require('../utils/geocoding');
 
 function validationError(req, res) {
   const { validationResult } = require('express-validator');
@@ -71,6 +72,18 @@ async function createEvent(req, res) {
   body.startsAt = dateValue(body.startsAt);
   if (!body.startsAt) return res.status(400).json({ success: false, message: 'Enter a valid event date.' });
   if (body.endsAt) body.endsAt = dateValue(body.endsAt);
+
+  // Auto-geocode fallback: if coords missing or invalid, resolve from location
+  if ((body.latitude === undefined || body.latitude === null || isNaN(Number(body.latitude))) && body.location) {
+    try {
+      const geo = await geocodeAddress(body.location);
+      if (geo) {
+        body.latitude = geo.lat;
+        body.longitude = geo.lng;
+      }
+    } catch { /* non-critical */ }
+  }
+
   const event = await repository.createEvent(req.userId, body);
   if (!event) return res.status(404).json({ success: false, message: 'Client not found.' });
   return res.status(201).json({ success: true, event });
@@ -85,6 +98,21 @@ async function updateEvent(req, res) {
   if (body.endsAt !== undefined && body.endsAt !== null) {
     body.endsAt = dateValue(body.endsAt);
   }
+
+  // Auto-geocode fallback: if location provided but coords missing or null, resolve from location
+  if (body.location !== undefined) {
+    const coordsProvided = body.latitude !== undefined && body.latitude !== null && !isNaN(Number(body.latitude));
+    if (!coordsProvided && body.location) {
+      try {
+        const geo = await geocodeAddress(body.location);
+        if (geo) {
+          body.latitude = geo.lat;
+          body.longitude = geo.lng;
+        }
+      } catch { /* non-critical */ }
+    }
+  }
+
   const event = await repository.updateEvent(req.params.id, req.userId, body);
   if (!event) return res.status(404).json({ success: false, message: 'Event not found.' });
 

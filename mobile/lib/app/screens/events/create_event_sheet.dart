@@ -1519,7 +1519,7 @@ class _CreateEventSheetState extends State<CreateEventSheet> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'GPS: ${_eventLatitude!.toStringAsFixed(4)}°, ${_eventLongitude!.toStringAsFixed(4)}° • Auto-synced for nearby photographer calculations',
+                      'Location linked • Auto-synced for nearby photographer calculations',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 10.5,
                         color: context.textMuted,

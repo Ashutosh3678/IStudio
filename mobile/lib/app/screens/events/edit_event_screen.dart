@@ -21,6 +21,7 @@ import '../../providers/events_provider.dart';
 import '../../providers/language_provider.dart';
 
 import '../../services/api_service.dart';
+import '../../services/location_search_service.dart';
 
 import '../../theme/app_colors.dart';
 
@@ -495,6 +496,37 @@ class _EditEventScreenState extends State<EditEventScreen> {
         ? _customTypeController.text.trim()
 
         : _eventType;
+    final locText = _locationController.text.trim();
+    final formattedStartTime = _startTime.format(context);
+    final formattedEndTime = _endTime.format(context);
+    final studio = context.read<AuthProvider?>()?.user;
+    final eventsProvider = context.read<EventsProvider>();
+    double? lat = _eventLatitude;
+    double? lng = _eventLongitude;
+    final locationChanged = locText != widget.event.location.trim();
+
+    // Auto-geocode fallback: ensure accurate coordinates on save
+    if ((lat == null || lng == null || locationChanged) && locText.isNotEmpty) {
+      try {
+        final geocoded = await LocationSearchService().geocodeLocation(
+          locText,
+          latitude: studio?.latitude,
+          longitude: studio?.longitude,
+        );
+        if (geocoded != null) {
+          lat = geocoded.latitude;
+          lng = geocoded.longitude;
+          _eventLatitude = lat;
+          _eventLongitude = lng;
+        } else if (locationChanged) {
+          lat = null;
+          lng = null;
+          _eventLatitude = null;
+          _eventLongitude = null;
+        }
+      } catch (_) {}
+    }
+
 
 
 
@@ -536,19 +568,17 @@ class _EditEventScreenState extends State<EditEventScreen> {
 
       ),
 
-      startTime: _startTime.format(context),
+      startTime: formattedStartTime,
 
-      endTime: _endTime.format(context),
+      endTime: formattedEndTime,
 
-      location: _locationController.text.trim(),
+      location: locText.isEmpty ? 'Studio / On Location' : locText,
 
-      latitude: _eventLatitude,
+      latitude: lat,
 
-      longitude: _eventLongitude,
+      longitude: lng,
 
-      clearLocationCoordinates:
-
-          _eventLatitude == null || _eventLongitude == null,
+      clearLocationCoordinates: lat == null || lng == null,
 
       totalAmount: double.parse(_amountController.text.trim()),
 
@@ -566,7 +596,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
 
     try {
 
-      await context.read<EventsProvider>().updateEvent(updated);
+      await eventsProvider.updateEvent(updated);
 
       if (!mounted) return;
       // ignore: use_build_context_synchronously
@@ -2131,7 +2161,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
 
                     child: Text(
 
-                      'GPS: ${_eventLatitude!.toStringAsFixed(4)}°, ${_eventLongitude!.toStringAsFixed(4)}° • Auto-synced for nearby photographer calculations',
+                      'Location linked • Auto-synced for nearby photographer calculations',
 
                       style: GoogleFonts.plusJakartaSans(
 
