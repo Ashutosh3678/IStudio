@@ -296,17 +296,6 @@ class CreateInvoiceFormState extends State<CreateInvoiceForm> {
             validator: Validators.phone,
           ),
           const SizedBox(height: 14),
-          StudioTextField(
-            label: 'Address',
-            hint: 'Studio, venue, or billing address',
-            controller: _addressController,
-            maxLines: 3,
-            textInputAction: TextInputAction.newline,
-            validator: (value) => (value == null || value.trim().isEmpty)
-                ? 'Enter a billing address'
-                : null,
-          ),
-          const SizedBox(height: 14),
           Text(
             'Due date',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(

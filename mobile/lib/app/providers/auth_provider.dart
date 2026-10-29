@@ -30,6 +30,7 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isBootstrapping = true;
   bool _hasSeenFeatureTour = true;
+  bool _hasVerifiedGoogleMaps = false;
 
   User? get user => _user;
   String? get token => _token;
@@ -38,6 +39,9 @@ class AuthProvider extends ChangeNotifier {
   bool get isBootstrapping => _isBootstrapping;
   bool get isLoggedIn => _user != null && _token != null;
   bool get hasSeenFeatureTour => _hasSeenFeatureTour;
+  bool get hasVerifiedGoogleMaps => _hasVerifiedGoogleMaps;
+  bool get needsLocationUpdate =>
+      isLoggedIn && (!_hasVerifiedGoogleMaps || !_user!.hasVerifiedLocation);
 
   Future<void> completeFeatureTour() async {
     _hasSeenFeatureTour = true;
@@ -49,10 +53,11 @@ class AuthProvider extends ChangeNotifier {
   }
 
   @visibleForTesting
-  void setUserForTesting(User user, [String token = 'test_token', bool hasSeenTour = true]) {
+  void setUserForTesting(User user, [String token = 'test_token', bool hasSeenTour = true, bool hasVerifiedGoogleMaps = true]) {
     _user = user;
     _token = token;
     _hasSeenFeatureTour = hasSeenTour;
+    _hasVerifiedGoogleMaps = hasVerifiedGoogleMaps;
     _isBootstrapping = false;
     notifyListeners();
   }
@@ -83,6 +88,7 @@ class AuthProvider extends ChangeNotifier {
             }
           }
           _hasSeenFeatureTour = prefs.getBool('has_seen_features_tour_${_user!.id}') ?? true;
+          _hasVerifiedGoogleMaps = prefs.getBool('has_verified_google_maps_${_user!.id}') ?? false;
         }
       }
 
@@ -94,6 +100,7 @@ class AuthProvider extends ChangeNotifier {
         try {
           final freshUser = await _authService.me(storedToken);
           _user = freshUser;
+          _hasVerifiedGoogleMaps = prefs.getBool('has_verified_google_maps_${freshUser.id}') ?? false;
           await _vault.writeUser(freshUser);
           if (freshUser.logoUrl.isNotEmpty) {
             await _vault.writeStudioLogo(freshUser.id, freshUser.logoUrl);
@@ -325,6 +332,11 @@ class AuthProvider extends ChangeNotifier {
         if (fields.containsKey('logoUrl')) {
           final newLogo = fields['logoUrl'] as String? ?? '';
           await _vault.writeStudioLogo(_user!.id, newLogo);
+        }
+        if (fields.containsKey('latitude') && fields['latitude'] != null && fields['latitude'] != 0.0) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('has_verified_google_maps_${_user!.id}', true);
+          _hasVerifiedGoogleMaps = true;
         }
       }
       return true;
@@ -734,6 +746,7 @@ class AuthProvider extends ChangeNotifier {
     _token = null;
     _user = null;
     _hasSeenFeatureTour = false;
+    _hasVerifiedGoogleMaps = false;
   }
 
   bool _isTokenExpired(String token) {

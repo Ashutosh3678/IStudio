@@ -92,8 +92,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           : (user?.city.isNotEmpty == true ? user!.city : ''),
     );
     _selectedCategories = List<String>.from(user?.categories ?? []);
-    _studioLatitude = user?.latitude;
-    _studioLongitude = user?.longitude;
+    final auth = context.read<AuthProvider>();
+    final hasVerifiedMaps = auth.hasVerifiedGoogleMaps;
+    if (hasVerifiedMaps && user?.hasVerifiedLocation == true) {
+      _studioLatitude = user?.latitude;
+      _studioLongitude = user?.longitude;
+    } else {
+      _studioLatitude = null;
+      _studioLongitude = null;
+      _address.text = '';
+      _locationSearch.text = '';
+    }
   }
 
   @override
@@ -137,8 +146,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ? user.address
         : (user.city.isNotEmpty ? user.city : '');
     _selectedCategories = List<String>.from(user.categories);
-    _studioLatitude = user.latitude;
-    _studioLongitude = user.longitude;
+    final auth = context.read<AuthProvider>();
+    final hasVerifiedMaps = auth.hasVerifiedGoogleMaps;
+    if (hasVerifiedMaps && user.hasVerifiedLocation) {
+      _studioLatitude = user.latitude;
+      _studioLongitude = user.longitude;
+    } else {
+      _studioLatitude = null;
+      _studioLongitude = null;
+      _address.text = '';
+      _locationSearch.text = '';
+    }
     _isUsernameAvailable = null;
     _usernameErrorText = null;
   }
@@ -441,6 +459,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     if (!(_formKey.currentState?.validate() ?? false)) {
       AppSnackBar.error(context, 'Please fix the highlighted fields.');
+      return;
+    }
+    if (_studioLatitude == null ||
+        _studioLongitude == null ||
+        _studioLatitude == 0.0 ||
+        _studioLongitude == 0.0 ||
+        _address.text.trim().isEmpty) {
+      HapticFeedback.heavyImpact();
+      AppSnackBar.error(
+        context,
+        'Studio location via Google Maps is mandatory. Please link your studio location.',
+      );
       return;
     }
     final auth = context.read<AuthProvider>();
@@ -2039,9 +2069,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (_district.text.trim().isEmpty && result.district != null) {
                   _district.text = result.district!;
                 }
-                // Auto-fill address if empty
-                if (_address.text.trim().isEmpty) {
+                // Auto-fill address — always overwrite with full address from Google Maps result
+                if (result.displayName.isNotEmpty) {
                   _address.text = result.displayName;
+                  final lower = result.displayName.toLowerCase();
+                  if (_city.text.trim().isEmpty) {
+                    if (lower.contains('hyderabad')) _city.text = 'Hyderabad';
+                    if (lower.contains('secunderabad')) _city.text = 'Secunderabad';
+                    if (lower.contains('warangal')) _city.text = 'Warangal';
+                  }
+                  if (_state.text.trim().isEmpty) {
+                    if (lower.contains('telangana')) _state.text = 'Telangana';
+                    if (lower.contains('andhra pradesh')) _state.text = 'Andhra Pradesh';
+                  }
+                  if (_district.text.trim().isEmpty) {
+                    if (lower.contains('hyderabad')) _district.text = 'Hyderabad';
+                  }
                 }
               });
             },
@@ -2054,10 +2097,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 14),
           StudioTextField(
-            label: 'Address',
-            hint: 'Street, floor, landmark',
+            label: 'Address (from Google Maps)',
+            hint: 'Link your location above to fill address',
             controller: _address,
+            readOnly: true,
+            maxLines: 2,
             prefixIcon: Icons.place_outlined,
+            suffixIcon: const Icon(Icons.lock_outline_rounded, size: 16),
+            helperText: 'Auto-filled from Google Maps location link',
+            validator: (v) => (v == null || v.trim().isEmpty)
+                ? 'Please link your studio location using Google Maps above'
+                : null,
           ),
           const SizedBox(height: 14),
           StudioTextField(

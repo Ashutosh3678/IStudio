@@ -57,7 +57,19 @@ class User {
   bool get isGoogleUser => googleId.isNotEmpty;
 
   /// Socials (instagram, youtube, website) and the logo are optional.
-  bool get isProfileIncomplete => [
+  /// Whether the user has an exact verified studio location via Google Maps.
+  bool get hasVerifiedLocation =>
+      latitude != null &&
+      longitude != null &&
+      latitude != 0.0 &&
+      longitude != 0.0 &&
+      address.trim().isNotEmpty;
+
+  /// Socials (instagram, youtube, website) and the logo are optional.
+  /// Studio Location is mandatory for all users (new and existing).
+  bool get isProfileIncomplete =>
+      !hasVerifiedLocation ||
+      [
         studioName,
         ownerName,
         phone,

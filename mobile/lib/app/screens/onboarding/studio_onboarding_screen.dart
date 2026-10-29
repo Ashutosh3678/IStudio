@@ -52,7 +52,9 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
   @override
   void initState() {
     super.initState();
-    final user = context.read<AuthProvider>().user;
+    final auth = context.read<AuthProvider>();
+    final user = auth.user;
+    final hasVerifiedMaps = auth.hasVerifiedGoogleMaps;
     _studioName = TextEditingController(text: user?.studioName ?? '');
     _ownerName = TextEditingController(text: user?.ownerName ?? '');
     _username = TextEditingController(text: user?.username ?? '');
@@ -61,20 +63,24 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
     _city = TextEditingController(text: user?.city ?? '');
     _state = TextEditingController(text: user?.state ?? '');
     _district = TextEditingController(text: user?.district ?? '');
-    _address = TextEditingController(text: user?.address ?? '');
     _specialties = TextEditingController(text: user?.specialties ?? '');
     _about = TextEditingController(text: user?.about ?? '');
     _instagram = TextEditingController(text: user?.instagram ?? '');
     _youtube = TextEditingController(text: user?.youtube ?? '');
     _website = TextEditingController(text: user?.website ?? '');
-    _locationSearch = TextEditingController(
-      text: user?.address.isNotEmpty == true
-          ? user!.address
-          : (user?.city.isNotEmpty == true ? user!.city : ''),
-    );
     _selectedCategories = List<String>.from(user?.categories ?? []);
-    _studioLatitude = user?.latitude;
-    _studioLongitude = user?.longitude;
+
+    if (hasVerifiedMaps && user?.hasVerifiedLocation == true) {
+      _address = TextEditingController(text: user?.address ?? '');
+      _locationSearch = TextEditingController(text: user?.address ?? '');
+      _studioLatitude = user?.latitude;
+      _studioLongitude = user?.longitude;
+    } else {
+      _address = TextEditingController(text: '');
+      _locationSearch = TextEditingController(text: '');
+      _studioLatitude = null;
+      _studioLongitude = null;
+    }
   }
 
   @override
@@ -176,6 +182,18 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
     if (!(_formKey.currentState?.validate() ?? false)) {
       HapticFeedback.heavyImpact();
       AppSnackBar.error(context, 'Please fix the highlighted fields.');
+      return;
+    }
+    if (_studioLatitude == null ||
+        _studioLongitude == null ||
+        _studioLatitude == 0.0 ||
+        _studioLongitude == 0.0 ||
+        _address.text.trim().isEmpty) {
+      HapticFeedback.heavyImpact();
+      AppSnackBar.error(
+        context,
+        'Studio location via Google Maps is mandatory. Please link your studio location to proceed.',
+      );
       return;
     }
     final auth = context.read<AuthProvider>();
@@ -419,8 +437,21 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
                               if (result.district != null && result.district!.isNotEmpty) {
                                 _district.text = result.district!;
                               }
-                              if (_address.text.trim().isEmpty) {
+                              if (result.displayName.isNotEmpty) {
                                 _address.text = result.displayName;
+                                final lower = result.displayName.toLowerCase();
+                                if (_city.text.trim().isEmpty) {
+                                  if (lower.contains('hyderabad')) _city.text = 'Hyderabad';
+                                  if (lower.contains('secunderabad')) _city.text = 'Secunderabad';
+                                  if (lower.contains('warangal')) _city.text = 'Warangal';
+                                }
+                                if (_state.text.trim().isEmpty) {
+                                  if (lower.contains('telangana')) _state.text = 'Telangana';
+                                  if (lower.contains('andhra pradesh')) _state.text = 'Andhra Pradesh';
+                                }
+                                if (_district.text.trim().isEmpty) {
+                                  if (lower.contains('hyderabad')) _district.text = 'Hyderabad';
+                                }
                               }
                             });
                           },
@@ -436,12 +467,17 @@ class _StudioOnboardingScreenState extends State<StudioOnboardingScreen> {
                         const SizedBox(height: 14),
                         StudioTextField(
                           label: 'Studio address *',
-                          hint: 'Street, floor, landmark',
+                          hint: 'Link your studio location above to fill address',
                           controller: _address,
+                          readOnly: true,
                           prefixIcon: Icons.place_outlined,
+                          suffixIcon: const Icon(Icons.lock_outline_rounded, size: 16),
+                          helperText: 'Auto-filled from Google Maps location link',
                           maxLines: 2,
-                          validator: (v) =>
-                              _required(v, 'Enter your studio address'),
+                          validator: (v) => _required(
+                            v,
+                            'Studio address is required. Please link your Google Maps location above',
+                          ),
                         ),
                       ],
                     ),

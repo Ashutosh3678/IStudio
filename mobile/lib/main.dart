@@ -174,7 +174,7 @@ class _AuthGate extends StatelessWidget {
           ? const AuthScreen(key: ValueKey('auth'))
           : !auth.hasSeenFeatureTour
               ? const AppFeaturesShowcaseScreen(key: ValueKey('features_tour'))
-              : auth.user!.isProfileIncomplete
+              : (auth.user!.isProfileIncomplete || auth.needsLocationUpdate)
                   ? const StudioOnboardingScreen(key: ValueKey('onboarding'))
                   : const AppShell(key: ValueKey('home')),
     );
