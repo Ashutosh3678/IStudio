@@ -14,10 +14,7 @@ import 'add_past_records_sheet.dart';
 import 'studio_card.dart';
 
 class MonthlyFinancialSummarySheet extends StatefulWidget {
-  const MonthlyFinancialSummarySheet({
-    super.key,
-    this.initialMonth,
-  });
+  const MonthlyFinancialSummarySheet({super.key, this.initialMonth});
 
   final DateTime? initialMonth;
 
@@ -39,8 +36,11 @@ class _MonthlyFinancialSummarySheetState
     extends State<MonthlyFinancialSummarySheet> {
   late DateTime _selectedMonth;
 
-  static final _currency =
-      NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+  static final _currency = NumberFormat.currency(
+    locale: 'en_IN',
+    symbol: '₹',
+    decimalDigits: 0,
+  );
 
   @override
   void initState() {
@@ -93,8 +93,7 @@ class _MonthlyFinancialSummarySheetState
       return e.startsAt.year == _selectedMonth.year &&
           e.startsAt.month == _selectedMonth.month &&
           e.status != EventStatus.cancelled;
-    }).toList()
-      ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+    }).toList()..sort((a, b) => a.startsAt.compareTo(b.startsAt));
 
     // Core financial calculations based on formula:
     // Total Income = sum of event amounts for events in that month
@@ -104,19 +103,22 @@ class _MonthlyFinancialSummarySheetState
     // A manually entered monthly summary (past records) is added on top.
     final summary = eventsProvider.summaryFor(_selectedMonth);
     final totalEvents = monthEvents.length + (summary?.shootCount ?? 0);
-    final totalIncome = monthEvents.fold(0.0, (acc, e) => acc + e.totalAmount) +
+    final totalIncome =
+        monthEvents.fold(0.0, (acc, e) => acc + e.totalAmount) +
         (summary?.totalBooked ?? 0);
     final totalReceived =
         monthEvents.fold(0.0, (acc, e) => acc + e.amountReceived) +
-            (summary?.totalBooked ?? 0);
+        (summary?.totalBooked ?? 0);
     final totalExpenditure =
         monthEvents.fold(0.0, (acc, e) => acc + e.totalExpenses) +
-            (summary?.totalExpenses ?? 0);
+        (summary?.totalExpenses ?? 0);
     final amountLeft = totalReceived - totalExpenditure;
+    final totalDue = (totalIncome - totalReceived).clamp(0.0, double.infinity);
 
     final netPositive = amountLeft >= 0;
-    final netColor =
-        netPositive ? const Color(0xFF10B981) : AppColors.urgencyCritical(context);
+    final netColor = netPositive
+        ? const Color(0xFF10B981)
+        : AppColors.urgencyCritical(context);
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -175,17 +177,18 @@ class _MonthlyFinancialSummarySheetState
                             'Income, collections & expenses',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: textMuted,
-                              fontSize: 12,
-                            ),
+                            style: TextStyle(color: textMuted, fontSize: 12),
                           ),
                         ],
                       ),
                     ),
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: Icon(Icons.close_rounded, color: textMuted, size: 22),
+                      icon: Icon(
+                        Icons.close_rounded,
+                        color: textMuted,
+                        size: 22,
+                      ),
                       tooltip: 'Close',
                     ),
                   ],
@@ -197,7 +200,10 @@ class _MonthlyFinancialSummarySheetState
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: context.innerBg,
                     borderRadius: BorderRadius.circular(16),
@@ -216,12 +222,17 @@ class _MonthlyFinancialSummarySheetState
                         onTap: _pickMonth,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.calendar_month_rounded,
-                                  color: accent, size: 18),
+                              Icon(
+                                Icons.calendar_month_rounded,
+                                color: accent,
+                                size: 18,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 DateFormat('MMMM yyyy').format(_selectedMonth),
@@ -237,7 +248,10 @@ class _MonthlyFinancialSummarySheetState
                       ),
                       IconButton(
                         tooltip: 'Next Month',
-                        icon: Icon(Icons.chevron_right_rounded, color: textMain),
+                        icon: Icon(
+                          Icons.chevron_right_rounded,
+                          color: textMain,
+                        ),
                         onPressed: _nextMonth,
                       ),
                     ],
@@ -265,10 +279,7 @@ class _MonthlyFinancialSummarySheetState
                                 end: Alignment.bottomRight,
                               )
                             : LinearGradient(
-                                colors: [
-                                  Colors.white,
-                                  context.innerBg,
-                                ],
+                                colors: [Colors.white, context.innerBg],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               ),
@@ -293,7 +304,9 @@ class _MonthlyFinancialSummarySheetState
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 4),
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: accent.withValues(alpha: 0.14),
                                   borderRadius: BorderRadius.circular(999),
@@ -342,22 +355,35 @@ class _MonthlyFinancialSummarySheetState
                               Expanded(
                                 child: _buildStatTile(
                                   context,
-                                  label: 'Expenses',
-                                  value: _currency.format(totalExpenditure),
-                                  valueColor: AppColors.urgencyWarning(context),
+                                  label: 'Total Dues',
+                                  value: _currency.format(totalDue),
+                                  valueColor: totalDue > 0
+                                      ? const Color(0xFFF59E0B)
+                                      : textMuted,
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _buildStatTile(
                                   context,
-                                  label: 'Profit (Net)',
-                                  value: _currency.format(amountLeft),
-                                  valueColor: netColor,
-                                  isBold: true,
+                                  label: 'Expenses',
+                                  value: _currency.format(totalExpenditure),
+                                  valueColor: AppColors.urgencyWarning(context),
                                 ),
                               ),
                             ],
+                          ),
+                          const SizedBox(height: 12),
+                          _buildStatTile(
+                            context,
+                            label: 'Profit (Net)',
+                            value: _currency.format(amountLeft),
+                            valueColor: netColor,
+                            isBold: true,
+                            isFullWidth: true,
+                            icon: netPositive
+                                ? Icons.trending_up_rounded
+                                : Icons.trending_down_rounded,
                           ),
                         ],
                       ),
@@ -367,18 +393,25 @@ class _MonthlyFinancialSummarySheetState
                     // Add Past Records
                     InkWell(
                       borderRadius: BorderRadius.circular(16),
-                      onTap: () =>
-                          AddPastRecordsSheet.show(context, month: _selectedMonth),
+                      onTap: () => AddPastRecordsSheet.show(
+                        context,
+                        month: _selectedMonth,
+                      ),
                       child: Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: accent.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: accent.withValues(alpha: 0.45)),
+                          border: Border.all(
+                            color: accent.withValues(alpha: 0.45),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.add_circle_outline_rounded, color: accent),
+                            Icon(
+                              Icons.add_circle_outline_rounded,
+                              color: accent,
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
@@ -396,7 +429,9 @@ class _MonthlyFinancialSummarySheetState
                                   Text(
                                     'Add past events or enter monthly summary',
                                     style: TextStyle(
-                                        color: textMuted, fontSize: 11.5),
+                                      color: textMuted,
+                                      fontSize: 11.5,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -422,7 +457,9 @@ class _MonthlyFinancialSummarySheetState
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 3),
+                            horizontal: 10,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: context.innerBg,
                             borderRadius: BorderRadius.circular(999),
@@ -465,15 +502,20 @@ class _MonthlyFinancialSummarySheetState
                                   Text(
                                     '${summary.shootCount} shoots • Booked ${_currency.format(summary.totalBooked)} • Expenses ${_currency.format(summary.totalExpenses)}',
                                     style: TextStyle(
-                                        color: textMuted, fontSize: 12),
+                                      color: textMuted,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                             IconButton(
                               tooltip: 'Edit',
-                              icon: Icon(Icons.edit_outlined,
-                                  color: textMuted, size: 20),
+                              icon: Icon(
+                                Icons.edit_outlined,
+                                color: textMuted,
+                                size: 20,
+                              ),
                               onPressed: () => AddMonthlySummarySheet.show(
                                 context,
                                 initialMonth: _selectedMonth,
@@ -481,8 +523,11 @@ class _MonthlyFinancialSummarySheetState
                             ),
                             IconButton(
                               tooltip: 'Delete',
-                              icon: Icon(Icons.delete_outline_rounded,
-                                  color: textMuted, size: 20),
+                              icon: Icon(
+                                Icons.delete_outline_rounded,
+                                color: textMuted,
+                                size: 20,
+                              ),
                               onPressed: () => eventsProvider
                                   .deleteMonthlySummary(summary.id),
                             ),
@@ -546,7 +591,50 @@ class _MonthlyFinancialSummarySheetState
     required String value,
     required Color valueColor,
     bool isBold = false,
+    bool isFullWidth = false,
+    IconData? icon,
   }) {
+    if (isFullWidth) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: valueColor.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: valueColor.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 16, color: valueColor),
+                  const SizedBox(width: 8),
+                ],
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: context.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            Text(
+              value,
+              style: TextStyle(
+                color: valueColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -635,10 +723,7 @@ class _MonthlyFinancialSummarySheetState
             '${event.clientName} · ${event.eventType}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: textMuted,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: textMuted, fontSize: 12),
           ),
           const SizedBox(height: 10),
 

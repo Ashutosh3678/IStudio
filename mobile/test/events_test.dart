@@ -475,6 +475,7 @@ void main() {
         expect(find.text('August 2026'), findsOneWidget);
         expect(find.text('Total Booked'), findsOneWidget);
         expect(find.text('Received'), findsOneWidget);
+        expect(find.text('Total Dues'), findsOneWidget);
         expect(find.text('Expenses'), findsOneWidget);
         expect(find.text('Profit (Net)'), findsOneWidget);
 
