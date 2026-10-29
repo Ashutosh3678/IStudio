@@ -20,6 +20,7 @@ const eventSchema = new mongoose.Schema({
   totalAmount: { type: Number, required: true, min: 0 },
   paymentTotal: { type: Number, default: 0, min: 0 },
   notes: { type: String, default: '', trim: true, maxlength: 2000 },
+  receiptItems: { type: [String], default: [] },
 }, { timestamps: true });
 
 eventSchema.index({ userId: 1, clientId: 1 });

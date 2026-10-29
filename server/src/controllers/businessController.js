@@ -24,7 +24,7 @@ function fields(body, names) {
 }
 
 const clientFields = ['name', 'phone', 'email', 'address', 'notes', 'status'];
-const eventFields = ['clientId', 'title', 'eventType', 'startsAt', 'endsAt', 'startTime', 'endTime', 'location', 'status', 'totalAmount', 'notes', 'latitude', 'longitude'];
+const eventFields = ['clientId', 'title', 'eventType', 'startsAt', 'endsAt', 'startTime', 'endTime', 'location', 'status', 'totalAmount', 'notes', 'latitude', 'longitude', 'receiptItems'];
 const paymentFields = ['title', 'amount', 'paidAt', 'method', 'reference', 'proofUrl'];
 const expenseFields = ['title', 'amount', 'category', 'incurredAt'];
 const deliverableFields = ['stage', 'title', 'isCompleted', 'completedAt'];
@@ -289,10 +289,10 @@ async function autoGenerateInvoice(req, res) {
     const user = await userRepo.findById(req.userId);
     const userPhone = user && user.phone ? user.phone : '9999999999';
 
-    const eventDeliverables = await repository.listDeliverables(event._id, req.userId);
-    const deliverables = (eventDeliverables && eventDeliverables.length > 0)
-      ? eventDeliverables.map((d) => ({ name: d.title, cost: Math.max(1, Math.round(event.totalAmount / eventDeliverables.length)) }))
-      : [{ name: `${event.title} (${event.eventType})`, cost: event.totalAmount || 1 }];
+    const receiptItems = (event.receiptItems && event.receiptItems.length > 0) ? event.receiptItems : null;
+    const deliverables = receiptItems
+      ? receiptItems.map((name, index) => ({ name, cost: index === 0 ? (event.totalAmount || 0) : 0 }))
+      : [{ name: `${event.title} (${event.eventType})`, cost: event.totalAmount || 0 }];
 
     const created = await invoiceRepo.createInvoice({
       userId: req.userId,

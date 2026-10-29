@@ -21,6 +21,7 @@ const createRules = [
   body('latitude').optional({ nullable: true }).isFloat(),
   body('longitude').optional({ nullable: true }).isFloat(),
   body('notes').optional().trim().isLength({ max: 2000 }),
+  body('receiptItems').optional().isArray(),
 ];
 const updateRules = [
   body('title').optional().trim().isLength({ min: 1, max: 200 }),
@@ -36,6 +37,7 @@ const updateRules = [
   body('totalAmount').optional().isFloat({ min: 0 }),
   body('clientId').optional().isMongoId(),
   body('notes').optional().trim().isLength({ max: 2000 }),
+  body('receiptItems').optional().isArray(),
 ];
 
 router.get('/', controller.listEvents);
