@@ -9,6 +9,8 @@ import '../providers/events_provider.dart';
 import '../screens/events/event_details_screen.dart';
 import '../routes/smooth_page_route.dart';
 import '../theme/app_colors.dart';
+import '../screens/records/add_monthly_summary_sheet.dart';
+import 'add_past_records_sheet.dart';
 import 'studio_card.dart';
 
 class MonthlyFinancialSummarySheet extends StatefulWidget {
@@ -99,12 +101,17 @@ class _MonthlyFinancialSummarySheetState
     // Total Received = sum of payments received for those events
     // Total Expenditure = sum of expenses recorded for those events
     // Amount Left = Total Received - Total Expenditure
-    final totalEvents = monthEvents.length;
-    final totalIncome = monthEvents.fold(0.0, (acc, e) => acc + e.totalAmount);
+    // A manually entered monthly summary (past records) is added on top.
+    final summary = eventsProvider.summaryFor(_selectedMonth);
+    final totalEvents = monthEvents.length + (summary?.shootCount ?? 0);
+    final totalIncome = monthEvents.fold(0.0, (acc, e) => acc + e.totalAmount) +
+        (summary?.totalBooked ?? 0);
     final totalReceived =
-        monthEvents.fold(0.0, (acc, e) => acc + e.amountReceived);
+        monthEvents.fold(0.0, (acc, e) => acc + e.amountReceived) +
+            (summary?.totalBooked ?? 0);
     final totalExpenditure =
-        monthEvents.fold(0.0, (acc, e) => acc + e.totalExpenses);
+        monthEvents.fold(0.0, (acc, e) => acc + e.totalExpenses) +
+            (summary?.totalExpenses ?? 0);
     final amountLeft = totalReceived - totalExpenditure;
 
     final netPositive = amountLeft >= 0;
@@ -355,6 +362,50 @@ class _MonthlyFinancialSummarySheetState
                         ],
                       ),
                     ),
+                    const SizedBox(height: 14),
+
+                    // Add Past Records
+                    InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () =>
+                          AddPastRecordsSheet.show(context, month: _selectedMonth),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: accent.withValues(alpha: 0.45)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.add_circle_outline_rounded, color: accent),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Add Past Records',
+                                    style: TextStyle(
+                                      color: textMain,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Add past events or enter monthly summary',
+                                    style: TextStyle(
+                                        color: textMuted, fontSize: 11.5),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.chevron_right_rounded, color: textMuted),
+                          ],
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 20),
 
                     // Event Breakdown Header
@@ -378,7 +429,7 @@ class _MonthlyFinancialSummarySheetState
                             border: Border.all(color: context.cardBorder),
                           ),
                           child: Text(
-                            '${monthEvents.length} Items',
+                            '${monthEvents.length + (summary != null ? 1 : 0)} Items',
                             style: TextStyle(
                               color: textMuted,
                               fontSize: 11,
@@ -390,8 +441,59 @@ class _MonthlyFinancialSummarySheetState
                     ),
                     const SizedBox(height: 12),
 
+                    if (summary != null) ...[
+                      StudioCard(
+                        borderRadius: 20,
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: [
+                            Icon(Icons.bar_chart_rounded, color: accent),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Manual monthly summary',
+                                    style: TextStyle(
+                                      color: textMain,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${summary.shootCount} shoots • Booked ${_currency.format(summary.totalBooked)} • Expenses ${_currency.format(summary.totalExpenses)}',
+                                    style: TextStyle(
+                                        color: textMuted, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Edit',
+                              icon: Icon(Icons.edit_outlined,
+                                  color: textMuted, size: 20),
+                              onPressed: () => AddMonthlySummarySheet.show(
+                                context,
+                                initialMonth: _selectedMonth,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Delete',
+                              icon: Icon(Icons.delete_outline_rounded,
+                                  color: textMuted, size: 20),
+                              onPressed: () => eventsProvider
+                                  .deleteMonthlySummary(summary.id),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+
                     // Event List or Empty State
-                    if (monthEvents.isEmpty)
+                    if (monthEvents.isEmpty && summary == null)
                       StudioCard(
                         borderRadius: 20,
                         padding: const EdgeInsets.all(24),
@@ -417,7 +519,7 @@ class _MonthlyFinancialSummarySheetState
                           ),
                         ),
                       )
-                    else
+                    else if (monthEvents.isNotEmpty)
                       ListView.separated(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),

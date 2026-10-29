@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/client.dart';
+import '../models/monthly_summary.dart';
 import '../models/studio_event.dart';
 import '../services/business_service.dart';
 import 'auth_provider.dart';
@@ -20,6 +21,48 @@ class EventsProvider extends ChangeNotifier {
 
   List<Client> get clients => List.unmodifiable(_clients);
   List<StudioEvent> get events => List.unmodifiable(_events);
+
+  final List<MonthlySummary> _monthlySummaries = [];
+  List<MonthlySummary> get monthlySummaries =>
+      List.unmodifiable(_monthlySummaries);
+
+  MonthlySummary? summaryFor(DateTime month) {
+    for (final s in _monthlySummaries) {
+      if (s.isFor(month)) return s;
+    }
+    return null;
+  }
+
+  Future<MonthlySummary> saveMonthlySummary(MonthlySummary summary) async {
+    final existing = summaryFor(DateTime(summary.year, summary.month));
+    MonthlySummary saved = summary;
+    if (_token != null) {
+      saved = existing != null
+          ? await _service.updateMonthlySummary(
+              _token!,
+              MonthlySummary(
+                id: existing.id,
+                year: summary.year,
+                month: summary.month,
+                shootCount: summary.shootCount,
+                totalBooked: summary.totalBooked,
+                totalExpenses: summary.totalExpenses,
+                notes: summary.notes,
+              ),
+            )
+          : await _service.createMonthlySummary(_token!, summary);
+    }
+    _monthlySummaries.removeWhere((s) => s.isFor(DateTime(saved.year, saved.month)));
+    _monthlySummaries.add(saved);
+    notifyListeners();
+    return saved;
+  }
+
+  Future<void> deleteMonthlySummary(String id) async {
+    if (_token != null) await _service.deleteMonthlySummary(_token!, id);
+    _monthlySummaries.removeWhere((s) => s.id == id);
+    notifyListeners();
+  }
   bool get isLoading => _loading;
   bool _hasLoaded = false;
 
@@ -41,6 +84,7 @@ class EventsProvider extends ChangeNotifier {
     _hasLoaded = false;
     _clients.clear();
     _events.clear();
+    _monthlySummaries.clear();
     _loading = userId != null;
     notifyListeners();
     if (userId != null && token != null) _loadFromServer(token);
@@ -305,6 +349,50 @@ class EventsProvider extends ChangeNotifier {
         }
         for (final task in event.deliverables) {
           await _service.createDeliverable(_token!, created.id, task);
+        }
+        final refreshed = (await _service.listEvents(
+          _token!,
+        )).firstWhere((item) => item.id == created.id, orElse: () => created);
+        _events[_events.indexWhere((item) => item.id == created.id)] =
+            refreshed;
+        notifyListeners();
+      } catch (_) {
+        try {
+          await _service.deleteEvent(_token!, created.id);
+        } catch (_) {}
+        _events.removeWhere((item) => item.id == created.id);
+        notifyListeners();
+        rethrow;
+      }
+    } finally {
+      _creatingEvent = false;
+    }
+  }
+
+  /// Saves a historical (already completed) shoot with its payments and
+  /// expenses. No deliverables and no auto-generated receipt invoices.
+  Future<void> addPastEvent(StudioEvent event) async {
+    if (_creatingEvent) return;
+    _creatingEvent = true;
+    try {
+      if (_token == null) {
+        _events.insert(0, event);
+        notifyListeners();
+        return;
+      }
+      final created = await _service.createEvent(_token!, event);
+      _events.insert(0, created);
+      try {
+        for (final payment in event.payments) {
+          await _service.addPayment(
+            _token!,
+            created.id,
+            payment,
+            skipReceipt: true,
+          );
+        }
+        for (final expense in event.expenses) {
+          await _service.addExpense(_token!, created.id, expense);
         }
         final refreshed = (await _service.listEvents(
           _token!,
@@ -683,6 +771,13 @@ class EventsProvider extends ChangeNotifier {
       if (token != _token) return;
       _clients.addAll(clients);
       _events.addAll(events);
+      try {
+        _monthlySummaries
+          ..clear()
+          ..addAll(await _service.listMonthlySummaries(token));
+      } catch (_) {
+        // Summaries are optional; do not fail the main load.
+      }
       _hasLoaded = true;
     } catch (_) {
       _clients.clear();

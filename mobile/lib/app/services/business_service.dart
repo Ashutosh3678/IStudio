@@ -1,4 +1,5 @@
 import '../models/client.dart';
+import '../models/monthly_summary.dart';
 import '../models/studio_event.dart';
 import 'api_service.dart';
 
@@ -61,11 +62,15 @@ class BusinessService {
   Future<PaymentRecord> addPayment(
     String token,
     String eventId,
-    PaymentRecord payment,
-  ) async {
+    PaymentRecord payment, {
+    bool skipReceipt = false,
+  }) async {
     final payload = await _api.post(
       '/events/$eventId/payments',
-      _paymentPayload(payment),
+      {
+        ..._paymentPayload(payment),
+        if (skipReceipt) 'skipReceipt': true,
+      },
       token: token,
       idempotencyKey: payment.id,
     );
@@ -146,6 +151,39 @@ class BusinessService {
 
   Future<void> deleteDeliverable(String token, String id) async {
     await _api.delete('/deliverables/$id', token: token);
+  }
+
+  Future<List<MonthlySummary>> listMonthlySummaries(String token) async {
+    final payload = await _api.get('/monthly-summaries', token: token);
+    return _list(payload['summaries']).map(MonthlySummary.fromJson).toList();
+  }
+
+  Future<MonthlySummary> createMonthlySummary(
+    String token,
+    MonthlySummary summary,
+  ) async {
+    final payload = await _api.post(
+      '/monthly-summaries',
+      summary.toJson(),
+      token: token,
+    );
+    return MonthlySummary.fromJson(_map(payload['summary']));
+  }
+
+  Future<MonthlySummary> updateMonthlySummary(
+    String token,
+    MonthlySummary summary,
+  ) async {
+    final payload = await _api.put(
+      '/monthly-summaries/${summary.id}',
+      summary.toJson(),
+      token: token,
+    );
+    return MonthlySummary.fromJson(_map(payload['summary']));
+  }
+
+  Future<void> deleteMonthlySummary(String token, String id) async {
+    await _api.delete('/monthly-summaries/$id', token: token);
   }
 
   static final _mongoId = RegExp(r'^[a-fA-F0-9]{24}$');

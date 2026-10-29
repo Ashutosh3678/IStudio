@@ -136,7 +136,8 @@ function nestedCreate(kind, fieldsList, req, res) {
     const singular = kind.toLowerCase();
 
     let generatedInvoice = null;
-    if (kind === 'Payment') {
+    const skipReceipt = req.body && (req.body.skipReceipt === true || req.body.skipReceipt === 'true');
+    if (kind === 'Payment' && !skipReceipt) {
       try {
         const paymentIdStr = item._id ? item._id.toString() : null;
         const invoiceRepo = require('../repositories/invoiceRepository');
