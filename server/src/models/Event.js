@@ -6,6 +6,7 @@ const eventSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true, maxlength: 200 },
   eventType: { type: String, required: true, trim: true, maxlength: 80 },
   startsAt: { type: Date, required: true, index: true },
+  endsAt: { type: Date, default: null, index: true },
   startTime: { type: String, default: '10:00 AM', trim: true, maxlength: 30 },
   endTime: { type: String, default: '04:00 PM', trim: true, maxlength: 30 },
   location: { type: String, required: true, trim: true, maxlength: 240 },
@@ -23,5 +24,6 @@ const eventSchema = new mongoose.Schema({
 
 eventSchema.index({ userId: 1, clientId: 1 });
 eventSchema.index({ userId: 1, startsAt: 1 });
+eventSchema.index({ userId: 1, endsAt: 1 });
 
 module.exports = mongoose.model('Event', eventSchema);

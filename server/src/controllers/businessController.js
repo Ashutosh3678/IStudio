@@ -24,7 +24,7 @@ function fields(body, names) {
 }
 
 const clientFields = ['name', 'phone', 'email', 'address', 'notes', 'status'];
-const eventFields = ['clientId', 'title', 'eventType', 'startsAt', 'startTime', 'endTime', 'location', 'status', 'totalAmount', 'notes', 'latitude', 'longitude'];
+const eventFields = ['clientId', 'title', 'eventType', 'startsAt', 'endsAt', 'startTime', 'endTime', 'location', 'status', 'totalAmount', 'notes', 'latitude', 'longitude'];
 const paymentFields = ['title', 'amount', 'paidAt', 'method', 'reference', 'proofUrl'];
 const expenseFields = ['title', 'amount', 'category', 'incurredAt'];
 const deliverableFields = ['stage', 'title', 'isCompleted', 'completedAt'];
@@ -70,6 +70,7 @@ async function createEvent(req, res) {
   const body = fields(req.body, eventFields);
   body.startsAt = dateValue(body.startsAt);
   if (!body.startsAt) return res.status(400).json({ success: false, message: 'Enter a valid event date.' });
+  if (body.endsAt) body.endsAt = dateValue(body.endsAt);
   const event = await repository.createEvent(req.userId, body);
   if (!event) return res.status(404).json({ success: false, message: 'Client not found.' });
   return res.status(201).json({ success: true, event });
@@ -80,6 +81,9 @@ async function updateEvent(req, res) {
   if (body.startsAt !== undefined) {
     body.startsAt = dateValue(body.startsAt);
     if (!body.startsAt) return res.status(400).json({ success: false, message: 'Enter a valid event date.' });
+  }
+  if (body.endsAt !== undefined && body.endsAt !== null) {
+    body.endsAt = dateValue(body.endsAt);
   }
   const event = await repository.updateEvent(req.params.id, req.userId, body);
   if (!event) return res.status(404).json({ success: false, message: 'Event not found.' });
